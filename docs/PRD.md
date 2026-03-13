@@ -111,9 +111,14 @@ public fun insert_or_update_metadata_pair(self: &mut Blob, key: String, value: S
 public fun remove_metadata_pair(self: &mut Blob, key: &String): (String, String)
 ```
 
-The `Metadata` dynamic field is the only blob-level metadata visible on Sui (blob content stays fully off-chain). It is the mechanism by which the archive tags its manifest blobs for indexer identification.
+The `Metadata` dynamic field is the only blob-level metadata visible on Sui (blob content stays fully off-chain).
 
-For the manifest blob, we set: `archive-app: walrus-ai-policy-archive`, `bundle-id: <sha256>`, `title`, `topics`, `institution`, `published-date`, `content-type: application/json` (see §10.2 for full schema).
+**Important limitation**: Blob Metadata is **mutable by the blob owner** at any time via `insert_or_update_metadata_pair()`. This means content fields stored in Metadata (title, topics, etc.) can be silently changed after submission. For this reason, the archive uses Blob Metadata strictly as a **beacon** — only two fields are set:
+
+- `archive-app: walrus-ai-policy-archive` — tells the indexer "this is an archive blob"
+- `bundle-id: <sha256>` — integrity cross-check against the immutable manifest
+
+All content metadata (title, topics, authors, versioning, etc.) lives in the **manifest blob** on Walrus, which is immutable (content-addressed). The indexer fetches the manifest blob after beacon detection to extract the real data. See §10 for details.
 
 ### 5.5 Storage Epochs and Funding
 
@@ -248,7 +253,8 @@ type ArtifactBundle = {
   tags: string[];
   license: string;            // SPDX identifier or custom
   version: string;
-  revisionOf?: string;        // bundleId of the prior version (see §6.4)
+  revisionOf?: string;        // bundleId of the direct predecessor (see §6.4)
+  originalBundleId?: string;  // bundleId of the first version — groups all revisions together
   relatedBundles: string[];   // bundleIds of related (non-revision) work
 }
 
@@ -272,15 +278,26 @@ type Author = {
 
 ### 6.2 Manifest Format
 
-The manifest is a deterministically serialized JSON file stored as a regular Walrus blob. The bundle ID is derived from it. All blob IDs it references must be certified on Walrus before the manifest is submitted.
+The manifest is a deterministically serialized JSON file stored as a regular Walrus blob. It is the **single source of truth** for all bundle metadata — title, authors, topics, versioning, file references. The bundle ID is derived from it. All blob IDs it references must be certified on Walrus before the manifest is submitted.
 
 The manifest references a **quilt blob ID** for the artifact files. Individual file paths and their intra-quilt identifiers are enumerated in the `files` array.
 
 ```json
 {
   "walrus_archive_manifest_version": "1",
-  "title": "...",
-  "authors": [...],
+  "title": "AI Safety Governance Framework Analysis",
+  "abstract": "...",
+  "authors": [
+    { "name": "Jane Doe", "orcid": "0000-0001-2345-6789", "affiliation": "Stanford HAI" }
+  ],
+  "institution": "Stanford HAI",
+  "published_date": "2026-01-15",
+  "topics": ["ai_safety", "governance_frameworks"],
+  "license": "CC-BY-4.0",
+  "tags": ["EU AI Act", "risk assessment"],
+  "version": "1",
+  "revision_of": null,
+  "original_bundle_id": null,
   "quilt_blob_id": "<base64url>",
   "files": [
     {
@@ -288,19 +305,18 @@ The manifest references a **quilt blob ID** for the artifact files. Individual f
       "quilt_identifier": "report.pdf",
       "size_bytes": 1048576,
       "mime_type": "application/pdf",
-      "role": "primary"
+      "role": "primary",
+      "description": "Main research report"
     },
     {
       "path": "data/survey_responses.csv",
       "quilt_identifier": "data/survey_responses.csv",
       "size_bytes": 204800,
       "mime_type": "text/csv",
-      "role": "dataset"
+      "role": "dataset",
+      "description": "Raw survey data"
     }
-  ],
-  "topics": ["ai_safety", "governance_frameworks"],
-  "published_date": "2026-01-15",
-  "license": "CC-BY-4.0"
+  ]
 }
 ```
 
@@ -324,22 +340,34 @@ Controlled vocabulary for topic classification:
 
 Bundles are immutable — blob content is content-addressed and cannot change. A revision is a **new bundle** that explicitly links to the prior version.
 
-**Mechanism**: The manifest keeps `relatedBundles` for non-revision relationships, while a `revision_of` field identifies the direct predecessor in a version chain:
+**Mechanism**: Two manifest fields work together to enable version chains:
+
+| Field | Points to | Purpose |
+|---|---|---|
+| `revision_of` | direct predecessor's `bundleId` | version ordering (v3 → v2) |
+| `original_bundle_id` | the very first version's `bundleId` | groups all versions together |
 
 ```json
 {
   "walrus_archive_manifest_version": "1",
-  "version": "2",
-  "revision_of": "<bundleId_of_v1>",
+  "version": "3",
+  "revision_of": "<bundleId_of_v2>",
+  "original_bundle_id": "<bundleId_of_v1>",
   "title": "...",
   ...
 }
 ```
 
+For v1 bundles, both `revision_of` and `original_bundle_id` are `null` (or equal to the bundle's own `bundleId`).
+
+**Why `original_bundle_id`**: Without it, finding all versions requires walking the `revision_of` chain recursively. With it, one query (`WHERE original_bundle_id = <v1>`) returns the complete version history. If a middle version is missing from the index, the grouping still works.
+
+**Version chain integrity**: These fields live in the **immutable manifest blob**, not in mutable Blob Metadata. The indexer validates version chains by checking that the `Blob` object owner (Sui object ownership — not spoofable) matches across versions. If a revision claims `original_bundle_id` pointing to a bundle owned by a different wallet, the indexer rejects the version link and indexes it as a standalone bundle.
+
 **Rules:**
 - Each revision is a fully self-contained bundle with its own `bundleId`, `manifestBlobId`, and quilt
 - The submitter uploads the complete artifact set again (even unchanged files deduplicate via content-addressing — same blob ID, no extra storage cost)
-- The indexed metadata row and GraphQL bundle summary include `revisionOf`, enabling the SPA to display version chains without fetching every manifest first
+- The indexed metadata row and GraphQL bundle summary include `revisionOf` and `originalBundleId`, enabling the SPA to display version chains without fetching every manifest first
 - On the bundle detail page, the UI links to prior and subsequent versions when they exist
 - No bundle is ever deleted or overwritten — all versions remain independently accessible
 
@@ -349,7 +377,19 @@ This directly addresses the "version ambiguity" problem: every version is a dist
 
 **The core problem**: Sui has no index on dynamic field content or arbitrary object fields. Sui RPC only supports filtering by object **type** and **owner**. Client-side index JSON blobs do not scale reliably and create update-race and freshness problems.
 
-**Solution**: A custom Rust indexer built on `sui-indexer-alt-framework` subscribes to Sui checkpoint data, inspects Walrus `Blob` objects and their `Metadata` dynamic fields, filters for manifest blobs tagged with `archive-app = "walrus-ai-policy-archive"`, extracts discovery-critical metadata, and writes it to PostgreSQL. A GraphQL API server reads from Postgres and serves the SPA.
+**Solution**: A custom Rust indexer built on `sui-indexer-alt-framework` subscribes to Sui checkpoint data, inspects Walrus `Blob` objects and their `Metadata` dynamic fields, and filters for manifest blobs tagged with `archive-app = "walrus-ai-policy-archive"`. Upon finding an archive blob, the indexer **fetches the manifest blob from a Walrus aggregator**, verifies `SHA-256(manifest_bytes) == bundle-id`, parses the manifest JSON, and writes the extracted metadata to PostgreSQL. A GraphQL API server reads from Postgres and serves the SPA.
+
+**Indexer data extraction flow:**
+
+1. Sui checkpoint stream → find `Blob` with `archive-app = walrus-ai-policy-archive` in Metadata
+2. Read `bundle-id` from Metadata
+3. Fetch manifest blob from Walrus aggregator using the Blob's `blob_id`
+4. Verify `SHA-256(manifest_bytes) == bundle-id` (integrity check)
+5. Parse manifest JSON → extract `title`, `topics`, `institution`, `revision_of`, `original_bundle_id`, etc.
+6. Validate version chain ownership (if `original_bundle_id` is present, check Blob owner matches)
+7. Write to Postgres
+
+This ensures the indexer's data comes from the **immutable manifest blob**, not from the mutable Blob Metadata. Even if the blob owner modifies Metadata fields after submission, the indexed data remains correct.
 
 **Discovery flow:**
 
@@ -368,6 +408,46 @@ This directly addresses the "version ambiguity" problem: every version is a dist
 
 ## 7. System Architecture
 
+### 7.1 Artifact Bundle Structure
+
+A bundle consists of two Walrus blobs and one Sui on-chain record:
+
+```
+Walrus Storage (immutable, content-addressed)
+├── Quilt blob (one blob containing all artifact files)
+│   ├── report.pdf              ← retrievable via quiltPatchId
+│   ├── data/survey.csv         ← retrievable via quiltPatchId
+│   └── code/analysis.py        ← retrievable via quiltPatchId
+│
+└── Manifest blob (standalone JSON blob — single source of truth)
+    {
+      "title": "...",
+      "authors": [...],
+      "topics": [...],
+      "version": "1",
+      "revision_of": null,
+      "original_bundle_id": null,
+      "quilt_blob_id": "<the quilt above>",
+      "files": [
+        { "path": "report.pdf", "quilt_patch_id": "abc...", "role": "primary" },
+        { "path": "data/survey.csv", "quilt_patch_id": "def...", "role": "dataset" }
+      ]
+    }
+
+Sui Blockchain (on-chain record)
+└── Blob object (for the manifest blob)
+    ├── blob_id     → content-addressed pointer to manifest on Walrus
+    ├── owner       → submitter's wallet address
+    ├── end_epoch   → storage expiry
+    └── Metadata (beacon only, mutable by owner):
+          archive-app: "walrus-ai-policy-archive"
+          bundle-id: "<sha256 of manifest bytes>"
+```
+
+The manifest blob content is **immutable** (changing any byte produces a different blob ID). Sui Blob Metadata is **mutable** by the owner, so it is used only as a beacon for indexer discovery — never as a source of truth for content fields.
+
+### 7.2 System Topology
+
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                     User (Browser)                        │
@@ -377,7 +457,7 @@ This directly addresses the "version ambiguity" problem: every version is a dist
 │  └──────┬───────┘  └──────┬───────┘                       │
 └─────────┼─────────────────┼───────────────────────────────┘
           │ GraphQL          │ Walrus TS SDK +
-          │ queries          │ Sui PTB (Metadata)
+          │ queries          │ Sui PTB (beacon Metadata)
    ┌──────▼──────┐    ┌──────▼──────┐    ┌──────────────┐
    │  GraphQL    │    │  Walrus     │    │  Sui         │
    │  API Server │    │  Storage    │    │  Fullnode    │
@@ -388,36 +468,24 @@ This directly addresses the "version ambiguity" problem: every version is a dist
    │ PostgreSQL  │           │                  │
    └──────▲──────┘           │                  │
           │                  │                  │
-   ┌──────┴──────┐           │                  │
-   │  Custom     │           │                  │
-   │  Indexer    │◄──────────┼──────────────────┘
+   ┌──────┴──────┐     fetch manifest           │
+   │  Custom     │◄─────────┤                   │
+   │  Indexer    │◄─────────┼───────────────────┘
    │  (Rust)     │     checkpoint stream
-   └─────────────┘           │
-                    ┌────────▼────────┐
-                    │  Walrus Storage  │
-                    │  Network         │
-                    └────────┬────────┘
-                             │ certify blobs
-                    ┌────────▼────────┐
-                    │  Sui Blockchain  │
-                    │  - Blob objects   │
-                    │    with Metadata  │
-                    │    dynamic fields │
-                    │  - Payments       │
-                    └──────────────────┘
+   └─────────────┘
 ```
 
 **Components:**
 
-- **Walrus Blob Metadata**: Walrus's built-in `Metadata` dynamic field on `Blob` objects. No custom Move contract. The submitter calls `blob.insert_or_update_metadata_pair()` to tag the manifest blob with `archive-app: walrus-ai-policy-archive` and other metadata fields.
-- **Custom Rust indexer**: Built on `sui-indexer-alt-framework`. Subscribes to Sui checkpoint stream, filters for `Blob` objects whose `Metadata` dynamic field contains `archive-app = "walrus-ai-policy-archive"`, extracts metadata, writes to PostgreSQL.
+- **Walrus Blob Metadata (beacon)**: The submitter sets two fields on the manifest `Blob` object: `archive-app` (indexer filter) and `bundle-id` (integrity check). No content fields are stored in Metadata because it is mutable by the owner.
+- **Custom Rust indexer**: Subscribes to Sui checkpoint stream, finds blobs with `archive-app` beacon, **fetches the manifest blob from Walrus**, verifies integrity, parses the immutable manifest JSON, and writes extracted metadata to PostgreSQL.
 - **GraphQL API server**: Reads from PostgreSQL. Serves paginated, filtered, searchable bundle queries to the SPA.
-- **Frontend SPA**: Walrus Site. Queries GraphQL for discovery, uses the Walrus TypeScript SDK for uploads, and sets Blob Metadata via Sui PTB for registration.
+- **Frontend SPA**: Walrus Site. Queries GraphQL for discovery, uses the Walrus TypeScript SDK for uploads, and sets beacon Metadata via Sui PTB for registration.
 
-### 7.1 Component Responsibilities
+### 7.3 Component Responsibilities
 
-- **Write path**: Browser → Walrus TS SDK (upload files as quilt + manifest blob) → Sui PTB (set Metadata on manifest Blob) → Indexer picks up Blob + Metadata from checkpoint stream → Postgres
-- **Read path**: Browser → GraphQL API → Postgres (metadata) → Walrus Aggregator (manifest blob + file downloads)
+- **Write path**: Browser → Walrus TS SDK (upload files as quilt + manifest blob) → Sui PTB (set beacon Metadata: `archive-app` + `bundle-id`) → Indexer detects beacon in checkpoint stream → fetches manifest from Walrus → parses → writes to Postgres
+- **Read path**: Browser → GraphQL API → Postgres (indexed metadata from manifest) → Walrus Aggregator (manifest blob + file downloads)
 - No wallet required for browsing/reading — wallet only needed for submission
 
 ---
@@ -459,11 +527,13 @@ Step 4: Review & Submit
       client.walrus.writeFiles({ files: [manifestFile], epochs: 52 })
   → Receive manifestBlobId + Sui Blob object ID
   → Build PTB that calls walrus::blob::insert_or_update_metadata_pair()
-    on the manifest Blob object for each metadata key-value pair:
-      archive-app, archive-version, bundle-id, title, topics,
-      institution, published-date, revision-of?, content-type (see §10.2)
+    on the manifest Blob object for beacon fields only:
+      archive-app = "walrus-ai-policy-archive"
+      bundle-id = "<sha256_hex>"
+    (all content metadata lives in the immutable manifest blob — see §10.2)
   → User signs the PTB via wallet
-  → The indexer detects the Blob's Metadata at the next checkpoint
+  → The indexer detects the beacon in the next checkpoint,
+    fetches the manifest blob from Walrus, and indexes it
   → Bundle becomes discoverable via GraphQL within seconds
 
 Step 5: Confirmation
@@ -533,6 +603,7 @@ query BundleList(
       publishedDate
       submittedAt
       revisionOf
+      originalBundleId
       endEpoch
     }
     totalCount
@@ -550,6 +621,7 @@ query BundleDetail($bundleId: String!) {
     publishedDate
     submittedAt
     revisionOf
+    originalBundleId
     endEpoch
     certifiedEpoch
     submitter
@@ -582,46 +654,44 @@ The full manifest (file listing, authors, abstract) is fetched from the Walrus a
 
 ---
 
-## 10. On-Chain Submission Records (Blob Metadata)
+## 10. On-Chain Records (Blob Metadata as Beacon)
 
-No custom Sui Move contract is deployed. The archive uses Walrus's built-in **Blob Metadata** — a `VecMap<String, String>` dynamic field that the Walrus contract natively supports on every `Blob` object via public functions.
+No custom Sui Move contract is deployed. The archive uses Walrus's built-in **Blob Metadata** as a **beacon** — a minimal signal that tells the indexer which blobs belong to this archive.
 
 ### 10.1 Why No Custom Contract
 
-The Walrus `Blob` struct exposes `insert_or_update_metadata_pair(key, value)` as a **public Move function**. This adds a `Metadata` dynamic field (type `walrus::metadata::Metadata`) to the `Blob` object. Any application can call this to attach structured key-value metadata without deploying its own contract.
+The Walrus `Blob` struct exposes `insert_or_update_metadata_pair(key, value)` as a **public Move function**. This adds a `Metadata` dynamic field (type `walrus::metadata::Metadata`) to the `Blob` object. Any application can call this to attach key-value tags without deploying its own contract.
 
 This means:
-- The Sui `Blob` object IS the submission proof — immutable, timestamped, owned by the submitter
-- Metadata key-value pairs store application-specific fields directly on the Blob — no separate registry needed
+- The Sui `Blob` object IS the submission proof — timestamped, owned by the submitter
 - No Move code to write, audit, or deploy
-- The `Metadata` dynamic field has a known, stable type (`0x2::dynamic_field::Field<vector<u8>, walrus::metadata::Metadata>`) that the indexer can filter on
+- The `Metadata` dynamic field has a known, stable type that the indexer can filter on
 
-### 10.2 Manifest Blob Metadata Schema
+### 10.2 Beacon Metadata Schema (Minimal)
 
-When a manifest blob is uploaded, the submitter attaches these metadata pairs to its Sui `Blob` object. This duplicates the discovery-critical subset of manifest fields on-chain so the indexer can power browse/search/filter/version-chain queries without fetching every manifest blob.
+When a manifest blob is uploaded, the submitter attaches **only two** metadata pairs to its Sui `Blob` object:
 
 | Key | Value | Purpose |
 |---|---|---|
-| `archive-app` | `"walrus-ai-policy-archive"` | **Application tag** — the indexer uses this key's presence to identify archive blobs |
-| `archive-version` | `"1"` | Schema version for forward compatibility |
-| `bundle-id` | `"<sha256_hex>"` | Deterministic ID derived from manifest content |
-| `title` | `"..."` | Bundle title for on-chain discoverability |
-| `topics` | `"ai_safety,governance_frameworks"` | Comma-separated topic list |
-| `institution` | `"..."` | Submitting institution |
-| `published-date` | `"2026-01-15"` | Original publication date |
-| `revision-of` | `"<prior_bundle_id>"` | Optional direct predecessor for revision chains |
-| `content-type` | `"application/json"` | Standard content-type |
+| `archive-app` | `"walrus-ai-policy-archive"` | **Beacon** — the indexer uses this to identify archive blobs among millions of Walrus blobs |
+| `bundle-id` | `"<sha256_hex>"` | **Integrity check** — indexer verifies `SHA-256(manifest_bytes) == bundle-id` |
 
-These are set client-side by building a PTB that calls `walrus::blob::insert_or_update_metadata_pair` on the manifest `Blob` object for each key-value pair. The user signs this transaction via their wallet.
+**Why only two fields?** Blob Metadata is **mutable by the blob owner** at any time. If content fields (title, topics, etc.) were stored here, the owner could silently alter them after submission. By keeping Metadata minimal, the mutable surface is limited to:
+- Removing `archive-app` → bundle disappears from the index (acceptable — owner should control their own visibility)
+- Changing `bundle-id` → indexer's integrity check fails → bundle is flagged or skipped
 
-### 10.3 How the Indexer Identifies Archive Blobs
+All content metadata is extracted from the **immutable manifest blob** on Walrus, which the indexer fetches after beacon detection.
 
-The custom indexer (§6.5) processes Sui checkpoint data and inspects every `Blob` object's dynamic fields. It filters by:
+### 10.3 How the Indexer Identifies and Processes Archive Blobs
 
-1. **Dynamic field type match**: The object's dynamic field must be of type `walrus::metadata::Metadata` (the Walrus-native metadata type)
-2. **Application key match**: The metadata must contain `archive-app = "walrus-ai-policy-archive"`
+1. **Beacon detection**: The indexer processes Sui checkpoint data, filters for `Blob` objects with a `Metadata` dynamic field containing `archive-app = "walrus-ai-policy-archive"`
+2. **Manifest fetch**: For matched blobs, the indexer fetches the manifest blob from a Walrus aggregator using the Blob's `blob_id`
+3. **Integrity verification**: Compute `SHA-256(manifest_bytes)` and verify it matches the `bundle-id` in Metadata
+4. **Data extraction**: Parse the manifest JSON and extract all fields (title, topics, authors, versioning, file references)
+5. **Version chain validation**: If `original_bundle_id` is present, verify the Blob object owner matches the original bundle's owner
+6. **Write to Postgres**: Commit extracted metadata atomically
 
-Only blobs matching both conditions are indexed. This prevents the indexer from processing unrelated Walrus blobs while requiring zero custom Move code.
+Only blobs matching the beacon are processed. This prevents the indexer from fetching unrelated Walrus blobs while ensuring all indexed data comes from immutable sources.
 
 ### 10.4 Blob Lifecycle Tracking
 
@@ -734,7 +804,9 @@ The SPA displays per-bundle:
 
 **Manifest tampering**: The bundle ID is the hash of the manifest. Any mutation of the manifest produces a different bundle ID, detectable by the verifier.
 
-**On-chain immutability**: Walrus `Blob` objects on Sui are owned by the submitter. Blob attributes (once set) are visible on-chain. The submitter can update attributes on their own `Blob` object, but cannot alter the blob content itself (content-addressed by blob ID). A changed attribute is detectable because Sui tracks object versions.
+**Mutable Blob Metadata**: Walrus `Blob` Metadata is mutable by the blob owner. To prevent post-submission tampering, the archive stores only beacon fields (`archive-app`, `bundle-id`) in Metadata. All content metadata is extracted from the immutable manifest blob. The owner can remove `archive-app` (de-listing their bundle) or change `bundle-id` (causing the integrity check to fail), but cannot alter the indexed content because it comes from the content-addressed manifest.
+
+**Version chain spoofing**: A malicious actor could create a bundle with `original_bundle_id` pointing to someone else's bundle, faking a version relationship. The indexer prevents this by verifying Sui `Blob` object ownership across version chains — only bundles owned by the same wallet are linked. Ownership is enforced by Sui, not self-reported metadata.
 
 **Storage expiry risk**: If storage epochs run out, nodes may delete shards. Mitigation: purchase maximum 52 epochs (~2 years) upfront; surface epoch countdown in the UI; emit warnings when a bundle's storage is within 4 epochs (~8 weeks) of expiry. The Sui `Blob` object's `storage.end_epoch` field provides expiry information directly.
 

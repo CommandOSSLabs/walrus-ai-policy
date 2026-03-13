@@ -10,10 +10,11 @@ This document covers architecture, component design, data flows, state managemen
 ## 1. Architectural Principles
 
 1. **Storage-first**: Walrus is the system of record. The indexer and GraphQL API are derived views. If they disappear, every artifact is still retrievable by blob ID from any Walrus aggregator.
-2. **No custom contract**: Walrus's built-in `Blob` Metadata dynamic field provides application-level tagging. The archive avoids deploying Move code by calling Walrus's public `insert_or_update_metadata_pair()` function.
-3. **Deterministic identity**: A bundle's identity is the SHA-256 of its canonical manifest JSON. Content-addressed end-to-end — from individual file blob IDs up to the bundle level.
-4. **Indexer as performance layer**: The custom Rust indexer + Postgres + GraphQL server exist for query performance. They are not the source of truth — that remains the Sui `Blob` objects and Walrus storage.
-5. **Manifest-rich, index-light**: Rich authorship, abstract, license, version, and file metadata live in the manifest blob. Postgres only indexes the discovery-critical subset needed for browse, search, filtering, revision chains, and storage expiry.
+2. **No custom contract**: Walrus's built-in `Blob` Metadata dynamic field provides the beacon for indexer discovery. The archive avoids deploying Move code by calling Walrus's public `insert_or_update_metadata_pair()` function.
+3. **Manifest as source of truth**: All content metadata lives in the immutable manifest blob on Walrus. Sui Blob Metadata is mutable by the owner, so it is used only as a beacon (`archive-app` + `bundle-id`) — never trusted for content fields.
+4. **Deterministic identity**: A bundle's identity is the SHA-256 of its canonical manifest JSON. Content-addressed end-to-end — from individual file blob IDs up to the bundle level.
+5. **Indexer as performance layer**: The custom Rust indexer + Postgres + GraphQL server exist for query performance. They are not the source of truth — that remains the Walrus manifest blobs and Sui `Blob` objects.
+6. **Manifest-rich, index-light**: Rich authorship, abstract, license, version, and file metadata live in the manifest blob. Postgres only indexes the discovery-critical subset needed for browse, search, filtering, revision chains, and storage expiry.
 
 ---
 
@@ -91,9 +92,13 @@ Sui Checkpoint Stream
       - For each checkpoint, inspect all output objects
       - Filter: object has dynamic field of type walrus::metadata::Metadata
       - Filter: Metadata contains key "archive-app" = "walrus-ai-policy-archive"
-      - Extract: bundle_id, title, topics, institution, published_date,
-                 revision_of, blob_id, certified_epoch, end_epoch,
-                 submitter address
+      - Extract from Sui: blob_id, certified_epoch, end_epoch, submitter address
+      - Extract from Metadata: bundle-id (for integrity check only)
+      - Fetch manifest blob from Walrus aggregator using blob_id
+      - Verify: SHA-256(manifest_bytes) == bundle-id
+      - Parse manifest JSON: title, topics, institution, published_date,
+                 revision_of, original_bundle_id, version, etc.
+      - Validate version chain: if original_bundle_id set, check Blob owner matches
       - Also detect deletions (input objects not in output = blob expired/burned)
   → ArchiveBlobHandler (sequential::Handler trait)
       - Batch upserts and deletes
@@ -126,19 +131,32 @@ impl Processor for ArchiveBlobProcessor {
 
         // Upserts: in output (created, mutated, or unwrapped)
         for (id, obj) in &output_objects {
-            if let Some((metadata, blob_fields)) =
+            if let Some((beacon, blob_fields)) =
                 extract_archive_metadata(&self.metadata_df_type, obj)?
             {
+                // Fetch manifest from Walrus and verify integrity
+                let manifest_bytes = self.aggregator.fetch_blob(&blob_fields.blob_id).await?;
+                let computed_hash = sha256_hex(&manifest_bytes);
+                let expected_hash = beacon.get("bundle-id").unwrap_or_default();
+                if computed_hash != expected_hash {
+                    warn!("Bundle integrity check failed for blob {}", blob_fields.blob_id);
+                    continue;
+                }
+
+                // Parse manifest JSON — source of truth for all content fields
+                let manifest: ManifestV1 = serde_json::from_slice(&manifest_bytes)?;
+
                 values.insert(*id, ProcessedArchiveBlob::Upsert {
                     dynamic_field_id: *id,
                     df_version: obj.version().into(),
-                    bundle_id: metadata.get("bundle-id"),
+                    bundle_id: computed_hash,
                     manifest_blob_id: blob_fields.blob_id,
-                    title: metadata.get("title"),
-                    institution: metadata.get("institution"),
-                    topics: metadata.get("topics"),
-                    published_date: metadata.get("published-date"),
-                    revision_of: metadata.get("revision-of"),
+                    title: manifest.title,
+                    institution: manifest.institution,
+                    topics: manifest.topics,
+                    published_date: manifest.published_date,
+                    revision_of: manifest.revision_of,
+                    original_bundle_id: manifest.original_bundle_id,
                     submitted_at: checkpoint.summary.timestamp_ms,
                     submitter: obj.owner_address(),
                     certified_epoch: blob_fields.certified_epoch,
@@ -155,8 +173,10 @@ impl Processor for ArchiveBlobProcessor {
 The `extract_archive_metadata` function:
 1. Checks if the object is a `dynamic_field::Field` wrapping `walrus::metadata::Metadata`
 2. Deserializes the Metadata `VecMap`
-3. Checks for `archive-app = "walrus-ai-policy-archive"`
-4. Returns the key-value pairs + parent Blob object fields if matched
+3. Checks for `archive-app = "walrus-ai-policy-archive"` (beacon detection)
+4. Returns the `bundle-id` value + parent Blob object fields if matched
+
+After beacon detection, a separate step fetches the manifest blob from a Walrus aggregator, verifies `SHA-256(manifest_bytes) == bundle-id`, and parses the manifest JSON to extract all content fields (title, topics, authors, versioning, etc.). This ensures indexed data comes from the immutable manifest, not from mutable Blob Metadata.
 
 ### 3.4 Database Schema
 
@@ -171,6 +191,7 @@ CREATE TABLE archive_bundle (
     topics            TEXT[]       NOT NULL,
     published_date    DATE         NOT NULL,
     revision_of       TEXT,
+    original_bundle_id TEXT,
     submitted_at      BIGINT       NOT NULL,      -- checkpoint timestamp ms
     submitter         BYTEA        NOT NULL,
     certified_epoch   INTEGER,
@@ -182,6 +203,7 @@ CREATE INDEX idx_topics ON archive_bundle USING GIN(topics);
 CREATE INDEX idx_submitted_at ON archive_bundle(submitted_at DESC);
 CREATE INDEX idx_published_date ON archive_bundle(published_date DESC);
 CREATE INDEX idx_revision_of ON archive_bundle(revision_of);
+CREATE INDEX idx_original_bundle_id ON archive_bundle(original_bundle_id);
 CREATE INDEX idx_bundle_search ON archive_bundle USING GIN(
     to_tsvector('english', coalesce(title, '') || ' ' || coalesce(institution, ''))
 );
@@ -256,6 +278,7 @@ type BundleSummary {
   publishedDate: String!
   submittedAt: String!          # ISO 8601
   revisionOf: String
+  originalBundleId: String
   endEpoch: Int!
 }
 
@@ -269,6 +292,7 @@ type Bundle {
   publishedDate: String!
   submittedAt: String!
   revisionOf: String
+  originalBundleId: String
   endEpoch: Int!
   certifiedEpoch: Int
   submitter: String!
@@ -324,11 +348,11 @@ Browser (`writeFilesFlow`)        Walrus Storage          Sui Fullnode          
      Returns { manifestBlobId,          │                      │                  │
                suiBlobObjectId }        │                      │                  │
                                         │                      │                  │
-  3. Set Metadata on manifest           │                      │                  │
-     Blob via PTB                       │                      │                  │
-     (archive-app, bundle-id,           │                      │                  │
-      title, topics, institution,       │                      │                  │
-      published-date, revision-of?) ───────────────────────────▶│                 │
+  3. Set beacon Metadata on manifest     │                      │                  │
+     Blob via PTB (two fields only):    │                      │                  │
+       archive-app = "walrus-ai-        │                      │                  │
+         policy-archive"                │                      │                  │
+       bundle-id = "<sha256>"    ───────────────────────────────▶│                 │
      User signs PTB via wallet          │                      │                  │
                                 ◀──────────────────────────────│                  │
      TX confirmed                       │                      │                  │
@@ -339,7 +363,13 @@ Browser (`writeFilesFlow`)        Walrus Storage          Sui Fullnode          
                                         │                      │      ┌───────────▼──┐
                                         │                      │      │ Filter by    │
                                         │                      │      │ archive-app  │
-                                        │                      │      │ → extract    │
+                                        │                      │      │ beacon       │
+                                        │                      │      └──────┬───────┘
+                                        │                      │             │
+                                  ◀─────┼──────────────────────┼─────────────┘
+                              fetch manifest blob              │      ┌──────▼───────┐
+                                  ─────►│                      │      │ Verify hash  │
+                                        │                      │      │ Parse JSON   │
                                         │                      │      │ → write PG   │
                                         │                      │      └──────────────┘
   5. Bundle queryable via GraphQL       │                      │                  │
@@ -397,13 +427,13 @@ Anyone can verify the archive without the indexer:
 | State | Location | Mutability | Accessed by |
 |---|---|---|---|
 | Artifact file bytes | Walrus blobs (quilt or standalone) | Immutable (content-addressed) | Aggregator GET |
-| Manifest JSON | Walrus blob | Immutable (content-addressed) | Aggregator GET |
-| Bundle identity | Derived: SHA-256 of manifest bytes | Immutable (deterministic) | Computed client-side |
+| Manifest JSON | Walrus blob | **Immutable** (content-addressed) — single source of truth for all content metadata | Aggregator GET; indexer fetches to populate Postgres |
+| Bundle identity | Derived: SHA-256 of manifest bytes | Immutable (deterministic) | Computed client-side; verified by indexer |
 | Blob certification proof | Sui `Blob` object | Immutable after certification | Indexer reads from checkpoint |
-| Application metadata | Sui `Blob` Metadata dynamic field | Mutable by blob owner | Indexer reads from checkpoint |
+| Beacon metadata | Sui `Blob` Metadata dynamic field (`archive-app` + `bundle-id` only) | **Mutable by blob owner** — used only for indexer discovery, never trusted for content | Indexer reads from checkpoint |
 | Storage expiry | Sui `Blob` object `storage.end_epoch` | Extended via `walrus extend` | Indexer reads from checkpoint |
-| Indexed metadata | PostgreSQL `archive_bundle` table | Derived (rebuilt from checkpoints) | GraphQL API reads |
-| Revision chain | Optional `revision-of` metadata + manifest field | Immutable per bundle version | GraphQL API + bundle detail UI |
+| Indexed metadata | PostgreSQL `archive_bundle` table | Derived (from manifest blobs + Sui checkpoints) | GraphQL API reads |
+| Revision chain | Manifest fields `revision_of` + `original_bundle_id` | Immutable per bundle version; validated via Blob owner matching | GraphQL API + bundle detail UI |
 | Wallet connection | Browser memory (dapp-kit) | Session-scoped | React context |
 
 The indexer's Postgres database is the only mutable server-side state, and it is fully derivable from Sui checkpoints. It can be rebuilt from scratch at any time.
@@ -461,41 +491,24 @@ Input: files[] from user
 
 ---
 
-## 9. Blob Metadata Setting
+## 9. Blob Metadata Setting (Beacon Only)
 
-After the manifest blob is uploaded and certified, the submitter attaches Metadata key-value pairs via a PTB that calls `walrus::blob::insert_or_update_metadata_pair()`. To support GraphQL discovery without manifest fetches, the app duplicates the discovery-critical subset of fields into Blob Metadata.
+After the manifest blob is uploaded and certified, the submitter attaches **beacon-only** Metadata via a PTB. Only two fields are set — `archive-app` (indexer discovery) and `bundle-id` (integrity check). All content metadata lives in the immutable manifest blob.
 
 ```typescript
 import { Transaction } from '@mysten/sui/transactions';
 
-function buildMetadataTx(
+function buildBeaconMetadataTx(
   suiBlobObjectId: string,
-  bundle: {
-    bundleId: string;
-    title: string;
-    topics: string[];
-    institution: string;
-    publishedDate: string;
-    revisionOf?: string;
-  },
+  bundleId: string,
   walrusPackageId: string,
 ): Transaction {
   const tx = new Transaction();
 
   const pairs: Record<string, string> = {
     'archive-app': 'walrus-ai-policy-archive',
-    'archive-version': '1',
-    'bundle-id': bundle.bundleId,
-    'title': bundle.title,
-    'topics': bundle.topics.join(','),
-    'institution': bundle.institution,
-    'published-date': bundle.publishedDate,
-    'content-type': 'application/json',
+    'bundle-id': bundleId,
   };
-
-  if (bundle.revisionOf) {
-    pairs['revision-of'] = bundle.revisionOf;
-  }
 
   for (const [key, value] of Object.entries(pairs)) {
     tx.moveCall({
@@ -512,7 +525,9 @@ function buildMetadataTx(
 }
 ```
 
-**Ownership**: The submitter owns the `Blob` object (Walrus returns it to the uploader). Only the owner can set Metadata. This means the submitter controls their own bundle's on-chain metadata.
+**Why only two fields?** Blob Metadata is mutable by the blob owner at any time. Storing content fields (title, topics, etc.) in Metadata would allow silent post-submission tampering. The indexer instead fetches the immutable manifest blob from Walrus to extract content data.
+
+**Ownership**: The submitter owns the `Blob` object (Walrus returns it to the uploader). Only the owner can set Metadata. The owner removing `archive-app` effectively de-lists their bundle from the index — this is acceptable since the owner should control their own visibility.
 
 ---
 
@@ -561,7 +576,7 @@ walrus-ai-policy/
 │   │   ├── lib/
 │   │   │   ├── manifest.ts          # canonicalize(), computeBundleId()
 │   │   │   ├── upload.ts            # uploadQuilt(), uploadBlob()
-│   │   │   ├── metadata.ts          # buildMetadataTx()
+│   │   │   ├── metadata.ts          # buildBeaconMetadataTx()
 │   │   │   ├── citation.ts          # cite-this-bundle formatter
 │   │   │   └── graphql.ts           # GraphQL query functions
 │   │   │
