@@ -28,6 +28,9 @@ export default defineConfig([
 
       // Unexpected empty object
       "no-empty-pattern": "off",
+
+      // Unexpected any. Specify a different
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
   {

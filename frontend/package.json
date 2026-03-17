@@ -5,8 +5,9 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
+    "start": "npx serve build/client",
     "clean": "eslint . --fix && prettier --write . && tsc --noEmit",
-    "start": "npx serve build/client"
+    "generate-graphql": "graphql-codegen"
   },
   "dependencies": {
     "@mysten/dapp-kit-react": "^2.0.1",
@@ -15,6 +16,8 @@
     "@mysten/walrus-wasm": "^0.2.0",
     "@react-router/fs-routes": "^7.12.0",
     "@react-router/node": "7.12.0",
+    "graphql": "^16.13.1",
+    "graphql-request": "^7.4.0",
     "isbot": "^5",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -23,6 +26,11 @@
     "tailwind-variants": "^3.2.2"
   },
   "devDependencies": {
+    "@graphql-codegen/add": "^6.0.0",
+    "@graphql-codegen/cli": "^6.0.1",
+    "@graphql-codegen/typescript": "^5.0.7",
+    "@graphql-codegen/typescript-operations": "^5.0.2",
+    "@graphql-codegen/typescript-react-query": "^6.1.1",
     "@eslint/js": "^10.0.1",
     "@react-router/dev": "7.12.0",
     "@tailwindcss/vite": "^4.1.13",
