@@ -3,3 +3,9 @@
 @theme {
   --font-sans: "Inter";
 }
+
+body {
+  button {
+    cursor: pointer;
+  }
+}
