@@ -1,0 +1,10 @@
+[package]
+name = "walrus_ai_policy"
+version = "0.0.1"
+edition = "2024.beta"
+
+[dependencies]
+Walrus = { git = "https://github.com/MystenLabs/walrus.git", subdir = "testnet-contracts/walrus", rev = "releases/walrus-v1.34.0-release" }
+
+[addresses]
+walrus_ai_policy = "0x0"
