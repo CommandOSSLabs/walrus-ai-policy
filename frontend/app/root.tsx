@@ -1,7 +1,8 @@
 import { Links, Meta, Outlet, Scripts } from "react-router";
 
 import "public/css/index.css";
-
+import { DAppKitProvider } from "@mysten/dapp-kit-react";
+import utilsDappKit from "./utils/utils.dapp-kit";
 import type { Route } from "./+types/root";
 import Header from "./layout/Header";
 
@@ -40,12 +41,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function Root() {
   return (
-    <>
+    <DAppKitProvider dAppKit={utilsDappKit.dAppKit}>
       <Header />
 
       <main>
         <Outlet />
       </main>
-    </>
+    </DAppKitProvider>
   );
 }
