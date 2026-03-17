@@ -22,6 +22,28 @@ declare module "@mysten/dapp-kit-react" {
   }
 }
 
+const createDappkitModal = () => {
+  const element = document.createElement("mysten-dapp-kit-connect-modal");
+
+  element.instance = dAppKit;
+  element.open = true;
+
+  document.body.append(element);
+
+  element.addEventListener(
+    "close",
+    () => {
+      element.remove();
+    },
+    {
+      once: true,
+    },
+  );
+
+  return element;
+};
+
 export default {
   dAppKit,
+  createDappkitModal,
 };
