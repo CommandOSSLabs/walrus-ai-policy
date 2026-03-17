@@ -4,7 +4,7 @@ import { tv } from "tailwind-variants";
 export default (props?: HTMLAttributes<HTMLDivElement>) => {
   return (
     <div
-      aria-label="hstack"
+      data-testid="hstack"
       {...props}
       className={tv({
         base: ["flex justify-center items-center gap-2"],

@@ -5,7 +5,7 @@ export default forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   (props, ref) => {
     return (
       <div
-        aria-label="center"
+        data-testid="center"
         {...props}
         ref={ref}
         className={tv({

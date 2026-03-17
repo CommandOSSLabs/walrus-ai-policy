@@ -18,7 +18,11 @@ export default () => {
             <Stack className="p-2">
               <p>Blob Id {meta.id}</p>
 
-              <img src={meta.image} className="size-10" />
+              <img
+                src={meta.image}
+                alt={`Artifact image for ${meta.id}`}
+                className="size-10"
+              />
             </Stack>
           </Link>
         ))}

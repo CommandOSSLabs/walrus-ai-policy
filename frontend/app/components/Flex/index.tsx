@@ -4,7 +4,7 @@ import { tv } from "tailwind-variants";
 export default (props?: HTMLAttributes<HTMLDivElement>) => {
   return (
     <div
-      aria-label="flex"
+      data-testid="flex"
       {...props}
       className={tv({
         base: ["flex"],
