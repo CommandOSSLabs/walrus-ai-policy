@@ -21,11 +21,9 @@ export default () => {
           {currentAccount?.address ? (
             <button onClick={disconnectWallet}>Disconnect</button>
           ) : (
-            <>
-              <ConnectWalletWrapper>
-                <button>Connect Wallet</button>
-              </ConnectWalletWrapper>
-            </>
+            <ConnectWalletWrapper>
+              <button>Sign in with google</button>
+            </ConnectWalletWrapper>
           )}
         </Hstack>
       </Center>
