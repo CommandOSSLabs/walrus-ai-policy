@@ -15,7 +15,8 @@ export default ({ children }: PropsWithChildren) => {
       network: utilsSui.getSuiClient.network as never,
       providers: {
         google: {
-          clientId: "472548068257-gae232tqisi84ams4miifc7kkebu9c6s.apps.googleusercontent.com",
+          clientId:
+            "472548068257-gae232tqisi84ams4miifc7kkebu9c6s.apps.googleusercontent.com",
           redirectUrl: location.origin,
         },
       },
