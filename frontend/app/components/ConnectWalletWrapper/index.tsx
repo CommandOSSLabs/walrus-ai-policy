@@ -1,13 +1,19 @@
 import type { HTMLAttributes, PropsWithChildren } from "react";
 import React from "react";
 
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import utilsDappKit from "app/utils/utils.dapp-kit";
+import {
+  useCurrentAccount,
+  useDAppKit,
+  useWallets,
+} from "@mysten/dapp-kit-react";
 
 export default ({
   children,
   ...rest
 }: PropsWithChildren & HTMLAttributes<HTMLDivElement>) => {
+  const { connectWallet } = useDAppKit();
+
+  const wallets = useWallets();
   const currentAccount = useCurrentAccount();
 
   if (!currentAccount?.address?.length) {
@@ -21,7 +27,13 @@ export default ({
           event.stopPropagation();
           event.preventDefault();
 
-          utilsDappKit.createDappkitModal();
+          const wallet = wallets.find(
+            (meta) => meta.name === "Sign in with Google",
+          );
+
+          if (wallet) {
+            connectWallet({ wallet });
+          }
         },
       },
     );
