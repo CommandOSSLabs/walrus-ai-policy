@@ -1,0 +1,29 @@
+# Rust
+backend/target/
+**/*.rs.bk
+
+# Node / Frontend
+frontend/node_modules/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/build/
+frontend/.react-router/
+
+# Move / Sui
+contract/build/
+contract/logs.txt
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml

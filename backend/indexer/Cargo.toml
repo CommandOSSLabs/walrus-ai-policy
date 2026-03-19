@@ -1,0 +1,29 @@
+[package]
+name = "archive-indexer"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "archive-indexer"
+path = "src/main.rs"
+
+[dependencies]
+archive-db.workspace = true
+sui-indexer-alt-framework = { workspace = true, features = ["cluster"] }
+sui-types = { workspace = true }
+
+anyhow.workspace = true
+async-trait.workspace = true
+bcs.workspace = true
+chrono.workspace = true
+clap.workspace = true
+dotenvy.workspace = true
+diesel.workspace = true
+diesel-async.workspace = true
+diesel_migrations.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+url.workspace = true
