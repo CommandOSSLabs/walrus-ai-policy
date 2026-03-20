@@ -20,14 +20,16 @@ PostgreSQL is a **derived cache** — fully rebuildable by replaying Sui events.
 
 ## On-Chain: The `Artifact` Object
 
-An `Artifact` is a Sui owned object. The submitter's wallet owns it.
+An `Artifact` is a **shared** Sui object (accessible by any transaction). The creator's address is recorded on-chain but does not imply exclusive ownership; access control is managed by role dynamic fields (see below).
 
 ```move
-public struct Artifact has key, store {
-    id: UID,
-    owner: address,
+module walrus_ai_policy::artifact;
 
-    // Core metadata (updatable by owner)
+public struct Artifact has key {
+    id: UID,
+    creator: address,
+
+    // Core metadata (updatable by ROLE_ADMIN)
     title: String,
     description: String,
     topics: vector<String>,       // from v1 taxonomy (e.g. "ai_safety")
@@ -38,12 +40,12 @@ public struct Artifact has key, store {
     license: String,              // SPDX identifier or custom
     tags: vector<String>,
 
-    // Versioning
-    revision_of: Option<ID>,      // suiObjectId of predecessor, if a revision
+    // Versioning — tree structure
+    root_id: Option<ID>,          // None for root artifacts; root's ID for all commits
+    parent_id: Option<ID>,        // None for root artifacts; direct parent's ID for commits
 
-    // Chain timestamps (trustless, not editable)
-    created_epoch: u64,
-    updated_epoch: u64,
+    // Chain timestamp (trustless, not editable)
+    created_at: u64,              // Unix ms via Clock
 }
 
 public struct Author has store, copy, drop {
@@ -52,6 +54,22 @@ public struct Author has store, copy, drop {
     affiliation: Option<String>,
 }
 ```
+
+---
+
+## On-Chain: Access Control (Dynamic Fields)
+
+Roles are stored as dynamic fields on the **root** Artifact object only: key = `address`, value = `u8` role constant.
+
+```move
+const ROLE_ADMIN: u8 = 1;
+```
+
+| Role | Grants |
+|---|---|
+| `ROLE_ADMIN` | `commit_artifact`, `update_metadata`, `upsert_file`, `remove_file`, `add_contributor` |
+
+`create_artifact` automatically adds the creator's address as `ROLE_ADMIN` on the new root. All role checks on commits are validated against the root object's dynamic fields.
 
 ---
 
@@ -98,10 +116,12 @@ The Move contract emits events carrying the **full metadata payload**. The index
 
 | Event | Trigger | Payload |
 |---|---|---|
-| `ArtifactCreated` | `create_artifact()` | All metadata fields |
-| `ArtifactUpdated` | `update_metadata()` | title, description, topics, categories, authors, tags |
+| `ArtifactEvent` | `create_artifact()` and `commit_artifact()` | id, root_id, parent_id, creator, created_at + all metadata fields |
+| `ArtifactUpdated` | `update_metadata()` | artifact ID, title, description, topics, categories, authors, tags |
 | `FileUpserted` | `upsert_file()` | artifact ID, path, quilt_patch_id, mime_type, size_bytes, description |
 | `FileRemoved` | `remove_file()` | artifact ID, path |
+
+`ArtifactEvent` is shared by both entry points. The indexer distinguishes a new root (`root_id` is null) from a commit (`root_id` is set).
 
 ---
 
@@ -112,7 +132,7 @@ A denormalized read model derived from the event stream. Each row is one artifac
 ```sql
 CREATE TABLE artifact (
     sui_object_id   TEXT     PRIMARY KEY,
-    owner           TEXT     NOT NULL,
+    creator         TEXT     NOT NULL,
 
     title           TEXT     NOT NULL,
     description     TEXT     NOT NULL,
@@ -124,18 +144,19 @@ CREATE TABLE artifact (
     license         TEXT     NOT NULL,
     tags            TEXT[]   NOT NULL,
 
-    revision_of     TEXT,                            -- NULL if original
-    created_epoch   BIGINT   NOT NULL,
-    updated_epoch   BIGINT   NOT NULL,
+    root_id         TEXT,                            -- NULL if this is a root artifact
+    parent_id       TEXT,                            -- NULL if this is a root artifact
+    created_at      BIGINT   NOT NULL,               -- Unix ms from Clock
     file_count      INT      NOT NULL DEFAULT 0      -- maintained by FileUpserted/FileRemoved
 );
 
 -- Indexes for common query patterns
 CREATE INDEX ON artifact USING GIN(topics);
 CREATE INDEX ON artifact USING GIN(categories);
-CREATE INDEX ON artifact(created_epoch DESC);
+CREATE INDEX ON artifact(created_at DESC);
 CREATE INDEX ON artifact(published_date DESC);
-CREATE INDEX ON artifact(revision_of);
+CREATE INDEX ON artifact(root_id);
+CREATE INDEX ON artifact(parent_id);
 CREATE INDEX ON artifact USING GIN(
     to_tsvector('english', title || ' ' || institution || ' ' || description)
 );
@@ -160,8 +181,9 @@ CREATE INDEX ON artifact_file(artifact_id);
 
 | Event | DB action |
 |---|---|
-| `ArtifactCreated` | `INSERT` row with all metadata |
-| `ArtifactUpdated` | `UPDATE` title, description, topics, categories, authors, tags, updated_epoch |
+| `ArtifactEvent` (root_id null) | `INSERT` artifact row — new root |
+| `ArtifactEvent` (root_id set) | `INSERT` artifact row — new commit under root |
+| `ArtifactUpdated` | `UPDATE` title, description, topics, categories, authors, tags |
 | `FileUpserted` | `INSERT INTO artifact_file ... ON CONFLICT (artifact_id, path) DO UPDATE` + `UPDATE artifact SET file_count = file_count + 1` |
 | `FileRemoved` | `DELETE FROM artifact_file WHERE artifact_id = ? AND path = ?` + `UPDATE artifact SET file_count = file_count - 1` |
 
@@ -169,13 +191,22 @@ CREATE INDEX ON artifact_file(artifact_id);
 
 ## Versioning Model
 
+Artifacts form a tree. Each commit is its own shared Artifact object with its own `suiObjectId`, independently accessible.
+
+```
+root (root_id=null, parent_id=null)
+ ├── commit A (root_id=root, parent_id=root)
+ │    └── commit B (root_id=root, parent_id=A)
+ └── commit C (root_id=root, parent_id=root)
+```
+
 | Change type | How it's handled |
 |---|---|
-| Minor correction (title, description, authors) | `update_metadata()` tx — mutates the existing Artifact in place |
-| File content update | `upsert_file()` tx — new blob uploaded, dynamic field pointer updated; old blob persists on Walrus |
-| Major revision (independently citable v2) | New Artifact object created with `revision_of` pointing to predecessor |
+| Minor correction (title, description, authors) | `update_metadata()` tx — mutates the Artifact object in place |
+| File content update | `upsert_file()` tx — new quilt patch uploaded, dynamic field pointer updated; old content persists on Walrus |
+| New independently-citable version | `commit_artifact(root, parent, ...)` — creates a child Artifact under the same root |
 
-Both old and new Artifact objects remain permanently accessible on-chain.
+`commit_artifact` validates that `parent.root_id` matches the provided root, ensuring the parent belongs to the same tree. Requires `ROLE_ADMIN` on the root object.
 
 ---
 
@@ -183,9 +214,10 @@ Both old and new Artifact objects remain permanently accessible on-chain.
 
 ```
 Submission:
-  Browser → Walrus SDK (upload files as quilt) → blob IDs
-          → Sui PTB: create_artifact() + upsert_file() × N
-          → ArtifactCreated + FileUpserted events emitted
+  Browser → Walrus SDK (upload files as quilt) → quilt patch IDs
+          → Sui PTB: create_artifact() + upsert_file() × N   [new root]
+          → Sui PTB: commit_artifact(root, parent) + upsert_file() × N   [new version]
+          → ArtifactEvent + FileUpserted events emitted
 
 Indexing:
   Sui checkpoint stream → Indexer (Rust) → PostgreSQL

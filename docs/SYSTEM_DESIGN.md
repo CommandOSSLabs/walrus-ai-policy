@@ -44,7 +44,7 @@
 
 ## 2. Move Contract
 
-Package: `walrus_archive::artifact`
+Package: `walrus_ai_policy::artifact`
 
 Structs, entry points, events, and upgrade policy: see `docs/DATA_MODEL.md`.
 
@@ -52,7 +52,7 @@ Structs, entry points, events, and upgrade policy: see `docs/DATA_MODEL.md`.
 
 ## 3. Indexer
 
-Built on `sui-indexer-alt-framework`. Subscribes to `walrus_archive::artifact` events via the Sui checkpoint stream.
+Built on `sui-indexer-alt-framework`. Subscribes to `walrus_ai_policy::artifact` events via the Sui checkpoint stream.
 
 PostgreSQL schema, event → DB mapping, and indexing rationale: see `docs/DATA_MODEL.md`.
 
@@ -75,10 +75,13 @@ type Query {
   artifacts(
     topics: [String!], search: String, institution: String,
     publishedDateFrom: String, publishedDateTo: String,
-    limit: Int = 20, offset: Int = 0, sort: SortField = CREATED_EPOCH_DESC
+    limit: Int = 20, offset: Int = 0, sort: SortField = CREATED_AT_DESC
   ): ArtifactConnection!
 
   artifact(suiObjectId: String!): ArtifactDetail
+
+  # Fetch the full commit tree for a root artifact
+  artifactTree(rootId: String!): [ArtifactSummary!]!
 }
 
 type ArtifactConnection { items: [ArtifactSummary!]!, totalCount: Int! }
@@ -86,14 +89,14 @@ type ArtifactConnection { items: [ArtifactSummary!]!, totalCount: Int! }
 type ArtifactSummary {
   suiObjectId: String!, title: String!, description: String!,
   institution: String!, topics: [String!]!, publishedDate: String!,
-  createdEpoch: Int!, fileCount: Int!, revisionOf: String
+  createdAt: Int!, fileCount: Int!, rootId: String, parentId: String
 }
 
 type ArtifactDetail {
-  suiObjectId: String!, owner: String!, title: String!, description: String!,
+  suiObjectId: String!, creator: String!, title: String!, description: String!,
   institution: String!, topics: [String!]!, categories: [String!]!,
   authors: [Author!]!, publishedDate: String!, license: String!, tags: [String!]!,
-  createdEpoch: Int!, updatedEpoch: Int!, revisionOf: String,
+  createdAt: Int!, rootId: String, parentId: String,
   files: [ArtifactFile!]!
 }
 
@@ -103,7 +106,7 @@ type ArtifactFile {
 
 type Author { name: String!, orcid: String, affiliation: String }
 
-enum SortField { CREATED_EPOCH_DESC, CREATED_EPOCH_ASC, PUBLISHED_DATE_DESC, PUBLISHED_DATE_ASC }
+enum SortField { CREATED_AT_DESC, CREATED_AT_ASC, PUBLISHED_DATE_DESC, PUBLISHED_DATE_ASC }
 ```
 
 Artifact detail (`artifact` query) serves the full metadata and file list from Postgres. File downloads go directly to the Walrus aggregator by quilt patch ID.
@@ -123,7 +126,7 @@ Enoki handles authentication via zkLogin (OAuth) and auto-signs all Sui and Walr
 1. **OAuth login** — Enoki opens an OAuth popup (Google or Apple). zkLogin derives a non-custodial Sui address. Check WAL balance; warn if insufficient.
 2. **Fill metadata + select files** — Client validates: ≤50 files, ≤100 MiB per file, accepted MIME types.
 3. **Upload to Walrus** — SDK encodes, registers, uploads, and certifies all files as a quilt. Enoki auto-signs silently. WAL storage payment executes automatically from the zkLogin wallet.
-4. **Create Artifact on Sui** — PTB: `create_artifact()` + `upsert_file()` × N in one transaction. Enoki auto-signs silently. Artifact discoverable via GraphQL within ~10 seconds.
+4. **Create Artifact on Sui** — PTB: `create_artifact()` + `upsert_file()` × N in one transaction (new root), or `commit_artifact(root, parent)` + `upsert_file()` × N (new version). Enoki auto-signs silently. Artifact discoverable via GraphQL within ~10 seconds.
 5. Return `suiObjectId`, transaction digest, and per-file download URLs.
 
 ### Discovery
@@ -190,7 +193,7 @@ VITE_NETWORK=testnet
 VITE_WALRUS_AGGREGATOR=https://aggregator.walrus-testnet.walrus.space
 VITE_GRAPHQL_URL=https://api.aipolicyarchive.app/graphql
 VITE_WALRUS_PACKAGE_ID=0x...        # Walrus system package on Sui
-VITE_ARCHIVE_PACKAGE_ID=0x...       # walrus_archive package
+VITE_ARCHIVE_PACKAGE_ID=0x...       # walrus_ai_policy package
 
 # indexer + graphql
 DATABASE_URL=postgres://user:pass@localhost:5432/archive

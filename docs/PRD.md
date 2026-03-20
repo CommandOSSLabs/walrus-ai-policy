@@ -49,7 +49,7 @@ A **policy artifact** is the unit of contribution: a structured collection of fi
 ### In Scope
 - Web-based submission flow (upload files + structured metadata)
 - Walrus storage integration for all artifact files
-- Custom Sui Move package (`walrus_archive`) — `Artifact` owned object as the on-chain registry
+- Custom Sui Move package (`walrus_ai_policy`) — `Artifact` shared object as the on-chain registry
 - Custom Rust indexer subscribing to contract events → PostgreSQL
 - GraphQL API server for discovery queries
 - Public discovery interface (browse, search, filter)
@@ -86,12 +86,12 @@ A **policy artifact** is the unit of contribution: a structured collection of fi
 
 ### Artifact Object
 
-An `Artifact` is a Sui object owned by the submitter. Metadata lives on Sui (updatable by owner). File content lives on Walrus (immutable). Dynamic fields map file paths to Walrus blob IDs — the same pattern used by Walrus Sites.
+An `Artifact` is a **shared** Sui object. Metadata lives on Sui (updatable by `ROLE_ADMIN`). File content lives on Walrus (immutable). Dynamic fields map file paths to quilt patch IDs — the same pattern used by Walrus Sites. Access control roles are also stored as dynamic fields on the root object.
 
 | Field | Type | Notes |
 |---|---|---|
 | `suiObjectId` | string | Permanent identifier |
-| `owner` | address | Submitter wallet |
+| `creator` | address | Address that created this artifact/commit |
 | `title` | string | |
 | `description` | string | |
 | `topics` | PolicyTopic[] | From v1 taxonomy |
@@ -101,9 +101,9 @@ An `Artifact` is a Sui object owned by the submitter. Metadata lives on Sui (upd
 | `publishedDate` | ISO 8601 | |
 | `license` | string | SPDX identifier or custom |
 | `tags` | string[] | |
-| `revisionOf` | string? | suiObjectId of predecessor Artifact |
-| `createdEpoch` | u64 | Chain time |
-| `updatedEpoch` | u64 | Chain time |
+| `rootId` | string? | Root artifact's ID; null if this IS the root |
+| `parentId` | string? | Direct parent's ID; null if this IS the root |
+| `createdAt` | u64 | Unix ms via Clock |
 | `files` | dynamic fields | `path → FileRef` |
 
 **FileRef** (per file): `quiltPatchId`, `mimeType`, `sizeBytes`, `description`
@@ -119,21 +119,23 @@ Every upload — initial submission or a single-file update — uses the Walrus 
 | Data | Where | Why |
 |---|---|---|
 | Metadata fields | Artifact Sui object | Structured, queryable, updatable |
-| `created_epoch`, `updated_epoch` | Artifact Sui object | Trustless timestamps (chain time) |
-| `revision_of` | Artifact Sui object | Links to predecessor by object ID |
+| `created_at` | Artifact Sui object | Trustless timestamp (Clock ms) |
+| `root_id`, `parent_id` | Artifact Sui object | Tree lineage, independently verifiable |
+| Access control roles (`address → u8`) | Root artifact dynamic fields | On-chain, auditable |
 | File path → quilt_patch_id mapping | Artifact dynamic fields | Same pattern as Walrus Sites |
 | File bytes | Walrus blobs | Pure storage; retrieved by quilt_patch_id |
 
 ### Updates and Versioning
 
+Artifacts form a tree. The root is created with `create_artifact`. Each new version is a commit via `commit_artifact`, which creates a new Artifact object under the same root — independently citable by its own `suiObjectId`.
+
 | Change | Action | Wallet confirmation dialogs |
 |---|---|---|
-| Title, description, topics, authors | `update_metadata` tx | 0 (Enoki auto-signs) |
-| One file content | Upload new blob + `upsert_file` tx | 0 (Enoki auto-signs; WAL required) |
-| Add a new file | Upload new blob + `upsert_file` tx | 0 (Enoki auto-signs; WAL required) |
+| Title, description, topics, authors | `update_metadata` tx (in-place) | 0 (Enoki auto-signs) |
+| One file content | Upload quilt + `upsert_file` tx | 0 (Enoki auto-signs; WAL required) |
+| Add a new file | Upload quilt + `upsert_file` tx | 0 (Enoki auto-signs; WAL required) |
 | Remove a file | `remove_file` tx | 0 (Enoki auto-signs) |
-
-For a major revision that should be independently citable (e.g. v2 of a published report), the submitter creates a **new Artifact object** and sets `revisionOf` to the original. Both versions remain independently accessible. Minor corrections are done in-place.
+| New independently-citable version | `commit_artifact(root, parent)` + files | 0 (Enoki auto-signs; WAL required) |
 
 ---
 
@@ -168,7 +170,7 @@ For a major revision that should be independently citable (e.g. v2 of a publishe
 **Components:**
 
 - **Walrus Storage Network** — Pure blob storage. No application logic. File content certified here.
-- **Artifact Move Contract** (`walrus_archive::artifact`) — Defines `Artifact` owned object with metadata fields and dynamic file references. Emits `ArtifactCreated`, `ArtifactUpdated`, `FileUpserted` events.
+- **Artifact Move Contract** (`walrus_ai_policy::artifact`) — Defines `Artifact` shared object with metadata fields, dynamic file references, and role-based access control. Emits `ArtifactEvent`, `ArtifactUpdated`, `FileUpserted`, `FileRemoved` events.
 - **Custom Rust indexer** — Subscribes to artifact events in the checkpoint stream. All metadata is in the event payload; no Walrus fetch required for indexing. Writes to PostgreSQL.
 - **GraphQL API server** — Reads from PostgreSQL. Serves paginated, filtered, searchable artifact queries.
 - **Frontend SPA** — Deployed as a Walrus Site. Queries GraphQL for discovery and artifact detail. Uses Walrus SDK for uploads.
@@ -222,24 +224,30 @@ The SPA is served as a Walrus Site. Artifact listings come from the GraphQL API.
 
 ## 10. On-Chain Contract
 
-### Move Package: `walrus_archive`
+### Move Package: `walrus_ai_policy`
 
-**Structs:** `Artifact` (key, store) — includes `authors: vector<Author>` as a top-level field. `Author` (store, copy, drop) — `name`, `orcid?`, `affiliation?`. `FilePath` — dynamic field key. `FileRef` — dynamic field value: `quilt_patch_id: String`, `mime_type`, `size_bytes`, `description`.
+**Structs:** `Artifact` (key) — shared object; `creator`, metadata fields, `root_id`, `parent_id`, `created_at`. `Author` (store, copy, drop) — `name`, `orcid?`, `affiliation?`. `FilePath` — dynamic field key. `FileRef` — dynamic field value: `quilt_patch_id`, `mime_type`, `size_bytes`, `description`.
+
+**Access control:** Role constants (`ROLE_ADMIN = 1`) stored as `address → u8` dynamic fields on the root Artifact. `create_artifact` auto-assigns `ROLE_ADMIN` to the creator. `add_contributor` / `remove_contributor` manage roles; all mutating entry points require `ROLE_ADMIN`.
 
 **Entry points:**
-- `create_artifact(title, description, topics, categories, authors, institution, published_date, license, tags, revision_of, ctx)` → emits `ArtifactCreated`
+- `create_artifact(title, description, topics, categories, authors, institution, published_date, license, tags, clock, ctx)` → shares Artifact, emits `ArtifactEvent`
+- `commit_artifact(root, parent, title, description, topics, categories, authors, institution, published_date, license, tags, clock, ctx)` → shares new Artifact under same root, emits `ArtifactEvent`
 - `upsert_file(artifact, path, quilt_patch_id, mime_type, size_bytes, description, ctx)` → emits `FileUpserted`
 - `remove_file(artifact, path, ctx)` → emits `FileRemoved`
 - `update_metadata(artifact, title, description, topics, categories, authors, tags, ctx)` → emits `ArtifactUpdated`
+- `add_contributor(root, contributor, role, ctx)` — ROLE_ADMIN only
+- `remove_contributor(root, contributor, ctx)` — ROLE_ADMIN only
 
 **Events** carry the full metadata payload — the indexer reads events only, never fetches from Walrus.
 
 ### Indexer Event Processing
 
-1. `ArtifactCreated` → insert `artifact` row
-2. `ArtifactUpdated` → update `artifact` row
-3. `FileUpserted` → upsert `artifact_file` row; increment `artifact.file_count`
-4. `FileRemoved` → delete `artifact_file` row; decrement `artifact.file_count`
+1. `ArtifactEvent` (root_id null) → insert `artifact` row — new root
+2. `ArtifactEvent` (root_id set) → insert `artifact` row — new commit
+3. `ArtifactUpdated` → update `artifact` row
+4. `FileUpserted` → upsert `artifact_file` row; increment `artifact.file_count`
+5. `FileRemoved` → delete `artifact_file` row; decrement `artifact.file_count`
 
 Re-indexing replays the Sui checkpoint event stream — deterministic and auditable.
 
@@ -263,7 +271,7 @@ Artifact objects survive package upgrades (stable field layouts). In v1, the pac
 | **Indexer** | `sui-indexer-alt-framework` (Rust) | Official Sui framework for checkpoint-based indexers |
 | **Database** | PostgreSQL + Diesel ORM | Framework's native store; proven for structured metadata queries |
 | **GraphQL server** | `async-graphql` (Rust) | Lightweight; reads from the same Postgres the indexer writes to |
-| **On-chain registry** | Custom Move package `walrus_archive` | `Artifact` owned object — updatable metadata, dynamic file references, event emission |
+| **On-chain registry** | Custom Move package `walrus_ai_policy` | `Artifact` shared object — updatable metadata, dynamic file references, role-based access control, event emission |
 
 ---
 
