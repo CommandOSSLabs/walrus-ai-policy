@@ -1,11 +1,43 @@
-@import "tailwindcss";
+/* 
+  convert hex: https://openreplay.com/tools/hex-to-oklch
+*/
 
-@theme {
-  --font-sans: "Inter";
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/instrument-sans";
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: "Instrument Sans Variable", sans-serif;
+
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-body {
-  button {
-    cursor: pointer;
+:root {
+  /* const */
+  --radius: 0.625rem;
+
+  /* colors */
+  --primary: oklch(77.75% 0.145 176.54);
+  --blue: oklch(62.31% 0.188 259.81);
+  --background: oklch(17.44% 0.016 248.74);
+  --foreground: oklch(100% 0 0);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }

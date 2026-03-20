@@ -10,6 +10,7 @@
     "generate-graphql": "graphql-codegen"
   },
   "dependencies": {
+    "@fontsource-variable/instrument-sans": "^5.2.8",
     "@mysten/dapp-kit-react": "^2.0.1",
     "@mysten/enoki": "^1.0.4",
     "@mysten/sui": "^2.8.0",
@@ -20,11 +21,11 @@
     "graphql": "^16.13.1",
     "graphql-request": "^7.4.0",
     "isbot": "^5",
+    "radix-ui": "^1.4.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.71.2",
     "react-router": "7.12.0",
-    "tailwind-merge": "^3.5.0",
     "tailwind-variants": "^3.2.2"
   },
   "devDependencies": {
