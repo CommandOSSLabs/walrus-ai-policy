@@ -11,7 +11,7 @@ Data is split across two systems by purpose:
 
 | System | What lives there | Why |
 |---|---|---|
-| **Sui blockchain** | Structured metadata + file path → blob ID mappings | Trustless, updatable, independently verifiable |
+| **Sui blockchain** | Structured metadata + file path → quilt patch ID mappings | Trustless, updatable, independently verifiable |
 | **Walrus storage** | Raw file bytes | Immutable, content-addressed, decentralized |
 
 PostgreSQL is a **derived cache** — fully rebuildable by replaying Sui events. It exists only to serve fast discovery queries.
@@ -63,22 +63,20 @@ Files are stored as **dynamic fields** on the Artifact object — the same patte
 public struct FilePath has copy, drop, store { path: String }  // field key
 
 public struct FileRef has store {                               // field value
-    blob_id: String,
-    quilt_id: Option<String>,  // set when file is part of a multi-file quilt upload
+    quilt_patch_id: String,    // Walrus quilt patch ID — every upload uses the quilt format
     mime_type: String,
     size_bytes: u64,
     description: String,
 }
 ```
 
-**`quilt_id` logic:** On initial submission, all files are bundled into a single Walrus quilt (cheaper than individual uploads). `quilt_id` is set to the quilt's blob ID for those files. If a single file is later updated in-place, it's re-uploaded as a standalone blob — `quilt_id` is `None`.
+**`quilt_patch_id`:** Every upload — initial submission (N files) or a single-file update — uses the Walrus quilt format. The SDK returns a `quilt_patch_id` per file. This is the stable retrieval reference regardless of how many files were in the upload batch.
 
-**Download URL by case:**
+**Download URL:**
 
 | Case | URL pattern |
 |---|---|
-| File in quilt | `https://{aggregator}/v1/blobs/by-quilt-id/{quiltBlobId}/{path}` |
-| Standalone re-upload | `https://{aggregator}/v1/blobs/{blobId}` |
+| Any file | `https://{aggregator}/v1/blobs/by-quilt-patch-id/{quiltPatchId}` |
 
 ---
 
@@ -102,7 +100,7 @@ The Move contract emits events carrying the **full metadata payload**. The index
 |---|---|---|
 | `ArtifactCreated` | `create_artifact()` | All metadata fields |
 | `ArtifactUpdated` | `update_metadata()` | title, description, topics, categories, authors, tags |
-| `FileUpserted` | `upsert_file()` | artifact ID, path, blob_id, quilt_id, mime_type, size_bytes |
+| `FileUpserted` | `upsert_file()` | artifact ID, path, quilt_patch_id, mime_type, size_bytes, description |
 | `FileRemoved` | `remove_file()` | artifact ID, path |
 
 ---
@@ -141,9 +139,20 @@ CREATE INDEX ON artifact(revision_of);
 CREATE INDEX ON artifact USING GIN(
     to_tsvector('english', title || ' ' || institution || ' ' || description)
 );
-```
 
-**Note:** File-level detail (individual blob IDs, paths, sizes) is **not** stored in Postgres. It's fetched live from Sui RPC when a user opens an artifact detail page. Postgres only tracks `file_count` for listings.
+CREATE TABLE artifact_file (
+    id              BIGSERIAL PRIMARY KEY,
+    artifact_id     TEXT     NOT NULL REFERENCES artifact(sui_object_id),
+    path            TEXT     NOT NULL,
+    quilt_patch_id  TEXT     NOT NULL,
+    mime_type       TEXT     NOT NULL,
+    size_bytes      BIGINT   NOT NULL,
+    description     TEXT     NOT NULL DEFAULT '',
+    UNIQUE (artifact_id, path)
+);
+
+CREATE INDEX ON artifact_file(artifact_id);
+```
 
 ---
 
@@ -153,8 +162,8 @@ CREATE INDEX ON artifact USING GIN(
 |---|---|
 | `ArtifactCreated` | `INSERT` row with all metadata |
 | `ArtifactUpdated` | `UPDATE` title, description, topics, categories, authors, tags, updated_epoch |
-| `FileUpserted` | `UPDATE artifact SET file_count = file_count + 1` |
-| `FileRemoved` | `UPDATE artifact SET file_count = file_count - 1` |
+| `FileUpserted` | `INSERT INTO artifact_file ... ON CONFLICT (artifact_id, path) DO UPDATE` + `UPDATE artifact SET file_count = file_count + 1` |
+| `FileRemoved` | `DELETE FROM artifact_file WHERE artifact_id = ? AND path = ?` + `UPDATE artifact SET file_count = file_count - 1` |
 
 ---
 
@@ -182,9 +191,8 @@ Indexing:
   Sui checkpoint stream → Indexer (Rust) → PostgreSQL
 
 Discovery:
-  Browser → GraphQL API → PostgreSQL (listings, search, filters)
-         → Sui RPC (full Artifact object + dynamic file fields, on detail page)
-         → Walrus aggregator (file download by blob ID)
+  Browser → GraphQL API → PostgreSQL (listings, search, filters, artifact detail + file list)
+         → Walrus aggregator (file download by quilt patch ID)
 ```
 
 ---
@@ -197,8 +205,8 @@ Because all data lives on public infrastructure:
 # 1. Read the Artifact object directly from any Sui node
 sui client object <suiObjectId>
 
-# 2. Download any file from any Walrus aggregator
-curl https://{aggregator}/v1/blobs/{blobId}
+# 2. Download any file from any Walrus aggregator by quilt patch ID
+curl https://{aggregator}/v1/blobs/by-quilt-patch-id/{quiltPatchId}
 ```
 
 No dependency on the indexer, GraphQL server, or this application.

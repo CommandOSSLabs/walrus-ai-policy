@@ -106,9 +106,9 @@ An `Artifact` is a Sui object owned by the submitter. Metadata lives on Sui (upd
 | `updatedEpoch` | u64 | Chain time |
 | `files` | dynamic fields | `path → FileRef` |
 
-**FileRef** (per file): `blobId`, `quiltId?`, `mimeType`, `sizeBytes`, `description`
+**FileRef** (per file): `quiltPatchId`, `mimeType`, `sizeBytes`, `description`
 
-`quiltId` is set when the file was part of a multi-file quilt upload. Absent for files re-uploaded as standalone blobs. The download URL pattern differs: quilt files use the quilt-path URL; standalone blobs use the direct blob URL. See System Design §6.
+Every upload — initial submission or a single-file update — uses the Walrus quilt format. The SDK returns a `quiltPatchId` per file. Download URL: `https://{aggregator}/v1/blobs/by-quilt-patch-id/{quiltPatchId}`.
 
 ### Policy Topic Taxonomy (v1)
 
@@ -121,8 +121,8 @@ An `Artifact` is a Sui object owned by the submitter. Metadata lives on Sui (upd
 | Metadata fields | Artifact Sui object | Structured, queryable, updatable |
 | `created_epoch`, `updated_epoch` | Artifact Sui object | Trustless timestamps (chain time) |
 | `revision_of` | Artifact Sui object | Links to predecessor by object ID |
-| File path → blob_id mapping | Artifact dynamic fields | Same pattern as Walrus Sites |
-| File bytes | Walrus blobs | Pure storage; retrieved by blob_id |
+| File path → quilt_patch_id mapping | Artifact dynamic fields | Same pattern as Walrus Sites |
+| File bytes | Walrus blobs | Pure storage; retrieved by quilt_patch_id |
 
 ### Updates and Versioning
 
@@ -189,7 +189,7 @@ Enoki integrates with the existing `@mysten/dapp-kit` setup: call `registerEnoki
 
 1. **OAuth login** — Enoki opens an OAuth popup (Google or Apple). zkLogin derives a non-custodial Sui address from the credential. Session valid until ephemeral key expires (~24h); re-authentication is silent unless session expires. Check WAL balance; warn if insufficient.
 2. **Fill metadata + select files** — Title, description, authors, institution, publication date, license (SPDX selector), topics (multi-select), files with per-file descriptions. Client-side validation on file type and size.
-3. **Upload to Walrus** — SDK encodes, registers, uploads, and certifies all files as a quilt. Enoki auto-signs the register and certify transactions silently. WAL storage payment executes automatically from the zkLogin wallet. Returns a certified `blobId` per file.
+3. **Upload to Walrus** — SDK encodes, registers, uploads, and certifies all files as a quilt. Enoki auto-signs the register and certify transactions silently. WAL storage payment executes automatically from the zkLogin wallet. Returns a `quiltPatchId` per file.
 4. **Create Artifact on Sui** — PTB calls `create_artifact()` + `upsert_file()` × N in one transaction. Enoki auto-signs silently. SUI gas fee can be sponsored via Enoki backend (optional). Emits events. Artifact discoverable via GraphQL within seconds.
 5. **Confirmation** — Artifact `suiObjectId`, Sui transaction digest, permalink, per-file download URLs.
 
@@ -224,11 +224,11 @@ The SPA is served as a Walrus Site. Artifact listings come from the GraphQL API.
 
 ### Move Package: `walrus_archive`
 
-**Structs:** `Artifact` (key, store) — includes `authors: vector<Author>` as a top-level field. `Author` (store, copy, drop) — `name`, `orcid?`, `affiliation?`. `FilePath` — dynamic field key. `FileRef` — dynamic field value: `blob_id`, `quilt_id: Option<String>`, `mime_type`, `size_bytes`, `description`.
+**Structs:** `Artifact` (key, store) — includes `authors: vector<Author>` as a top-level field. `Author` (store, copy, drop) — `name`, `orcid?`, `affiliation?`. `FilePath` — dynamic field key. `FileRef` — dynamic field value: `quilt_patch_id: String`, `mime_type`, `size_bytes`, `description`.
 
 **Entry points:**
 - `create_artifact(title, description, topics, categories, authors, institution, published_date, license, tags, revision_of, ctx)` → emits `ArtifactCreated`
-- `upsert_file(artifact, path, blob_id, quilt_id, mime_type, size_bytes, description, ctx)` → emits `FileUpserted`
+- `upsert_file(artifact, path, quilt_patch_id, mime_type, size_bytes, description, ctx)` → emits `FileUpserted`
 - `remove_file(artifact, path, ctx)` → emits `FileRemoved`
 - `update_metadata(artifact, title, description, topics, categories, authors, tags, ctx)` → emits `ArtifactUpdated`
 
@@ -236,9 +236,10 @@ The SPA is served as a Walrus Site. Artifact listings come from the GraphQL API.
 
 ### Indexer Event Processing
 
-1. `ArtifactCreated` → insert Postgres row
-2. `ArtifactUpdated` → update existing row
-3. `FileUpserted` → update file list (for file count in listings)
+1. `ArtifactCreated` → insert `artifact` row
+2. `ArtifactUpdated` → update `artifact` row
+3. `FileUpserted` → upsert `artifact_file` row; increment `artifact.file_count`
+4. `FileRemoved` → delete `artifact_file` row; decrement `artifact.file_count`
 
 Re-indexing replays the Sui checkpoint event stream — deterministic and auditable.
 

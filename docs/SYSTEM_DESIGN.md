@@ -78,7 +78,7 @@ type Query {
     limit: Int = 20, offset: Int = 0, sort: SortField = CREATED_EPOCH_DESC
   ): ArtifactConnection!
 
-  artifact(suiObjectId: String!): ArtifactSummary
+  artifact(suiObjectId: String!): ArtifactDetail
 }
 
 type ArtifactConnection { items: [ArtifactSummary!]!, totalCount: Int! }
@@ -89,12 +89,24 @@ type ArtifactSummary {
   createdEpoch: Int!, fileCount: Int!, revisionOf: String
 }
 
-# Artifact detail (full object with file list) is fetched via Sui RPC, not GraphQL.
+type ArtifactDetail {
+  suiObjectId: String!, owner: String!, title: String!, description: String!,
+  institution: String!, topics: [String!]!, categories: [String!]!,
+  authors: [Author!]!, publishedDate: String!, license: String!, tags: [String!]!,
+  createdEpoch: Int!, updatedEpoch: Int!, revisionOf: String,
+  files: [ArtifactFile!]!
+}
+
+type ArtifactFile {
+  path: String!, quiltPatchId: String!, mimeType: String!, sizeBytes: Int!, description: String!
+}
+
+type Author { name: String!, orcid: String, affiliation: String }
 
 enum SortField { CREATED_EPOCH_DESC, CREATED_EPOCH_ASC, PUBLISHED_DATE_DESC, PUBLISHED_DATE_ASC }
 ```
 
-Artifact detail fetches the full Artifact object (including dynamic file fields) via Sui RPC — GraphQL serves discovery only. File downloads go directly to the Walrus aggregator by blob ID.
+Artifact detail (`artifact` query) serves the full metadata and file list from Postgres. File downloads go directly to the Walrus aggregator by quilt patch ID.
 
 ```bash
 archive-graphql --database-url postgres://user:pass@localhost/archive --listen 0.0.0.0:4000
@@ -117,13 +129,13 @@ Enoki handles authentication via zkLogin (OAuth) and auto-signs all Sui and Walr
 ### Discovery
 
 1. SPA queries GraphQL for listings (browse, filter by topic/date, full-text search).
-2. Artifact detail: GraphQL summary + Sui RPC for full Artifact object with dynamic file fields.
-3. Downloads: direct GET to Walrus aggregator by blob ID — no proxy.
+2. Artifact detail: GraphQL `artifact(suiObjectId)` returns full metadata and file list from Postgres.
+3. Downloads: direct GET to Walrus aggregator by quilt patch ID — no proxy.
 
 ### Independent Verification
 
 1. Read the Artifact Sui object by `suiObjectId` via any Sui RPC node.
-2. Fetch each file from any Walrus aggregator by `blobId` from dynamic fields.
+2. Fetch each file from any Walrus aggregator by `quiltPatchId` from dynamic fields.
 
 No dependency on the indexer, GraphQL server, or this application.
 
