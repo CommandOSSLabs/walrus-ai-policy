@@ -1,0 +1,8 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "backend/indexer/Dockerfile"
+buildContext = "backend"
+
+[deploy]
+startCommand = "/usr/local/bin/archive-indexer --remote-store-url $REMOTE_STORE_URL"
+restartPolicyType = "ON_FAILURE"
