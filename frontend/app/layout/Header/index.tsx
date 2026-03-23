@@ -7,14 +7,17 @@ import { Link } from "react-router";
 import { tv } from "tailwind-variants";
 
 import PlusLine from "public/assets/line/plus.svg";
-import NotificationLine from "public/assets/line/notification.svg";
-import Jazzicon from "app/components/Jazzicon";
+
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "app/components/ui/popover";
 import { shorten } from "app/utils";
+import Typography from "app/components/Typography";
+import Jazzicon from "app/components/Jazzicon";
+import HeaderSearch from "./HeaderSearch";
+import HeaderNotification from "./HeaderNotification";
 
 export default () => {
   const currentAccount = useCurrentAccount();
@@ -22,84 +25,97 @@ export default () => {
   const { disconnectWallet } = useDAppKit();
 
   return (
-    <header className="bg-[#14191F] border-b border-[#2A3340] h-18 px-4">
+    <header className="bg-[#0D1320]/80 border-b border-[#00D4B4]/15 h-18 px-4">
       <Center className="h-full justify-between">
-        <Link to="/" className="text-[#E4EAF2] text-xl font-semibold">
-          Walrus-Walarchive
-        </Link>
-
-        {currentAccount?.address ? (
-          <Hstack className="gap-4">
-            <Link
-              to="/create-artifact"
-              className="bg-[#3B82F6] px-3 h-9 rounded-md"
+        <Hstack className="gap-8">
+          <Link to="/">
+            <Typography
+              font="grotesk"
+              className="text-[#46F1CF] text-lg font-bold"
             >
-              <Hstack className="size-full">
-                <PlusLine className="size-5" />
+              WALARCHIVE
+            </Typography>
+          </Link>
 
-                <p>Create Artifact</p>
-              </Hstack>
-            </Link>
+          <HeaderSearch />
+        </Hstack>
 
-            <button className="size-9 hover:bg-red-500 rounded-md">
-              <NotificationLine className="size-5 m-auto" />
-            </button>
+        <Hstack className="gap-3 h-8">
+          {currentAccount?.address ? (
+            <>
+              <Link
+                to="/create-artifact"
+                className="text-black flex items-center gap-2 px-4 h-full rounded-xs"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #46F1CF 0%, #41EDCC 12.5%, #3BEAC8 25%, #35E6C5 37.5%, #2EE2C1 50%, #27DFBE 62.5%, #1EDBBB 75%, #13D8B7 87.5%, #00D4B4 100%)",
+                }}
+              >
+                <PlusLine />
 
-            <Popover>
-              <PopoverTrigger>
-                <Jazzicon
-                  address={currentAccount.address}
-                  className="size-10"
-                />
-              </PopoverTrigger>
+                <Typography font="grotesk" className="text-xs font-bold">
+                  Create Artifact
+                </Typography>
+              </Link>
 
-              <PopoverContent
-                sideOffset={12}
-                align="end"
+              <HeaderNotification />
+
+              <Popover>
+                <PopoverTrigger>
+                  <Jazzicon
+                    address={currentAccount.address}
+                    className="size-8 cursor-pointer"
+                  />
+                </PopoverTrigger>
+
+                <PopoverContent
+                  sideOffset={12}
+                  align="end"
+                  className={tv({
+                    base: [
+                      "w-56 pt-4 gap-4 items-start",
+                      "bg-neutral-800 border border-neutral-700",
+                    ],
+                  })()}
+                >
+                  <Hstack>
+                    <Jazzicon
+                      address={currentAccount.address}
+                      className="size-8"
+                    />
+
+                    <p className="text-sm font-medium">
+                      {shorten(currentAccount.address)}
+                    </p>
+                  </Hstack>
+
+                  <div className="w-full h-px bg-neutral-600/65" />
+
+                  <button
+                    className="bg-red-500 w-full h-9 rounded-sm font-medium"
+                    onClick={disconnectWallet}
+                  >
+                    Disconnect
+                  </button>
+                </PopoverContent>
+              </Popover>
+            </>
+          ) : (
+            <ConnectWalletWrapper>
+              <button
                 className={tv({
                   base: [
-                    "w-56 pt-4 gap-4 items-start",
-                    "bg-neutral-800 border border-neutral-700",
+                    "text-[#00D4B4] text-xs font-bold",
+                    "px-4 h-full",
+                    "border-2 border-[#00D4B4] rounded-xs",
                   ],
                 })()}
               >
-                <Hstack>
-                  <Jazzicon
-                    address={currentAccount.address}
-                    className="size-8"
-                  />
-
-                  <p className="text-sm font-medium">
-                    {shorten(currentAccount.address)}
-                  </p>
-                </Hstack>
-
-                <div className="w-full h-[0.0625rem] bg-neutral-600/65" />
-
-                <button
-                  className="bg-red-500 w-full h-9 rounded-sm font-medium"
-                  onClick={disconnectWallet}
-                >
-                  Disconnect
-                </button>
-              </PopoverContent>
-            </Popover>
-          </Hstack>
-        ) : (
-          <ConnectWalletWrapper>
-            <button
-              className={tv({
-                base: [
-                  "bg-white/[0.153] border border-[#00D4B4]",
-                  "h-9 px-5 rounded-md",
-                  "text-[#00D4B4] text-sm font-medium",
-                ],
-              })()}
-            >
-              Connect wallet
-            </button>
-          </ConnectWalletWrapper>
-        )}
+                <Typography font="grotesk">Connect wallet</Typography>
+              </button>
+            </ConnectWalletWrapper>
+          )}
+        </Hstack>
       </Center>
     </header>
   );
