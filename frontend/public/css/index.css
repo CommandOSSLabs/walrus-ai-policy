@@ -9,20 +9,22 @@
 /* @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Inter:wght@400&display=swap'); */
 
 @theme inline {
+  /* fonts */
   --font-heading: var(--font-sans);
   --font-sans: "Instrument Sans Variable", sans-serif;
 
+  /* colors */
   --color-foreground: var(--foreground);
   --color-background: var(--background);
 
+  /* const */
   --radius-xs: calc(var(--radius) * 0.4); /* 0.625 * 0.4 = 4px */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) * 1.2);
+
+  --text-2xs: 0.625rem;
 }
 
 @theme {
@@ -53,5 +55,19 @@
 
   button {
     @apply cursor-pointer;
+  }
+}
+
+@layer components {
+  /* input */
+  .input-heading {
+    @apply text-[#46F1CF]/70 text-xs font-bold uppercase;
+  }
+
+  .input-bold {
+    @apply text-[#BACAC4] font-JetBrains_Mono;
+    @apply bg-[#272B33]/65 outline-none;
+    @apply border border-[#352F2F] rounded-lg;
+    @apply w-full p-4 placeholder-[#BACAC4]/45;
   }
 }

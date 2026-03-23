@@ -1,4 +1,4 @@
-import CreateArtifact from "app/layout/Create-Artifact";
+import CreateArtifact from "app/layout/CreateArtifact";
 
 export default () => {
   return <CreateArtifact />;
