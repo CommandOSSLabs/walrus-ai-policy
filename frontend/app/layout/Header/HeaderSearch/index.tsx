@@ -8,14 +8,14 @@ export default () => {
   const [search, setSearch] = useState<string>();
 
   return (
-    <div className="relative text-[#84948F]">
+    <div className="hidden md:block relative text-[#84948F]">
       <input
         placeholder="search artifacts, topics, authors..."
         value={search || ""}
         onChange={({ currentTarget }) => setSearch(currentTarget.value)}
         className={tv({
           base: [
-            "w-100 h-8 pl-4 pr-10 bg-[#191F2D]",
+            "w-80 lg:w-100 h-8 pl-4 pr-10 bg-[#191F2D]",
             "text-xs placeholder-inherit",
             "border border-[#3B4A45] rounded-xs outline-none",
           ],
