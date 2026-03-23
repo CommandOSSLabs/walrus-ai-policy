@@ -1,0 +1,10 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "backend/graphql/Dockerfile"
+buildContext = "backend"
+
+[deploy]
+startCommand = "/usr/local/bin/archive-graphql"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
