@@ -1,6 +1,10 @@
 import { Links, Meta, Outlet, Scripts } from "react-router";
 
 import "public/css/index.css";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/jetbrains-mono";
+import "@fontsource-variable/space-grotesk";
+
 import type { Route } from "./+types/root";
 import Header from "./layout/Header";
 import ProviderDappkit from "./layout/Provider/ProviderDappkit";
