@@ -7,7 +7,7 @@ export interface uploadQuiltParametersProps {
   files: File[];
   title: string;
   description: string;
-  categories: string[];
+  category: string;
 }
 
 interface ManifestDocumentProps {
@@ -45,7 +45,7 @@ export default () => {
     return {
       title: params.title,
       description: params.description,
-      categories: params.categories,
+      category: params.category,
       documents,
     };
   };
