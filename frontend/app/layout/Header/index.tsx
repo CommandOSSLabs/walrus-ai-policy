@@ -25,7 +25,15 @@ export default () => {
   const { disconnectWallet } = useDAppKit();
 
   return (
-    <header className="bg-[#0D1320]/80 border-b border-[#00D4B4]/15 h-18 px-4">
+    <header
+      className={tv({
+        base: [
+          "sticky top-0 z-50 h-18 px-4",
+          "backdrop-blur-3xl bg-[#0D1320]/80",
+          "border-b border-[#00D4B4]/15",
+        ],
+      })()}
+    >
       <Center className="h-full justify-between">
         <Hstack className="gap-8">
           <Link to="/">
