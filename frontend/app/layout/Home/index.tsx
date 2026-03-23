@@ -1,32 +1,15 @@
-import Stack from "app/components/Stack";
-import Vstack from "app/components/Vstack";
-import utilsConstants from "app/utils/utils.constants";
-import { Link } from "react-router";
+import Flex from "app/components/Flex";
+import HomeSidebar from "./HomeSidebar";
+import HomeArticle from "./HomeArticle";
 
 export default () => {
   return (
     <>
-      <p>Home</p>
+      <Flex className="gap-8 py-5 px-8">
+        <HomeSidebar />
 
-      <Vstack className="mt-4 p-4 border border-red-500 w-fit">
-        {utilsConstants.HOME_ARTIFACTS.map((meta) => (
-          <Link
-            key={meta.id}
-            to={`/artifact/${meta.id}`}
-            className="bg-black text-white"
-          >
-            <Stack className="p-2">
-              <p>Blob Id {meta.id}</p>
-
-              <img
-                src={meta.image}
-                alt={`Artifact image for ${meta.id}`}
-                className="size-10"
-              />
-            </Stack>
-          </Link>
-        ))}
-      </Vstack>
+        <HomeArticle />
+      </Flex>
     </>
   );
 };
