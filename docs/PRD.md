@@ -106,9 +106,12 @@ An `Artifact` is a **shared** Sui object. Metadata lives on Sui (updatable by `R
 | `createdAt` | u64 | Unix ms via Clock |
 | `files` | dynamic fields | `path → FileRef` |
 
-**FileRef** (per file): `quiltPatchId`, `mimeType`, `sizeBytes`, `description`
+**FileRef** (per file): `quiltPatchId`, `blobId`, `endEpoch`, `mimeType`, `sizeBytes`, `description`
 
-Every upload — initial submission or a single-file update — uses the Walrus quilt format. The SDK returns a `quiltPatchId` per file. Download URL: `https://{aggregator}/v1/blobs/by-quilt-patch-id/{quiltPatchId}`.
+- `quiltPatchId` — retrieval key; download URL: `https://{aggregator}/v1/blobs/by-quilt-patch-id/{quiltPatchId}`
+- `blobId` — links the file to its Walrus Blob DOF on the Artifact; used as the key for `extend_blob` calls
+- `endEpoch` — storage expiration epoch; surfaced in the UI as an estimated date with a warning at ≤4 epochs
+- `sizeBytes` — per-file unencoded size from the SDK quilt patch response (not derived from `blob.size()`, which is the whole quilt)
 
 ### Policy Topic Taxonomy (v1)
 
@@ -122,7 +125,8 @@ Every upload — initial submission or a single-file update — uses the Walrus 
 | `created_at` | Artifact Sui object | Trustless timestamp (Clock ms) |
 | `root_id`, `parent_id` | Artifact Sui object | Tree lineage, independently verifiable |
 | Access control roles (`address → u8`) | Root artifact dynamic fields | On-chain, auditable |
-| File path → quilt_patch_id mapping | Artifact dynamic fields | Same pattern as Walrus Sites |
+| File path → quilt_patch_id + blob_id + end_epoch mapping | Artifact dynamic fields | Same pattern as Walrus Sites; blob_id links to Blob DOF |
+| Walrus Blob objects (proof of storage) | Artifact dynamic object fields (DOF) | Keyed by blob_id; enables on-chain extension by anyone |
 | File bytes | Walrus blobs | Pure storage; retrieved by quilt_patch_id |
 
 ### Updates and Versioning
@@ -179,7 +183,7 @@ Artifacts form a tree. The root is created with `create_artifact`. Each new vers
 
 ## 8. Submission Flow
 
-**Total: 0 wallet confirmation dialogs.** Enoki handles authentication via zkLogin (OAuth) and signs all Sui and Walrus transactions automatically without user approval prompts. WAL tokens must be present in the zkLogin-derived wallet for Walrus storage payment; SUI gas fees can be sponsored via the Enoki backend API.
+**Total: 2 on-chain transactions, 0 wallet confirmation dialogs.** Tx 1 registers the quilt blob on Walrus. Tx 2 is a combined PTB: certify the blob + create/commit artifact + upsert files. Enoki handles authentication via zkLogin (OAuth) and signs all transactions automatically without user approval prompts. WAL tokens must be present in the zkLogin-derived wallet for Walrus storage payment; SUI gas fees can be sponsored via the Enoki backend API.
 
 ### Authentication Model (Enoki)
 
@@ -191,8 +195,8 @@ Enoki integrates with the existing `@mysten/dapp-kit` setup: call `registerEnoki
 
 1. **OAuth login** — Enoki opens an OAuth popup (Google or Apple). zkLogin derives a non-custodial Sui address from the credential. Session valid until ephemeral key expires (~24h); re-authentication is silent unless session expires. Check WAL balance; warn if insufficient.
 2. **Fill metadata + select files** — Title, description, authors, institution, publication date, license (SPDX selector), topics (multi-select), files with per-file descriptions. Client-side validation on file type and size.
-3. **Upload to Walrus** — SDK encodes, registers, uploads, and certifies all files as a quilt. Enoki auto-signs the register and certify transactions silently. WAL storage payment executes automatically from the zkLogin wallet. Returns a `quiltPatchId` per file.
-4. **Create Artifact on Sui** — PTB calls `create_artifact()` + `upsert_file()` × N in one transaction. Enoki auto-signs silently. SUI gas fee can be sponsored via Enoki backend (optional). Emits events. Artifact discoverable via GraphQL within seconds.
+3. **Upload to Walrus** — SDK encodes and registers files as a quilt (**Tx 1: register**). Off-chain shard upload follows. SDK returns a `quiltPatchId` and `sizeBytes` per file, plus the quilt's `blobId`. Enoki auto-signs silently. WAL payment executes automatically from the zkLogin wallet.
+4. **Create Artifact on Sui** — **Tx 2 (combined PTB)**: `certify_blob` (Walrus) + `create_artifact(blob)` + `upsert_file()` × N in one transaction. The Blob object is wrapped as a DOF on the Artifact inside this same tx. Enoki auto-signs silently. SUI gas fee can be sponsored via Enoki backend (optional). Emits events. Artifact discoverable via GraphQL within seconds. **Total: 2 wallet interactions.**
 5. **Confirmation** — Artifact `suiObjectId`, Sui transaction digest, permalink, per-file download URLs.
 
 ### File Constraints (v1)
@@ -216,7 +220,7 @@ The SPA is served as a Walrus Site. Artifact listings come from the GraphQL API.
 
 **Browse** — Paginated list of recent submissions. Filter sidebar: topics, date range, institution. Full-text search over title + institution (`tsvector`). Sort: newest, oldest.
 
-**Artifact Detail** — Full metadata, file list with sizes and MIME types, per-file download buttons (direct Walrus aggregator URL by blob ID), on-chain record (Sui transaction link, `suiObjectId`), epoch expiry indicator.
+**Artifact Detail** — Full metadata, file list with sizes and MIME types, per-file download buttons (direct Walrus aggregator URL by quilt patch ID), on-chain record (Sui transaction link, `suiObjectId`), epoch expiry indicator (estimated date derived from `endEpoch`; warning badge at ≤4 epochs remaining), "Extend Storage" button (Phase 3).
 
 **About** — How the archive works.
 
@@ -226,14 +230,15 @@ The SPA is served as a Walrus Site. Artifact listings come from the GraphQL API.
 
 ### Move Package: `walrus_ai_policy`
 
-**Structs:** `Artifact` (key) — shared object; `creator`, metadata fields, `root_id`, `parent_id`, `created_at`. `Author` (store, copy, drop) — `name`, `orcid?`, `affiliation?`. `FilePath` — dynamic field key. `FileRef` — dynamic field value: `quilt_patch_id`, `mime_type`, `size_bytes`, `description`.
+**Structs:** `Artifact` (key) — shared object; `creator`, metadata fields, `root_id`, `parent_id`, `created_at`. `Author` (store, copy, drop) — `name`, `orcid?`, `affiliation?`. `FilePath` — dynamic field key. `FileRef` — dynamic field value: `quilt_patch_id`, `blob_id`, `end_epoch`, `mime_type`, `size_bytes`, `description`. Walrus `Blob` objects stored as dynamic object fields (DOF) on the Artifact, keyed by `blob_id: u256`.
 
-**Access control:** Role constants (`ROLE_ADMIN = 1`) stored as `address → u8` dynamic fields on the root Artifact. `create_artifact` auto-assigns `ROLE_ADMIN` to the creator. `add_contributor` / `remove_contributor` manage roles; all mutating entry points require `ROLE_ADMIN`.
+**Access control:** Role constants (`ROLE_ADMIN = 1`) stored as `address → u8` dynamic fields on the root Artifact. `create_artifact` auto-assigns `ROLE_ADMIN` to the creator. `add_contributor` / `remove_contributor` manage roles; all mutating entry points require `ROLE_ADMIN`. `extend_blob` requires no role — open to anyone.
 
 **Entry points:**
-- `create_artifact(title, description, topics, categories, authors, institution, published_date, license, tags, clock, ctx)` → shares Artifact, emits `ArtifactEvent`
-- `commit_artifact(root, parent, title, description, topics, categories, authors, institution, published_date, license, tags, clock, ctx)` → shares new Artifact under same root, emits `ArtifactEvent`
-- `upsert_file(artifact, path, quilt_patch_id, mime_type, size_bytes, description, ctx)` → emits `FileUpserted`
+- `create_artifact(blob: Blob, title, description, topics, categories, authors, institution, published_date, license, tags, clock, ctx)` → shares Artifact, wraps blob as DOF, emits `ArtifactEvent`
+- `commit_artifact(blob: Blob, root, parent, title, description, topics, categories, authors, institution, published_date, license, tags, clock, ctx)` → shares new Artifact under same root, wraps blob as DOF, emits `ArtifactEvent`
+- `upsert_file(artifact, blob: Blob, path, quilt_patch_id, mime_type, size_bytes, description, ctx)` → wraps blob as DOF (keyed by `blob.blob_id()`), stores `end_epoch` from `blob.end_epoch()`, emits `FileUpserted`
+- `extend_blob(artifact, blob_id, system, payment, epochs)` → borrows Blob DOF mutably, calls `system.extend_blob`; open to anyone
 - `remove_file(artifact, path, ctx)` → emits `FileRemoved`
 - `update_metadata(artifact, title, description, topics, categories, authors, tags, ctx)` → emits `ArtifactUpdated`
 - `add_contributor(root, contributor, role, ctx)` — ROLE_ADMIN only
@@ -246,8 +251,9 @@ The SPA is served as a Walrus Site. Artifact listings come from the GraphQL API.
 1. `ArtifactEvent` (root_id null) → insert `artifact` row — new root
 2. `ArtifactEvent` (root_id set) → insert `artifact` row — new commit
 3. `ArtifactUpdated` → update `artifact` row
-4. `FileUpserted` → upsert `artifact_file` row; increment `artifact.file_count`
+4. `FileUpserted` → upsert `walrus_quilt(blob_id, end_epoch)` + upsert `artifact_file` row; increment `artifact.file_count`
 5. `FileRemoved` → delete `artifact_file` row; decrement `artifact.file_count`
+6. `BlobExtended` (emitted by `extend_blob`) → update `walrus_quilt SET end_epoch = ...`
 
 Re-indexing replays the Sui checkpoint event stream — deterministic and auditable.
 
@@ -281,7 +287,7 @@ Storage on Walrus is paid upfront in WAL tokens. Maximum single purchase: ~2 yea
 
 **v1 — Submitter pays.** The submitter's wallet covers the WAL cost at upload time. The UI shows cost breakdown before submission.
 
-**Phase 3 — Storage extension.** Any wallet can fund additional epochs for any artifact. Sources: submitting institution, community sponsorship, foundation grants. The artifact detail page surfaces a "fund this archive" action with pre-set epoch amounts.
+**Phase 3 — Storage extension.** Any wallet can fund additional epochs for any artifact by calling `extend_blob` on-chain — no permission required since the Artifact is shared and the Blob lives as a DOF on it. Sources: submitting institution, community sponsorship, foundation grants. The artifact detail page surfaces an "Extend Storage" action with epoch amount input and estimated WAL cost. Extension updates `end_epoch` on the Blob DOF and the indexer picks up the change via the emitted event.
 
 ---
 

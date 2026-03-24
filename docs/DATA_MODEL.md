@@ -81,20 +81,47 @@ Files are stored as **dynamic fields** on the Artifact object — the same patte
 public struct FilePath has copy, drop, store { path: String }  // field key
 
 public struct FileRef has store {                               // field value
-    quilt_patch_id: String,    // Walrus quilt patch ID — every upload uses the quilt format
+    quilt_patch_id: String,    // retrieval key — fetch via aggregator URL
+    blob_id: u256,             // key into the Blob DOF (see below); links to walrus_quilt
+    end_epoch: u32,            // storage expiration epoch — for display and extend calls
     mime_type: String,
-    size_bytes: u64,
+    size_bytes: u64,           // per-file unencoded size from SDK quilt patch response
     description: String,
 }
 ```
 
-**`quilt_patch_id`:** Every upload — initial submission (N files) or a single-file update — uses the Walrus quilt format. The SDK returns a `quilt_patch_id` per file. This is the stable retrieval reference regardless of how many files were in the upload batch.
+**`quilt_patch_id`:** Every upload uses the Walrus quilt format. The SDK returns a `quilt_patch_id` per file — the stable retrieval reference regardless of batch size.
 
 **Download URL:**
 
 | Case | URL pattern |
 |---|---|
 | Any file | `https://{aggregator}/v1/blobs/by-quilt-patch-id/{quiltPatchId}` |
+
+---
+
+## On-Chain: Blob Storage (Dynamic Object Fields)
+
+Each Walrus `Blob` object (`has key, store`) is attached to the Artifact using `dynamic_object_field::add`, keyed by `blob_id: u256`. Because `Blob` is a Sui object, it must use DOF (not a plain dynamic field) — this preserves its on-chain identity and allows it to be borrowed mutably for extension. This enables trustless storage extension by anyone — no role check required since Artifact is a shared object.
+
+```move
+// On upload: blob taken by value and wrapped as DOF
+dynamic_object_field::add(&mut artifact.id, blob.blob_id(), blob);
+
+// Anyone can extend — open to contributors, institutions, or community sponsors
+public fun extend_blob(
+    artifact: &mut Artifact,
+    blob_id: u256,
+    system: &mut walrus::system::System,
+    payment: &mut Coin<WAL>,
+    epochs: u32,
+) {
+    let blob = dynamic_object_field::borrow_mut<u256, Blob>(&mut artifact.id, blob_id);
+    system.extend_blob(blob, epochs, payment);
+}
+```
+
+Multiple quilts accumulate over time — initial submission and each per-file update produce a new quilt blob, each stored under its own `blob_id` key. `FileRef.blob_id` is the lookup key connecting a file to its Blob DOF.
 
 ---
 
@@ -118,7 +145,7 @@ The Move contract emits events carrying the **full metadata payload**. The index
 |---|---|---|
 | `ArtifactEvent` | `create_artifact()` and `commit_artifact()` | id, root_id, parent_id, creator, created_at + all metadata fields |
 | `ArtifactUpdated` | `update_metadata()` | artifact ID, title, description, topics, categories, authors, tags |
-| `FileUpserted` | `upsert_file()` | artifact ID, path, quilt_patch_id, mime_type, size_bytes, description |
+| `FileUpserted` | `upsert_file()` | artifact ID, path, quilt_patch_id, blob_id, end_epoch, mime_type, size_bytes, description |
 | `FileRemoved` | `remove_file()` | artifact ID, path |
 
 `ArtifactEvent` is shared by both entry points. The indexer distinguishes a new root (`root_id` is null) from a commit (`root_id` is set).
@@ -161,11 +188,18 @@ CREATE INDEX ON artifact USING GIN(
     to_tsvector('english', title || ' ' || institution || ' ' || description)
 );
 
+-- One row per quilt blob — tracks storage lifespan for extension
+CREATE TABLE walrus_quilt (
+    blob_id         TEXT     PRIMARY KEY,  -- u256 as hex; DOF key on the Artifact
+    end_epoch       INT      NOT NULL      -- updated whenever extend_blob is called
+);
+
 CREATE TABLE artifact_file (
     id              BIGSERIAL PRIMARY KEY,
     artifact_id     TEXT     NOT NULL REFERENCES artifact(sui_object_id),
     path            TEXT     NOT NULL,
     quilt_patch_id  TEXT     NOT NULL,
+    blob_id         TEXT     NOT NULL REFERENCES walrus_quilt(blob_id),
     mime_type       TEXT     NOT NULL,
     size_bytes      BIGINT   NOT NULL,
     description     TEXT     NOT NULL DEFAULT '',
@@ -173,6 +207,7 @@ CREATE TABLE artifact_file (
 );
 
 CREATE INDEX ON artifact_file(artifact_id);
+CREATE INDEX ON artifact_file(blob_id);
 ```
 
 ---
@@ -184,7 +219,7 @@ CREATE INDEX ON artifact_file(artifact_id);
 | `ArtifactEvent` (root_id null) | `INSERT` artifact row — new root |
 | `ArtifactEvent` (root_id set) | `INSERT` artifact row — new commit under root |
 | `ArtifactUpdated` | `UPDATE` title, description, topics, categories, authors, tags |
-| `FileUpserted` | `INSERT INTO artifact_file ... ON CONFLICT (artifact_id, path) DO UPDATE` + `UPDATE artifact SET file_count = file_count + 1` |
+| `FileUpserted` | `UPSERT walrus_quilt(blob_id, end_epoch)` + `INSERT INTO artifact_file ... ON CONFLICT (artifact_id, path) DO UPDATE` + `UPDATE artifact SET file_count = file_count + 1` |
 | `FileRemoved` | `DELETE FROM artifact_file WHERE artifact_id = ? AND path = ?` + `UPDATE artifact SET file_count = file_count - 1` |
 
 ---
@@ -214,17 +249,29 @@ root (root_id=null, parent_id=null)
 
 ```
 Submission:
-  Browser → Walrus SDK (upload files as quilt) → quilt patch IDs
-          → Sui PTB: create_artifact() + upsert_file() × N   [new root]
-          → Sui PTB: commit_artifact(root, parent) + upsert_file() × N   [new version]
+  Browser → Walrus SDK (upload files as quilt)
+          → Tx 1: register blob on Walrus  (reserve_space + register_blob)
+          [off-chain: shard upload to storage nodes]
+          → Tx 2 (combined PTB):
+              certify_blob(&mut blob, ...)              ← Walrus
+              create_artifact(blob, ...) + upsert_file() × N   ← our contract [new root]
+              OR commit_artifact(blob, root, parent) + upsert_file() × N  [new version]
           → ArtifactEvent + FileUpserted events emitted
+          (blob wrapped as DOF on Artifact inside Tx 2)
 
 Indexing:
-  Sui checkpoint stream → Indexer (Rust) → PostgreSQL
+  Sui checkpoint stream → Indexer (Rust)
+    FileUpserted → UPSERT walrus_quilt(blob_id, end_epoch) + INSERT artifact_file
+    → PostgreSQL
 
 Discovery:
   Browser → GraphQL API → PostgreSQL (listings, search, filters, artifact detail + file list)
          → Walrus aggregator (file download by quilt patch ID)
+
+Extension:
+  Browser → extend_blob(artifact, blob_id, system, payment, epochs)  ← anyone can call
+          → BlobCertified event with updated end_epoch
+          → Indexer → UPDATE walrus_quilt SET end_epoch = ...
 ```
 
 ---
