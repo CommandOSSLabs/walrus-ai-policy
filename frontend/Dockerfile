@@ -5,7 +5,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 ARG VITE_GRAPHQL_URL
 ENV VITE_GRAPHQL_URL=$VITE_GRAPHQL_URL
-RUN bun run build
+RUN node node_modules/.bin/react-router build
 
 FROM node:alpine AS runtime
 RUN npm install -g serve
