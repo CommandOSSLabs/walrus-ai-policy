@@ -1,7 +1,7 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "backend/indexer/Dockerfile"
-buildContext = "backend"
+dockerfilePath = "Dockerfile"
+dockerfileTarget = "indexer"
 
 [deploy]
 startCommand = "/usr/local/bin/archive-indexer --remote-store-url $REMOTE_STORE_URL"
