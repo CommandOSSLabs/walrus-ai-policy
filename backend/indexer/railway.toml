@@ -5,3 +5,4 @@ dockerfilePath = "Dockerfile.indexer"
 [deploy]
 startCommand = "/usr/local/bin/archive-indexer --remote-store-url $REMOTE_STORE_URL"
 restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

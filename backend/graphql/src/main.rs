@@ -14,8 +14,8 @@ struct Cli {
     #[clap(long, env = "DATABASE_URL")]
     database_url: Url,
 
-    #[clap(long, env = "LISTEN_ADDR", default_value = "0.0.0.0:4000")]
-    listen: std::net::SocketAddr,
+    #[clap(long, env = "PORT", default_value = "4000")]
+    port: u16,
 }
 
 #[tokio::main]
@@ -33,8 +33,9 @@ async fn main() -> Result<()> {
         .with_state(schema)
         .layer(CorsLayer::permissive());
 
-    tracing::info!("Listening on {}", cli.listen);
-    let listener = tokio::net::TcpListener::bind(cli.listen).await?;
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], cli.port));
+    tracing::info!("Listening on {}", addr);
+    let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }

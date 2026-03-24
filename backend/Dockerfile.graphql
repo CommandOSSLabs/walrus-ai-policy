@@ -23,5 +23,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN useradd -m -u 1000 appuser
 COPY --from=builder /app/target/release/archive-graphql /usr/local/bin/archive-graphql
 USER appuser
-EXPOSE 4000
 CMD ["/usr/local/bin/archive-graphql"]
