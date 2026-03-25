@@ -35,10 +35,7 @@ public struct Artifact has key {
     topics: vector<String>,       // from v1 taxonomy (e.g. "ai_safety")
     categories: vector<String>,
     authors: vector<Author>,
-    institution: String,
     published_date: String,       // ISO 8601, e.g. "2025-03"
-    license: String,              // SPDX identifier or custom
-    tags: vector<String>,
 
     // Versioning — tree structure
     root_id: Option<ID>,          // None for root artifacts; root's ID for all commits

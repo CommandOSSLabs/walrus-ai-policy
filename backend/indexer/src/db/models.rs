@@ -1,24 +1,27 @@
-use chrono::NaiveDate;
 use diesel::prelude::*;
 
 use crate::db::schema::artifact;
+use crate::db::schema::artifact_file;
 
 #[derive(Insertable, Debug)]
 #[diesel(table_name = artifact)]
 pub struct NewArtifact {
     pub sui_object_id: String,
-    pub owner: String,
+    pub root_id: Option<String>,
+    pub parent_id: Option<String>,
     pub title: String,
     pub description: String,
-    pub topics: Vec<String>,
-    pub categories: Vec<String>,
-    pub authors: serde_json::Value,
-    pub institution: String,
-    pub published_date: NaiveDate,
-    pub license: String,
-    pub tags: Vec<String>,
-    pub revision_of: Option<String>,
-    pub created_epoch: i64,
-    pub updated_epoch: i64,
-    pub file_count: i32,
+    pub version: i64,
+    pub creator: String,
+    pub category: String,
+    pub created_at: i64,
+}
+
+#[derive(Insertable, Debug)]
+#[diesel(table_name = artifact_file)]
+pub struct NewArtifactFile {
+    pub artifact_id: String,
+    pub patch_id: String,
+    pub mime_type: String,
+    pub size_bytes: i64,
 }

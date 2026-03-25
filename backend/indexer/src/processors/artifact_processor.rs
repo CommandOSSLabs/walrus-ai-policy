@@ -1,88 +1,110 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
-use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use sui_indexer_alt_framework::pipeline::Processor;
 use sui_indexer_alt_framework::pipeline::sequential::Handler;
 use sui_indexer_alt_framework::postgres;
 use sui_indexer_alt_framework::types::full_checkpoint_content::Checkpoint;
+use sui_types::base_types::ObjectID;
+use sui_types::object::Owner;
 
-use crate::db::models::NewArtifact;
-use crate::db::schema::artifact;
-use crate::events::{
-    ArtifactCreatedEvent, ArtifactEvent, ArtifactUpdatedEvent, FileRemovedEvent, FileUpsertedEvent,
-};
+use crate::db::models::{NewArtifact, NewArtifactFile};
+use crate::db::schema::{artifact, artifact_file};
+use crate::events::{ArtifactEvent, FieldObject, FileRef, FileInfo};
+
+const FILE_REF_DF: u8 = 1;
+const ARTIFACT_MODULE: &str = "artifact";
+const ARTIFACT_EVENT_TYPE: &str = "ArtifactEvent";
 
 pub struct ArtifactPipeline {
-    pub package_id: String,
+    pub package_id: ObjectID,
+}
+
+pub struct ArtifactWithFiles {
+    pub event: ArtifactEvent,
+    pub files: Vec<FileInfo>,
+}
+
+fn bytes_to_hex(bytes: &[u8; 32]) -> String {
+    format!("0x{}", hex::encode(bytes))
+}
+
+/// Scan output_objects once and return a map of parent_id → FileRef files.
+/// This avoids re-iterating the same object set for each artifact event.
+fn build_files_map<'a>(
+    output_objects: impl Iterator<Item = &'a sui_types::object::Object>,
+) -> HashMap<[u8; 32], Vec<FileInfo>> {
+    let mut map: HashMap<[u8; 32], Vec<FileInfo>> = HashMap::new();
+    for obj in output_objects {
+        let Owner::ObjectOwner(parent_id) = obj.owner() else { continue };
+        let Some(move_obj) = obj.as_inner().data.try_as_move() else { continue };
+        if !move_obj.type_().is_dynamic_field() { continue };
+        let Ok(field) = bcs::from_bytes::<FieldObject<FileRef>>(move_obj.contents()) else { continue };
+        if field.name == FILE_REF_DF {
+            let key: [u8; 32] = parent_id.as_ref().try_into()
+                .expect("SuiAddress is always 32 bytes");
+            map.entry(key).or_default().extend(field.value.files);
+        }
+    }
+    map
 }
 
 #[async_trait]
 impl Processor for ArtifactPipeline {
     const NAME: &'static str = "artifact";
-    type Value = ArtifactEvent;
+    type Value = ArtifactWithFiles;
 
     async fn process(&self, checkpoint: &Arc<Checkpoint>) -> anyhow::Result<Vec<Self::Value>> {
-        let mut events = Vec::new();
+        let mut results = Vec::new();
 
         for tx in &checkpoint.transactions {
-            let Some(tx_events) = &tx.events else {
+            let Some(tx_events) = &tx.events else { continue };
+
+            let artifact_events: Vec<ArtifactEvent> = tx_events
+                .data
+                .iter()
+                .filter(|e| {
+                    e.package_id == self.package_id
+                        && e.type_.module.as_str() == ARTIFACT_MODULE
+                        && e.type_.name.as_str() == ARTIFACT_EVENT_TYPE
+                })
+                .filter_map(|e| match bcs::from_bytes::<ArtifactEvent>(&e.contents) {
+                    Ok(ev) => Some(ev),
+                    Err(err) => {
+                        tracing::warn!("Failed to deserialize ArtifactEvent: {err}");
+                        None
+                    }
+                })
+                .collect();
+
+            if artifact_events.is_empty() {
                 continue;
-            };
+            }
 
-            for event in &tx_events.data {
-                if event.package_id.to_string() != self.package_id
-                    || event.type_.module.as_str() != "artifact"
-                {
-                    continue;
+            let mut files_map = build_files_map(tx.output_objects(&checkpoint.object_set));
+
+            for artifact_event in artifact_events {
+                let files = files_map.remove(&artifact_event.id).unwrap_or_default();
+                if files.is_empty() && tracing::enabled!(tracing::Level::DEBUG) {
+                    tracing::debug!(
+                        artifact_id = %bytes_to_hex(&artifact_event.id),
+                        "No FileRef dynamic field found for artifact"
+                    );
                 }
-
-                let parsed = match event.type_.name.as_str() {
-                    "ArtifactCreated" => match bcs::from_bytes::<ArtifactCreatedEvent>(&event.contents) {
-                        Ok(e) => ArtifactEvent::Created(e),
-                        Err(err) => {
-                            tracing::warn!("Failed to deserialize ArtifactCreated: {err}");
-                            continue;
-                        }
-                    },
-                    "ArtifactUpdated" => match bcs::from_bytes::<ArtifactUpdatedEvent>(&event.contents) {
-                        Ok(e) => ArtifactEvent::Updated(e),
-                        Err(err) => {
-                            tracing::warn!("Failed to deserialize ArtifactUpdated: {err}");
-                            continue;
-                        }
-                    },
-                    "FileUpserted" => match bcs::from_bytes::<FileUpsertedEvent>(&event.contents) {
-                        Ok(e) => ArtifactEvent::FileUpserted(e),
-                        Err(err) => {
-                            tracing::warn!("Failed to deserialize FileUpserted: {err}");
-                            continue;
-                        }
-                    },
-                    "FileRemoved" => match bcs::from_bytes::<FileRemovedEvent>(&event.contents) {
-                        Ok(e) => ArtifactEvent::FileRemoved(e),
-                        Err(err) => {
-                            tracing::warn!("Failed to deserialize FileRemoved: {err}");
-                            continue;
-                        }
-                    },
-                    _ => continue,
-                };
-
-                events.push(parsed);
+                results.push(ArtifactWithFiles { event: artifact_event, files });
             }
         }
 
-        Ok(events)
+        Ok(results)
     }
 }
 
 #[async_trait]
 impl Handler for ArtifactPipeline {
     type Store = postgres::Db;
-    type Batch = Vec<ArtifactEvent>;
+    type Batch = Vec<ArtifactWithFiles>;
 
     fn batch(&self, batch: &mut Self::Batch, values: std::vec::IntoIter<Self::Value>) {
         batch.extend(values);
@@ -93,82 +115,51 @@ impl Handler for ArtifactPipeline {
         batch: &Self::Batch,
         conn: &mut postgres::Connection<'a>,
     ) -> anyhow::Result<usize> {
-        let mut affected = 0;
+        if batch.is_empty() {
+            return Ok(0);
+        }
 
-        for event in batch {
-            match event {
-                ArtifactEvent::Created(e) => {
-                    let published_date = match NaiveDate::parse_from_str(&e.published_date, "%Y-%m-%d") {
-                        Ok(d) => d,
-                        Err(err) => {
-                            tracing::warn!(
-                                sui_object_id = %e.sui_object_id,
-                                published_date = %e.published_date,
-                                "Invalid published_date, skipping artifact: {err}"
-                            );
-                            continue;
-                        }
-                    };
+        let mut artifact_rows = Vec::with_capacity(batch.len());
+        let mut file_rows: Vec<NewArtifactFile> = Vec::with_capacity(batch.len());
 
-                    let row = NewArtifact {
-                        sui_object_id: e.sui_object_id.clone(),
-                        owner: e.owner.clone(),
-                        title: e.title.clone(),
-                        description: e.description.clone(),
-                        topics: e.topics.clone(),
-                        categories: e.categories.clone(),
-                        authors: serde_json::to_value(&e.authors)?,
-                        institution: e.institution.clone(),
-                        published_date,
-                        license: e.license.clone(),
-                        tags: e.tags.clone(),
-                        revision_of: e.revision_of.clone(),
-                        created_epoch: e.created_epoch as i64,
-                        updated_epoch: e.created_epoch as i64,
-                        file_count: 0,
-                    };
-                    affected += diesel::insert_into(artifact::table)
-                        .values(&row)
-                        .on_conflict_do_nothing()
-                        .execute(conn)
-                        .await?;
-                }
+        for item in batch {
+            let e = &item.event;
+            let artifact_id_hex = bytes_to_hex(&e.id);
 
-                ArtifactEvent::Updated(e) => {
-                    affected += diesel::update(
-                        artifact::table.filter(artifact::sui_object_id.eq(&e.sui_object_id)),
-                    )
-                    .set((
-                        artifact::title.eq(&e.title),
-                        artifact::description.eq(&e.description),
-                        artifact::topics.eq(&e.topics),
-                        artifact::categories.eq(&e.categories),
-                        artifact::authors.eq(serde_json::to_value(&e.authors)?),
-                        artifact::tags.eq(&e.tags),
-                        artifact::updated_epoch.eq(e.updated_epoch as i64),
-                    ))
-                    .execute(conn)
-                    .await?;
-                }
+            artifact_rows.push(NewArtifact {
+                sui_object_id: artifact_id_hex.clone(),
+                root_id: e.root_id.as_ref().map(bytes_to_hex),
+                parent_id: e.parent_id.as_ref().map(bytes_to_hex),
+                title: e.metadata.title.clone(),
+                description: e.metadata.description.clone(),
+                version: e.metadata.version as i64,
+                creator: bytes_to_hex(&e.metadata.creator),
+                category: e.metadata.category.clone(),
+                created_at: e.metadata.created_at as i64,
+            });
 
-                ArtifactEvent::FileUpserted(e) => {
-                    affected += diesel::update(
-                        artifact::table.filter(artifact::sui_object_id.eq(&e.sui_object_id)),
-                    )
-                    .set(artifact::file_count.eq(artifact::file_count + 1))
-                    .execute(conn)
-                    .await?;
-                }
+            file_rows.extend(item.files.iter().map(|f| NewArtifactFile {
+                artifact_id: artifact_id_hex.clone(),
+                patch_id: f.patch_id.clone(),
+                mime_type: f.mime_type.clone(),
+                size_bytes: f.size_bytes as i64,
+            }));
+        }
 
-                ArtifactEvent::FileRemoved(e) => {
-                    affected += diesel::update(
-                        artifact::table.filter(artifact::sui_object_id.eq(&e.sui_object_id)),
-                    )
-                    .set(artifact::file_count.eq(diesel::dsl::sql("GREATEST(file_count - 1, 0)")))
-                    .execute(conn)
-                    .await?;
-                }
-            }
+        let affected = diesel::insert_into(artifact::table)
+            .values(&artifact_rows)
+            .on_conflict(artifact::sui_object_id)
+            .do_nothing()
+            .execute(conn)
+            .await?;
+
+        if !file_rows.is_empty() {
+            diesel::insert_into(artifact_file::table)
+                .values(&file_rows)
+                .on_conflict((artifact_file::artifact_id, artifact_file::patch_id))
+                .do_nothing()
+                .execute(conn)
+                .await?;
         }
 
         Ok(affected)

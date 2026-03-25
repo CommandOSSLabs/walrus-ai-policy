@@ -3,6 +3,7 @@ use archive_indexer::{processors::ArtifactPipeline, MIGRATIONS};
 use clap::Parser;
 use sui_indexer_alt_framework::cluster::{Args, IndexerCluster};
 use sui_indexer_alt_framework::pipeline::sequential::SequentialConfig;
+use sui_types::base_types::ObjectID;
 use url::Url;
 
 #[derive(Parser, Debug)]
@@ -24,6 +25,8 @@ async fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
+    let package_id: ObjectID = cli.package_id.trim().parse()?;
+
     let mut indexer = IndexerCluster::builder()
         .with_database_url(cli.database_url)
         .with_args(cli.args)
@@ -33,7 +36,7 @@ async fn main() -> Result<()> {
 
     indexer
         .sequential_pipeline(
-            ArtifactPipeline { package_id: cli.package_id },
+            ArtifactPipeline { package_id },
             SequentialConfig::default(),
         )
         .await?;
