@@ -1,1 +1,2 @@
+DROP TABLE IF EXISTS artifact_file;
 DROP TABLE IF EXISTS artifact;

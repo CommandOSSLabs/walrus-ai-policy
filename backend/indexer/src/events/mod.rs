@@ -1,54 +1,45 @@
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Author {
-    pub name: String,
-    pub orcid: Option<String>,
-    pub affiliation: Option<String>,
-}
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-pub struct ArtifactCreatedEvent {
-    pub sui_object_id: String,
-    pub owner: String,
+pub struct Metadata {
     pub title: String,
     pub description: String,
-    pub topics: Vec<String>,
-    pub categories: Vec<String>,
-    pub authors: Vec<Author>,
-    pub institution: String,
-    pub published_date: String,
-    pub license: String,
-    pub tags: Vec<String>,
-    pub revision_of: Option<String>,
-    pub created_epoch: u64,
+    pub version: u64,
+    pub creator: [u8; 32],
+    pub category: String,
+    pub created_at: u64,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ArtifactUpdatedEvent {
-    pub sui_object_id: String,
-    pub title: String,
-    pub description: String,
-    pub topics: Vec<String>,
-    pub categories: Vec<String>,
-    pub authors: Vec<Author>,
-    pub tags: Vec<String>,
-    pub updated_epoch: u64,
+pub struct Contributor {
+    pub role: u8,
+    pub creator: [u8; 32],
 }
 
 #[derive(Debug, Deserialize)]
-pub struct FileUpsertedEvent {
-    pub sui_object_id: String,
+pub struct ArtifactEvent {
+    pub id: [u8; 32],
+    pub root_id: Option<[u8; 32]>,
+    pub parent_id: Option<[u8; 32]>,
+    pub metadata: Metadata,
+    pub contributor: Option<Vec<Contributor>>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct FileRemovedEvent {
-    pub sui_object_id: String,
+pub struct FieldObject<V> {
+    pub id: [u8; 32],
+    pub name: u8,
+    pub value: V,
 }
 
-pub enum ArtifactEvent {
-    Created(ArtifactCreatedEvent),
-    Updated(ArtifactUpdatedEvent),
-    FileUpserted(FileUpsertedEvent),
-    FileRemoved(FileRemovedEvent),
+#[derive(Debug, Deserialize)]
+pub struct FileRef {
+    pub files: Vec<FileInfo>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FileInfo {
+    pub patch_id: String,
+    pub mime_type: String,
+    pub size_bytes: u64,
 }
