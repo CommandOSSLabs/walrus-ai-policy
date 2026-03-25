@@ -1,5 +1,5 @@
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Enum, InputObject, Object, Schema, SimpleObject};
-use async_graphql::http::{GraphQLPlaygroundConfig, playground_source};
+use async_graphql::http::graphiql_source;
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::extract::State;
 use axum::response::{Html, IntoResponse};
@@ -21,7 +21,7 @@ pub fn build(pool: DbPool) -> AppSchema {
 }
 
 pub async fn graphql_playground() -> impl IntoResponse {
-    Html(playground_source(GraphQLPlaygroundConfig::new("/graphql")))
+    Html(graphiql_source("/graphql", None))
 }
 
 pub async fn graphql_handler(State(schema): State<AppSchema>, req: GraphQLRequest) -> GraphQLResponse {
@@ -70,6 +70,7 @@ pub struct ArtifactFilter {
     pub creator: Option<String>,
     pub root_id: Option<String>,
     pub search: Option<String>,
+    pub only_roots: Option<bool>,
 }
 
 #[derive(SimpleObject)]
@@ -118,6 +119,9 @@ impl QueryRoot {
                             .bind::<diesel::sql_types::Text, _>(search.as_str())
                             .sql(")")
                         );
+                    }
+                    if f.only_roots.unwrap_or(false) {
+                        $q = $q.filter(artifact::root_id.is_null());
                     }
                 }
             };
@@ -184,5 +188,30 @@ impl QueryRoot {
             artifact: artifact_row,
             files,
         }))
+    }
+
+    async fn artifact_versions(
+        &self,
+        ctx: &Context<'_>,
+        root_id: String,
+    ) -> async_graphql::Result<Vec<StoredArtifact>> {
+        use diesel_async::RunQueryDsl as AsyncDsl;
+
+        let pool = ctx.data::<DbPool>()?;
+        let mut conn = pool.get().await?;
+
+        let artifacts: Vec<StoredArtifact> = AsyncDsl::load(
+            artifact::table
+                .filter(
+                    artifact::sui_object_id.eq(&root_id)
+                        .or(artifact::root_id.eq(&root_id))
+                )
+                .select(artifact::all_columns)
+                .order(artifact::version.asc()),
+            &mut conn,
+        )
+        .await?;
+
+        Ok(artifacts)
     }
 }

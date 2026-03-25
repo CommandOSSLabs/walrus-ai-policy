@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 use sui_indexer_alt_framework::pipeline::Processor;
 use sui_indexer_alt_framework::pipeline::sequential::Handler;
@@ -119,10 +120,32 @@ impl Handler for ArtifactPipeline {
             return Ok(0);
         }
 
+        let distinct_roots: Vec<String> = batch.iter()
+            .filter_map(|item| item.event.root_id.as_ref().map(bytes_to_hex))
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        let db_counts: HashMap<String, i64> = if distinct_roots.is_empty() {
+            HashMap::new()
+        } else {
+            artifact::table
+                .filter(artifact::root_id.eq_any(&distinct_roots))
+                .group_by(artifact::root_id)
+                .select((artifact::root_id, diesel::dsl::count_star()))
+                .load::<(Option<String>, i64)>(&mut *conn)
+                .await?
+                .into_iter()
+                .filter_map(|(root_id, count)| root_id.map(|id| (id, count)))
+                .collect()
+        };
+
+        let versions = compute_versions(batch, &db_counts);
+
         let mut artifact_rows = Vec::with_capacity(batch.len());
         let mut file_rows: Vec<NewArtifactFile> = Vec::with_capacity(batch.len());
 
-        for item in batch {
+        for (item, version) in batch.iter().zip(versions.iter()) {
             let e = &item.event;
             let artifact_id_hex = bytes_to_hex(&e.id);
 
@@ -132,7 +155,7 @@ impl Handler for ArtifactPipeline {
                 parent_id: e.parent_id.as_ref().map(bytes_to_hex),
                 title: e.metadata.title.clone(),
                 description: e.metadata.description.clone(),
-                version: e.metadata.version as i64,
+                version: *version,
                 creator: bytes_to_hex(&e.metadata.creator),
                 category: e.metadata.category.clone(),
                 created_at: e.metadata.created_at as i64,
@@ -163,5 +186,93 @@ impl Handler for ArtifactPipeline {
         }
 
         Ok(affected)
+    }
+}
+
+fn compute_versions(batch: &[ArtifactWithFiles], db_counts: &HashMap<String, i64>) -> Vec<i64> {
+    let mut batch_counters: HashMap<String, i64> = HashMap::new();
+    batch.iter().map(|item| {
+        match &item.event.root_id {
+            None => 0,
+            Some(root_id_bytes) => {
+                let hex = bytes_to_hex(root_id_bytes);
+                let db_count = db_counts.get(&hex).copied().unwrap_or(0);
+                let counter = batch_counters.entry(hex).or_insert(0);
+                let version = db_count + *counter + 1;
+                *counter += 1;
+                version
+            }
+        }
+    }).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_item(id: u8, root_id: Option<u8>) -> ArtifactWithFiles {
+        use crate::events::{ArtifactEvent, Metadata};
+        ArtifactWithFiles {
+            event: ArtifactEvent {
+                id: [id; 32],
+                root_id: root_id.map(|r| [r; 32]),
+                parent_id: None,
+                metadata: Metadata {
+                    title: String::new(),
+                    description: String::new(),
+                    version: 0,
+                    creator: [0; 32],
+                    category: String::new(),
+                    created_at: 0,
+                },
+                contributor: None,
+            },
+            files: vec![],
+        }
+    }
+
+    #[test]
+    fn root_gets_version_zero() {
+        let batch = vec![make_item(1, None)];
+        let versions = compute_versions(&batch, &HashMap::new());
+        assert_eq!(versions, vec![0]);
+    }
+
+    #[test]
+    fn first_commit_gets_version_one() {
+        let batch = vec![make_item(2, Some(1))];
+        let versions = compute_versions(&batch, &HashMap::new());
+        assert_eq!(versions, vec![1]);
+    }
+
+    #[test]
+    fn intra_batch_commits_increment() {
+        let batch = vec![
+            make_item(2, Some(1)),
+            make_item(3, Some(1)),
+            make_item(4, Some(1)),
+        ];
+        let versions = compute_versions(&batch, &HashMap::new());
+        assert_eq!(versions, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn db_count_offsets_version() {
+        let batch = vec![make_item(2, Some(1))];
+        let mut counts = HashMap::new();
+        counts.insert(bytes_to_hex(&[1u8; 32]), 5i64);
+        let versions = compute_versions(&batch, &counts);
+        assert_eq!(versions, vec![6]);
+    }
+
+    #[test]
+    fn two_roots_tracked_independently() {
+        let batch = vec![
+            make_item(2, Some(1)),
+            make_item(3, Some(2)),
+            make_item(4, Some(1)),
+        ];
+        let versions = compute_versions(&batch, &HashMap::new());
+        assert_eq!(versions, vec![1, 1, 2]);
     }
 }
