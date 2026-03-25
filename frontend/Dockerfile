@@ -11,4 +11,4 @@ RUN pnpm run build
 FROM node:alpine AS runtime
 RUN npm install -g serve
 COPY --from=builder /app/build/client /app
-CMD ["sh", "-c", "serve -s /app -l ${PORT:-3000}"]
+CMD ["sh", "-c", "serve /app -l ${PORT:-3000}"]
