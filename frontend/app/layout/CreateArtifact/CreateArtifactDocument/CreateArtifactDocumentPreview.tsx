@@ -43,7 +43,7 @@ export default ({ fields, remove }: CreateArtifactDocumentPreviewProps) => {
           return (
             <Center
               key={id}
-              className="justify-between min-h-10 px-4 border-b border-[#352F2F]"
+              className="justify-between min-h-11 px-4 not-last:border-b not-last:border-[#352F2F]"
             >
               <Hstack>
                 {isFolder ? <FolderLine /> : <FilesLine />}

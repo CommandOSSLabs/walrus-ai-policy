@@ -56,11 +56,7 @@ export default ({ isSubmitting, handleSubmit }: CreateArtifactSubmitProps) => {
             );
 
             const artifact = await initArtifact(
-              {
-                title: "so",
-                description: "desc",
-                category: "AI",
-              },
+              values,
               quilt,
               updateFee,
               updateStatus,
