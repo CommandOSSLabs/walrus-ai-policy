@@ -20,7 +20,7 @@ const getSuiClient = new SuiGrpcClient({
 });
 
 const programs = {
-  package: "0x479abd3c4a52f7edb0d1a191bc75dc373d17eeab8aedb19d9a4b8e8246c25730",
+  package: "0x2809bd901744192d5845f5afc07e4ebacadcc0530932b5c2d602a846c7c21fd5",
 };
 
 export default {

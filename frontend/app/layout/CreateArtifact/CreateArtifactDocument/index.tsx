@@ -11,6 +11,9 @@ export default ({ control }: CreateArtifactDocumentProps) => {
   const { fields, append, remove } = useFieldArray({
     control,
     name: "files",
+    rules: {
+      required: true,
+    },
   });
 
   return (

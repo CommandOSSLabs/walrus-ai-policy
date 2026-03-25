@@ -1,4 +1,3 @@
-import { type uploadQuiltParametersProps } from "app/hook/useUploadQuilt";
 import Vstack from "app/components/Vstack";
 import Stack from "app/components/Stack";
 import { useForm } from "react-hook-form";
@@ -10,10 +9,10 @@ import CreateArtifactResource from "./CreateArtifactResource";
 import CreateArtifactDocument from "./CreateArtifactDocument";
 import CreateArtifactSubmit from "./CreateArtifactSubmit";
 
-export interface CreateArtifactFieldProps extends Omit<
-  uploadQuiltParametersProps,
-  "files"
-> {
+export interface CreateArtifactFieldProps {
+  title: string;
+  description: string;
+  category: string;
   files: {
     id: string;
     file: File;
