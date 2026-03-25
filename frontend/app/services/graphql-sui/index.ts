@@ -1,7 +1,6 @@
 import { GraphQLClient } from "graphql-request";
-import { getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 
-const client = new GraphQLClient(getJsonRpcFullnodeUrl("testnet"), {
+const client = new GraphQLClient("https://graphql.testnet.sui.io/graphql", {
   mode: "cors",
 });
 

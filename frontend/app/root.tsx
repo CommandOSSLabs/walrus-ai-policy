@@ -8,6 +8,7 @@ import "@fontsource-variable/space-grotesk";
 import type { Route } from "./+types/root";
 import Header from "./layout/Header";
 import ProviderDappkit from "./layout/Provider/ProviderDappkit";
+import ProviderReactQuery from "./layout/Provider/ProviderReactQuery";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -45,11 +46,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function Root() {
   return (
     <ProviderDappkit>
-      <Header />
+      <ProviderReactQuery>
+        <Header />
 
-      <main>
-        <Outlet />
-      </main>
+        <main>
+          <Outlet />
+        </main>
+      </ProviderReactQuery>
     </ProviderDappkit>
   );
 }

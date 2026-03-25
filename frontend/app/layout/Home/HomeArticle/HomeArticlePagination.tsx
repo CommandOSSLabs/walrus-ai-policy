@@ -1,32 +1,56 @@
-import ArrowLine from "public/assets/line/arrow.svg";
-import Hstack from "app/components/Hstack";
-import { tv } from "tailwind-variants";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "app/components/ui/pagination";
+import utilsConstants from "app/utils/utils.constants";
 
-export default () => {
+interface HomeArticlePaginationProps {
+  totalCount: number;
+  currentPage: number;
+  setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+}
+
+export default ({
+  totalCount,
+  currentPage,
+  setCurrentPage,
+}: HomeArticlePaginationProps) => {
+  const pageCount = Math.ceil(totalCount / utilsConstants.MAX_ARTIFACT_CARD);
+
+  if (pageCount <= 1) return null;
+
   return (
-    <Hstack className="gap-1.5 mt-8">
-      <button className="size-7 bg-[#9597C6]/15 rounded-sm">
-        <ArrowLine className="mx-auto" />
-      </button>
+    <Pagination className="mt-8">
+      <PaginationContent>
+        <PaginationItem>
+          <PaginationPrevious
+            disabled={!currentPage}
+            onClick={() => setCurrentPage((prev) => prev - 1)}
+          />
+        </PaginationItem>
 
-      {[...Array(4)].map((_, index) => (
-        <button
-          key={index}
-          className={tv({
-            base: [
-              index + 1 === 4 ? "bg-[#46F1CF]" : "bg-[#9597C6]/5",
+        {[...Array(pageCount)].map((_, index) => (
+          <PaginationItem key={index}>
+            <PaginationLink
+              isActive={currentPage === index}
+              onClick={() => setCurrentPage(index)}
+            >
+              {index + 1}
+            </PaginationLink>
+          </PaginationItem>
+        ))}
 
-              "size-7 rounded-sm",
-            ],
-          })()}
-        >
-          {index + 1}
-        </button>
-      ))}
-
-      <button className="size-7 bg-[#9597C6]/15 rounded-sm opacity-50 rotate-180">
-        <ArrowLine className="mx-auto" />
-      </button>
-    </Hstack>
+        <PaginationItem>
+          <PaginationNext
+            disabled={currentPage + 1 >= pageCount}
+            onClick={() => setCurrentPage((prev) => prev + 1)}
+          />
+        </PaginationItem>
+      </PaginationContent>
+    </Pagination>
   );
 };
