@@ -9,23 +9,38 @@ import {
 } from "app/components/ui/collapsible";
 import { useSearchParams } from "react-router";
 import { tv } from "tailwind-variants";
+import utilsConstants from "app/utils/utils.constants";
+import type { ArtifactFilter } from "app/services/graphql-app/generated";
+
+interface ListFilterProps {
+  key: string;
+  field: keyof ArtifactFilter;
+  children: {
+    key: string;
+    value: string;
+  }[];
+}
 
 export default () => {
   const [params, setSearchParams] = useSearchParams();
 
-  const ListFilter = [
-    {
-      key: "File Type",
-      children: [
-        ".pdf / Documentation",
-        ".json / Metadata",
-        ".mp4 / Multimedia",
-        ".wasm / Executable",
-      ],
-    },
+  const ListFilter: ListFilterProps[] = [
+    // {
+    //   key: "File Type",
+    //   children: [
+    //     ".pdf / Documentation",
+    //     ".json / Metadata",
+    //     ".mp4 / Multimedia",
+    //     ".wasm / Executable",
+    //   ],
+    // },
     {
       key: "Resource Type",
-      children: ["Governance", "Research Archive", "System Core"],
+      field: "category",
+      children: utilsConstants.FORMAT_RESOURCE.map((meta) => ({
+        key: meta.key,
+        value: meta.key,
+      })),
     },
   ];
 
@@ -57,18 +72,23 @@ export default () => {
           </CollapsibleTrigger>
 
           <CollapsibleContent className="mt-3">
-            {meta.children.map((value) => {
+            {meta.children.map((children) => {
+              const isActive = params
+                .getAll(meta.field)
+                ?.some((field) => field === children.value);
+
               return (
                 <label
-                  key={value}
+                  key={children.key}
                   className="flex gap-2 not-first:mt-2 cursor-pointer"
                 >
                   <Checkbox
+                    defaultChecked={isActive}
                     onCheckedChange={(isChecked) => {
                       if (isChecked) {
-                        params.append("sort", value);
+                        params.append("category", children.key);
                       } else {
-                        params.delete("sort", value);
+                        params.delete("category", children.key);
                       }
 
                       setSearchParams(params);
@@ -76,7 +96,7 @@ export default () => {
                   />
 
                   <Typography font="jetbrains" className="text-[#BACAC4]">
-                    {value}
+                    {children.key}
                   </Typography>
                 </label>
               );

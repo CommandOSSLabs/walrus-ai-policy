@@ -66,6 +66,14 @@ const codegen: CodegenConfig = {
         },
       },
     },
+
+    "./app/services/graphql-app/generated.ts": {
+      schema: "https://wal-archive-graphql-app-develop.up.railway.app/graphql",
+      documents: "./app/services/graphql-app/**/*.ts",
+      plugins: options.plugins,
+      hooks: options.hooks,
+      config: options.config,
+    },
   },
 };
 

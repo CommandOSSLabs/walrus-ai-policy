@@ -1,8 +1,3 @@
-const HOME_ARTIFACTS = [...Array(10)].map((_, index) => ({
-  id: index,
-  image: `https://picsum.photos/280?random=${index}`,
-}));
-
 const FORMAT_BYTES = [
   {
     key: "B",
@@ -26,7 +21,25 @@ const FORMAT_BYTES = [
   },
 ];
 
+const FORMAT_RESOURCE = [
+  {
+    key: "LAW Crimson",
+    type: "red" as const,
+  },
+  {
+    key: "Software Cyan",
+    type: "cyan" as const,
+  },
+  {
+    key: "Economy Gold",
+    type: "gold" as const,
+  },
+];
+
+const MAX_ARTIFACT_CARD = 9;
+
 export default {
-  HOME_ARTIFACTS,
   FORMAT_BYTES,
+  FORMAT_RESOURCE,
+  MAX_ARTIFACT_CARD,
 };

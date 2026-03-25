@@ -1,5 +1,6 @@
 import type { Config } from "@react-router/dev/config";
-import utilsConstants from "app/utils/utils.constants";
+import graphqlApp from "app/services/graphql-app";
+import { useArtifactsQuery } from "app/services/graphql-app/generated";
 
 export default {
   ssr: false,
@@ -8,10 +9,15 @@ export default {
     // get all routes static, not includes /:id
     const route_static = getStaticPaths();
 
+    const { artifacts } = await useArtifactsQuery.fetcher(graphqlApp.client, {
+      limit: 100,
+      offset: 0,
+    })();
+
     return [
       ...route_static,
 
-      ...utilsConstants.HOME_ARTIFACTS.map((meta) => `/artifact/${meta.id}`),
+      ...(artifacts.items.map((meta) => `/artifact/${meta.suiObjectId}`) || []),
     ];
   },
 } satisfies Config;
