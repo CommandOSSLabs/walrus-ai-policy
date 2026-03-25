@@ -193,12 +193,12 @@ fn compute_versions(batch: &[ArtifactWithFiles], db_counts: &HashMap<String, i64
     let mut batch_counters: HashMap<String, i64> = HashMap::new();
     batch.iter().map(|item| {
         match &item.event.root_id {
-            None => 0,
+            None => 1,
             Some(root_id_bytes) => {
                 let hex = bytes_to_hex(root_id_bytes);
                 let db_count = db_counts.get(&hex).copied().unwrap_or(0);
                 let counter = batch_counters.entry(hex).or_insert(0);
-                let version = db_count + *counter + 1;
+                let version = db_count + *counter + 2;
                 *counter += 1;
                 version
             }
@@ -232,10 +232,10 @@ mod tests {
     }
 
     #[test]
-    fn root_gets_version_zero() {
+    fn root_gets_version_one() {
         let batch = vec![make_item(1, None)];
         let versions = compute_versions(&batch, &HashMap::new());
-        assert_eq!(versions, vec![0]);
+        assert_eq!(versions, vec![1]);
     }
 
     #[test]
