@@ -1,11 +1,14 @@
+import { BigNumber } from "bignumber.js";
+import { SUI_DECIMALS } from "@mysten/sui/utils";
 import utilsConstants from "./utils.constants";
+import utilsSui from "./utils.sui";
 
-export const waitForSeconds = async (cb: () => void, seconds?: number) => {
+export const waitForSeconds = async (cb?: () => void, seconds?: number) => {
   await new Promise((resolve) => {
     setTimeout(() => {
       resolve("done");
 
-      cb();
+      if (cb) cb();
     }, seconds || 2000);
   });
 };
@@ -89,4 +92,55 @@ export const sumNumber = (numbers: number[]) => {
 
 export const RANDOM_CHARACTER = () => {
   return (Math.random() + 1).toString(6).substring(7);
+};
+
+export const estimatedFee = async (txBytes: Uint8Array) => {
+  const { Transaction } = await utilsSui.getSuiClient.simulateTransaction({
+    transaction: txBytes,
+    include: {
+      balanceChanges: true,
+    },
+  });
+
+  if (!Transaction?.balanceChanges) return [];
+
+  return Transaction.balanceChanges.map((meta) => {
+    // ['0x2', 'sui', 'SUI']
+    const [, coinType] = meta.coinType.split("::");
+
+    return {
+      symbol: coinType as "sui" | "wal",
+      value: (function () {
+        const value = BigNumber(meta.amount)
+          .dividedBy(Math.pow(10, SUI_DECIMALS))
+          // need float-point to modify
+          .toFixed()
+          // don't need visible minus, for some reason confuse
+          .replace("-", "");
+
+        // shorten digits, for E.g: 0.0034
+        if (meta.amount.length >= 5) {
+          let template = "";
+          let foundDigit = false;
+
+          for (let i = 0; i < value.length; i++) {
+            // 0.00340 => should be 0.0034
+            if (foundDigit && value[i] === "0") break;
+
+            // 0.003 => if next element is zero we will break
+            if (value[i] !== "0" && value[i] !== ".") {
+              foundDigit = true;
+            }
+
+            template += value[i];
+          }
+
+          return template;
+        }
+
+        // default return full, for E.g: 0.000000015
+        return value;
+      })(),
+    };
+  });
 };

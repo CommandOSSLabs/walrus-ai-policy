@@ -7,6 +7,8 @@ import { useNavigate } from "react-router";
 import useUploadQuilt from "app/hook/useUploadQuilt";
 import useArtifact from "app/hook/useArtifact";
 import TransactionDetail from "app/components/TransactionDetail";
+import { waitForSeconds } from "app/utils";
+import useSteps from "app/hook/useSteps";
 
 interface CreateArtifactSubmitProps {
   isSubmitting: boolean;
@@ -18,11 +20,23 @@ export default ({ isSubmitting, handleSubmit }: CreateArtifactSubmitProps) => {
   const navigate = useNavigate();
 
   const { uploadQuilt } = useUploadQuilt();
-  const { createArtifact } = useArtifact();
+  const { initArtifact } = useArtifact();
+
+  const { steps, status, updateFee, updateStatus } = useSteps([
+    {
+      key: "Creating Walrus storage",
+    },
+    {
+      key: "Certifying the Blob",
+    },
+    {
+      key: "initializing New Artifact",
+    },
+  ]);
 
   return (
     <>
-      {isSubmitting && <TransactionDetail />}
+      {status?.length ? <TransactionDetail steps={steps} /> : null}
 
       <button
         className="text-[#00382E] font-bold w-full h-16 rounded-lg disabled:opacity-45"
@@ -33,19 +47,26 @@ export default ({ isSubmitting, handleSubmit }: CreateArtifactSubmitProps) => {
         onClick={handleSubmit(async (values) => {
           if (!currentAccount?.address) return;
 
-          console.log(uploadQuilt, createArtifact, navigate, values);
+          const quilt = await uploadQuilt(
+            values.files.map(({ file }) => file),
+            updateFee,
+            updateStatus,
+          );
 
-          // const quilts = await uploadQuilt(values);
+          const artifact = await initArtifact(
+            {
+              title: "so",
+              description: "desc",
+              category: "AI",
+            },
+            quilt,
+            updateFee,
+            updateStatus,
+          );
 
-          // after created blob, you need wait seconds for available blob
-          // await waitForSeconds(async () => {
-          //   const artifact = await createArtifact(
-          //     quilts.map(({ quilt }) => quilt),
-          //     quilts.map(({ name }) => name),
-          //   );
+          await waitForSeconds(undefined, 1000);
 
-          //   navigate(`/artifact/${artifact.id}`);
-          // });
+          navigate(`/artifact/${artifact.id}`);
         })}
       >
         <Hstack>
