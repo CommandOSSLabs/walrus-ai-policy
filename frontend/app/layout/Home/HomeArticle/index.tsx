@@ -25,6 +25,7 @@ export default () => {
       filter: {
         category: params.get("category") || undefined,
         creator: params.get("creator") || undefined,
+        search: params.get("search") || undefined,
       },
     },
     {
