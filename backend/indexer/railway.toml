@@ -3,6 +3,6 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.indexer"
 
 [deploy]
-startCommand = "sh -c '/usr/local/bin/archive-indexer --database-url $DATABASE_URL --package-id $ARCHIVE_PACKAGE_ID --remote-store-url $REMOTE_STORE_URL --streaming-url $STREAMING_URL'"
+startCommand = "sh -c '/usr/local/bin/archive-indexer --database-url $DATABASE_URL --package-id $ARCHIVE_PACKAGE_ID --remote-store-url $REMOTE_STORE_URL --streaming-url $STREAMING_URL --first-checkpoint $FIRST_CHECKPOINT'"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
