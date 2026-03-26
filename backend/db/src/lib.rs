@@ -30,3 +30,10 @@ diesel::table! {
         version_count -> BigInt,
     }
 }
+
+diesel::table! {
+    platform_stats (id) {
+        id               -> Integer,
+        total_size_bytes -> BigInt,
+    }
+}

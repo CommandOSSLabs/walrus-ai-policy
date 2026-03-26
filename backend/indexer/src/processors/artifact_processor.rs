@@ -12,7 +12,7 @@ use sui_types::base_types::ObjectID;
 use sui_types::object::Owner;
 
 use crate::db::models::{NewArtifact, NewArtifactFile};
-use crate::db::schema::{artifact, artifact_file, artifact_version_counts};
+use crate::db::schema::{artifact, artifact_file, artifact_version_counts, platform_stats};
 use crate::events::{ArtifactEvent, FieldObject, FileRef, FileInfo};
 
 const FILE_REF_DF: u8 = 1;
@@ -172,20 +172,24 @@ impl Handler for ArtifactPipeline {
         }
 
         // RETURNING lets us know which rows were actually inserted vs skipped by
-        // ON CONFLICT DO NOTHING, so version counter updates stay idempotent on replay.
-        let inserted_roots: Vec<Option<String>> = diesel::insert_into(artifact::table)
+        // ON CONFLICT DO NOTHING, so version counter and global size updates stay idempotent on replay.
+        let inserted_data: Vec<(Option<String>, i64)> = diesel::insert_into(artifact::table)
             .values(&artifact_rows)
             .on_conflict(artifact::sui_object_id)
             .do_nothing()
-            .returning(artifact::root_id)
-            .load::<Option<String>>(conn)
+            .returning((artifact::root_id, artifact::total_size_bytes))
+            .load::<(Option<String>, i64)>(conn)
             .await?;
 
-        let inserted_count = inserted_roots.len();
+        let inserted_count = inserted_data.len();
+
+        let inserted_size: i64 = inserted_data.iter().map(|(_, s)| s).sum();
 
         let mut version_increments: HashMap<&str, i64> = HashMap::new();
-        for root_id in inserted_roots.iter().flatten() {
-            *version_increments.entry(root_id.as_str()).or_insert(0) += 1;
+        for (root_id, _) in inserted_data.iter() {
+            if let Some(root_id) = root_id {
+                *version_increments.entry(root_id.as_str()).or_insert(0) += 1;
+            }
         }
         if !version_increments.is_empty() {
             use diesel::upsert::excluded;
@@ -202,6 +206,15 @@ impl Handler for ArtifactPipeline {
                 .do_update()
                 .set(artifact_version_counts::version_count.eq(
                     artifact_version_counts::version_count + excluded(artifact_version_counts::version_count)
+                ))
+                .execute(conn)
+                .await?;
+        }
+
+        if inserted_size > 0 {
+            diesel::update(platform_stats::table.find(1))
+                .set(platform_stats::total_size_bytes.eq(
+                    platform_stats::total_size_bytes + inserted_size
                 ))
                 .execute(conn)
                 .await?;

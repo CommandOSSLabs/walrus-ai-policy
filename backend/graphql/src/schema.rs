@@ -8,6 +8,7 @@ use serde::Deserialize;
 
 use archive_db::artifact;
 use archive_db::artifact_file;
+use archive_db::platform_stats;
 use crate::db::DbPool;
 
 pub type AppSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
@@ -79,6 +80,14 @@ pub struct ArtifactFilter {
 pub struct ArtifactConnection {
     pub items: Vec<StoredArtifact>,
     pub total_count: i64,
+}
+
+#[derive(Queryable, SimpleObject)]
+#[graphql(name = "PlatformStats")]
+pub struct StoredPlatformStats {
+    #[graphql(skip)]
+    pub id: i32,
+    pub total_size_bytes: i64,
 }
 
 pub struct QueryRoot;
@@ -222,6 +231,24 @@ impl QueryRoot {
         .await?;
 
         Ok(artifacts)
+    }
+
+    async fn platform_stats(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<StoredPlatformStats> {
+        use diesel_async::RunQueryDsl as AsyncDsl;
+
+        let pool = ctx.data::<DbPool>()?;
+        let mut conn = pool.get().await?;
+
+        let stats: StoredPlatformStats = AsyncDsl::first(
+            platform_stats::table.select(platform_stats::all_columns),
+            &mut conn,
+        )
+        .await?;
+
+        Ok(stats)
     }
 
     async fn artifact_contributors(
