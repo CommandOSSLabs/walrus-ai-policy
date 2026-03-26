@@ -5,8 +5,9 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
-    "start": "npx serve build/client",
+    "start-static": "npx serve build/client",
     "clean": "eslint . --fix && prettier --write . && tsc --noEmit",
+    "start": "react-router-serve ./build/server/index.js",
     "generate-graphql": "graphql-codegen"
   },
   "dependencies": {
@@ -23,11 +24,13 @@
     "@mysten/walrus-wasm": "^0.2.0",
     "@react-router/fs-routes": "7.12.0",
     "@react-router/node": "7.12.0",
+    "@react-router/serve": "7.13.2",
     "@tanstack/react-query": "^5.95.2",
     "bignumber.js": "^10.0.2",
     "graphql": "^16.13.1",
     "graphql-request": "^7.4.0",
     "isbot": "^5",
+    "mime-types": "^3.0.2",
     "prettier": "^3.8.1",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
@@ -38,7 +41,6 @@
     "tailwind-variants": "^3.2.2"
   },
   "devDependencies": {
-    "@tanstack/react-query-devtools": "^5.89.0",
     "@eslint/js": "^10.0.1",
     "@graphql-codegen/add": "^6.0.0",
     "@graphql-codegen/cli": "^6.0.1",
@@ -47,6 +49,8 @@
     "@graphql-codegen/typescript-react-query": "^6.1.1",
     "@react-router/dev": "7.12.0",
     "@tailwindcss/vite": "^4.1.13",
+    "@tanstack/react-query-devtools": "^5.89.0",
+    "@types/mime-types": "^3.0.1",
     "@types/node": "^22",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

@@ -17,6 +17,11 @@ const walrusClient = utilsSui.getSuiClient.$extend(
   }),
 ).walrus;
 
+const getQuiltPatchId = (patchId: string) => {
+  return `https://aggregator.walrus-testnet.walrus.space/v1/blobs/by-quilt-patch-id/${patchId}`;
+};
+
 export default {
   walrusClient,
+  getQuiltPatchId,
 };
