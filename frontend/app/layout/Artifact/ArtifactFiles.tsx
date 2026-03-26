@@ -6,7 +6,7 @@ import Typography from "app/components/Typography";
 import Center from "app/components/Center";
 import { tv } from "tailwind-variants";
 import { type ArtifactFile } from "app/services/graphql-app/generated";
-import { downloadFileWithBlob, formatBytesSizes, shorten } from "app/utils";
+import { downloadFileWithBlob, formatBytesSizes } from "app/utils";
 import utilsWalrus from "app/utils/utils.walrus";
 import { useRef, useState } from "react";
 import useClickOutside from "app/hook/useClickOutside";
@@ -93,7 +93,7 @@ export default ({ files }: ArtifactFilesProps) => {
               )}
 
               <Typography font="jetbrains">
-                {shorten(meta.patchId)} - {meta.mimeType}
+                {meta.fileName || meta.mimeType}
               </Typography>
             </Hstack>
 
@@ -118,7 +118,11 @@ export default ({ files }: ArtifactFilesProps) => {
 
                       const blob = await request.blob();
 
-                      downloadFileWithBlob(blob, meta.mimeType, meta.patchId);
+                      downloadFileWithBlob(
+                        blob,
+                        meta.mimeType,
+                        meta.fileName || meta.mimeType,
+                      );
                     } finally {
                       setLoading(undefined);
                     }

@@ -7,16 +7,16 @@ import Typography from "app/components/Typography";
 import Vstack from "app/components/Vstack";
 import { tv } from "tailwind-variants";
 import utilsConstants from "app/utils/utils.constants";
-import { type Artifact } from "app/services/graphql-app/generated";
+import { type ArtifactsQuery } from "app/services/graphql-app/generated";
 import { Badge } from "app/components/ui/badge";
 
 interface HomeArticleCardProps {
-  meta: Artifact;
+  artifact: ArtifactsQuery["artifacts"]["items"][number];
 }
 
-export default ({ meta }: HomeArticleCardProps) => {
+export default ({ artifact }: HomeArticleCardProps) => {
   const getTypeResource = utilsConstants.FORMAT_RESOURCE.find(
-    (resource) => resource.key === meta.category,
+    (resource) => resource.key === artifact.category,
   );
 
   return (
@@ -32,12 +32,12 @@ export default ({ meta }: HomeArticleCardProps) => {
     >
       <Center className="text-2xs justify-between">
         <Typography font="jetbrains" className="text-[#00D4B4] font-semibold">
-          V{meta.version}
+          V{artifact.version}
         </Typography>
 
         <Badge type={getTypeResource?.type} className="h-5 px-2">
           <Typography font="grotesk" className="text-2xs font-bold">
-            {meta.category}
+            {artifact.category}
           </Typography>
         </Badge>
       </Center>
@@ -47,11 +47,11 @@ export default ({ meta }: HomeArticleCardProps) => {
           font="grotesk"
           className="text-[#DDE2F5] text-xl font-bold line-clamp-2"
         >
-          {meta.title}
+          {artifact.title}
         </Typography>
 
         <Typography className="text-[#BACAC4] text-sm line-clamp-4">
-          {meta.description}
+          {artifact.description}
         </Typography>
       </Vstack>
 
@@ -61,7 +61,7 @@ export default ({ meta }: HomeArticleCardProps) => {
 
           <Typography font="jetbrains">
             {(function () {
-              const forkDate = new Date(meta.createdAt);
+              const forkDate = new Date(artifact.createdAt);
 
               return `${forkDate.getFullYear()}.${forkDate.getMonth()}.${forkDate.getDate()}`;
             })()}

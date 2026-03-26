@@ -23,7 +23,7 @@ export default () => {
       limit: utilsConstants.MAX_ARTIFACT_CARD,
       offset: currentPage * utilsConstants.MAX_ARTIFACT_CARD,
       filter: {
-        category: params.get("category") || undefined,
+        category: params.getAll("category") || undefined,
         creator: params.get("creator") || undefined,
         search: params.get("search") || undefined,
       },
@@ -46,12 +46,12 @@ export default () => {
           {data?.artifacts?.items?.length ? (
             <>
               <HomeArticleGrid>
-                {data.artifacts.items.map((meta) => (
+                {data.artifacts.items.map((artifact) => (
                   <Link
-                    key={meta.suiObjectId}
-                    to={`/artifact/${meta.suiObjectId}`}
+                    key={artifact.suiObjectId}
+                    to={`/artifact/${artifact.suiObjectId}`}
                   >
-                    <HomeArticleCard meta={meta} />
+                    <HomeArticleCard artifact={artifact} />
                   </Link>
                 ))}
               </HomeArticleGrid>

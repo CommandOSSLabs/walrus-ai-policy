@@ -3,13 +3,13 @@ import Hstack from "app/components/Hstack";
 import Typography from "app/components/Typography";
 import { Badge } from "app/components/ui/badge";
 import Vstack from "app/components/Vstack";
-import type { Artifact } from "app/services/graphql-app/generated";
+import type { ArtifactQuery } from "app/services/graphql-app/generated";
 import { formatCalendar } from "app/utils";
 import utilsConstants from "app/utils/utils.constants";
 import CalendarLine from "public/assets/line/calendar.svg";
 
 interface ArtifactHeaderProps {
-  artifact: Artifact;
+  artifact: NonNullable<ArtifactQuery["artifact"]>;
 }
 
 export default ({ artifact }: ArtifactHeaderProps) => {

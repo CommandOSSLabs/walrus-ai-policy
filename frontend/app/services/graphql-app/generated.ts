@@ -55,6 +55,7 @@ export type Artifact = {
   rootId?: Maybe<Scalars["String"]["output"]>;
   suiObjectId: Scalars["String"]["output"];
   title: Scalars["String"]["output"];
+  totalSizeBytes: Scalars["Int"]["output"];
   version: Scalars["Int"]["output"];
 };
 
@@ -73,31 +74,43 @@ export type ArtifactDetail = {
   rootId?: Maybe<Scalars["String"]["output"]>;
   suiObjectId: Scalars["String"]["output"];
   title: Scalars["String"]["output"];
+  totalSizeBytes: Scalars["Int"]["output"];
   version: Scalars["Int"]["output"];
 };
 
 export type ArtifactFile = {
+  fileName?: Maybe<Scalars["String"]["output"]>;
   mimeType: Scalars["String"]["output"];
   patchId: Scalars["String"]["output"];
   sizeBytes: Scalars["Int"]["output"];
 };
 
 export type ArtifactFilter = {
-  category?: InputMaybe<Scalars["String"]["input"]>;
+  category?: InputMaybe<Array<Scalars["String"]["input"]>>;
   creator?: InputMaybe<Scalars["String"]["input"]>;
   onlyRoots?: InputMaybe<Scalars["Boolean"]["input"]>;
   rootId?: InputMaybe<Scalars["String"]["input"]>;
   search?: InputMaybe<Scalars["String"]["input"]>;
 };
 
+export type PlatformStats = {
+  totalSizeBytes: Scalars["Int"]["output"];
+};
+
 export type QueryRoot = {
   artifact?: Maybe<ArtifactDetail>;
+  artifactContributors: Array<Scalars["String"]["output"]>;
   artifactVersions: Array<Artifact>;
   artifacts: ArtifactConnection;
+  platformStats: PlatformStats;
 };
 
 export type QueryRootArtifactArgs = {
   suiObjectId: Scalars["String"]["input"];
+};
+
+export type QueryRootArtifactContributorsArgs = {
+  rootId: Scalars["String"]["input"];
 };
 
 export type QueryRootArtifactVersionsArgs = {
