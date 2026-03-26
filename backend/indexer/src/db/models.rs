@@ -15,6 +15,7 @@ pub struct NewArtifact {
     pub creator: String,
     pub category: String,
     pub created_at: i64,
+    pub total_size_bytes: i64,
 }
 
 #[derive(Insertable, Debug)]

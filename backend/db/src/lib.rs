@@ -1,14 +1,15 @@
 diesel::table! {
     artifact (sui_object_id) {
-        sui_object_id -> Text,
-        root_id       -> Nullable<Text>,
-        parent_id     -> Nullable<Text>,
-        title         -> Text,
-        description   -> Text,
-        version       -> BigInt,
-        creator       -> Text,
-        category      -> Text,
-        created_at    -> BigInt,
+        sui_object_id   -> Text,
+        root_id         -> Nullable<Text>,
+        parent_id       -> Nullable<Text>,
+        title           -> Text,
+        description     -> Text,
+        version         -> BigInt,
+        creator         -> Text,
+        category        -> Text,
+        created_at      -> BigInt,
+        total_size_bytes -> BigInt,
     }
 }
 
@@ -20,16 +21,6 @@ diesel::table! {
         mime_type   -> Text,
         size_bytes  -> BigInt,
         file_name   -> Nullable<Text>,
-    }
-}
-
-diesel::table! {
-    network_stats (id) {
-        id                -> Bool,
-        total_size_bytes  -> BigInt,
-        artifact_count    -> BigInt,
-        root_count        -> BigInt,
-        contributor_count -> BigInt,
     }
 }
 

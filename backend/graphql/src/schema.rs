@@ -9,7 +9,6 @@ use serde::Deserialize;
 use archive_db::artifact;
 use archive_db::artifact_file;
 use archive_db::contributors;
-use archive_db::network_stats;
 use crate::db::DbPool;
 
 pub type AppSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
@@ -42,6 +41,7 @@ pub struct StoredArtifact {
     pub creator: String,
     pub category: String,
     pub created_at: i64,
+    pub total_size_bytes: i64,
 }
 
 #[derive(Queryable, SimpleObject)]
@@ -80,11 +80,6 @@ pub struct ArtifactFilter {
 pub struct ArtifactConnection {
     pub items: Vec<StoredArtifact>,
     pub total_count: i64,
-}
-
-#[derive(SimpleObject)]
-pub struct NetworkStats {
-    pub total_size_bytes: i64,
 }
 
 pub struct QueryRoot;
@@ -137,32 +132,10 @@ impl QueryRoot {
             };
         }
 
-        // Only run the count query if the client actually requested `totalCount`.
-        // For unfiltered queries (or only_roots), use the pre-computed counter
-        // maintained by the indexer at write time — O(1) vs O(n) full-table scan.
         let total_count: i64 = if ctx.look_ahead().field("totalCount").exists() {
-            let has_selective_filter = filter.as_ref().map(|f| {
-                f.category.as_ref().map(|v| !v.is_empty()).unwrap_or(false)
-                    || f.creator.is_some()
-                    || f.root_id.is_some()
-                    || f.search.is_some()
-            }).unwrap_or(false);
-
-            if has_selective_filter {
-                let mut count_q = artifact::table.into_boxed();
-                apply_filter!(count_q, &filter);
-                AsyncDsl::get_result(count_q.count(), &mut conn).await?
-            } else {
-                let only_roots = filter.as_ref().and_then(|f| f.only_roots).unwrap_or(false);
-                let (artifact_count, root_count): (i64, i64) = AsyncDsl::get_result(
-                    network_stats::table.select((
-                        network_stats::artifact_count,
-                        network_stats::root_count,
-                    )),
-                    &mut conn,
-                ).await?;
-                if only_roots { root_count } else { artifact_count }
-            }
+            let mut count_q = artifact::table.into_boxed();
+            apply_filter!(count_q, &filter);
+            AsyncDsl::get_result(count_q.count(), &mut conn).await?
         } else {
             0
         };
@@ -250,24 +223,6 @@ impl QueryRoot {
         .await?;
 
         Ok(artifacts)
-    }
-
-    async fn network_stats(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<NetworkStats> {
-        use diesel_async::RunQueryDsl as AsyncDsl;
-
-        let pool = ctx.data::<DbPool>()?;
-        let mut conn = pool.get().await?;
-
-        let total: i64 = AsyncDsl::get_result(
-            network_stats::table.select(network_stats::total_size_bytes),
-            &mut conn,
-        )
-        .await?;
-
-        Ok(NetworkStats { total_size_bytes: total })
     }
 
     async fn contributors(

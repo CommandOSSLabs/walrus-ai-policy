@@ -12,7 +12,7 @@ use sui_types::base_types::ObjectID;
 use sui_types::object::Owner;
 
 use crate::db::models::{NewArtifact, NewArtifactFile};
-use crate::db::schema::{artifact, artifact_file, artifact_version_counts, contributors, network_stats};
+use crate::db::schema::{artifact, artifact_file, artifact_version_counts, contributors};
 use crate::events::{ArtifactEvent, FieldObject, FileRef, FileInfo};
 
 const FILE_REF_DF: u8 = 1;
@@ -147,6 +147,7 @@ impl Handler for ArtifactPipeline {
         for (item, version) in batch.iter().zip(versions.iter()) {
             let e = &item.event;
             let artifact_id_hex = bytes_to_hex(&e.id);
+            let total_size_bytes: i64 = item.files.iter().map(|f| f.size_bytes as i64).sum();
 
             artifact_rows.push(NewArtifact {
                 sui_object_id: artifact_id_hex.clone(),
@@ -158,6 +159,7 @@ impl Handler for ArtifactPipeline {
                 creator: bytes_to_hex(&e.metadata.creator),
                 category: e.metadata.category.clone(),
                 created_at: e.metadata.created_at as i64,
+                total_size_bytes,
             });
 
             file_rows.extend(item.files.iter().map(|f| NewArtifactFile {
@@ -169,9 +171,8 @@ impl Handler for ArtifactPipeline {
             }));
         }
 
-        // Use RETURNING so we know exactly which rows were inserted vs skipped by
-        // ON CONFLICT DO NOTHING (idempotency re-runs). All counter updates below
-        // are derived from this set, not the batch, so replays stay safe.
+        // RETURNING lets us know which rows were actually inserted vs skipped by
+        // ON CONFLICT DO NOTHING, so version counter updates stay idempotent on replay.
         let inserted_roots: Vec<Option<String>> = diesel::insert_into(artifact::table)
             .values(&artifact_rows)
             .on_conflict(artifact::sui_object_id)
@@ -180,10 +181,8 @@ impl Handler for ArtifactPipeline {
             .load::<Option<String>>(conn)
             .await?;
 
-        let new_artifact_count = inserted_roots.len() as i64;
-        let new_root_count = inserted_roots.iter().filter(|r| r.is_none()).count() as i64;
+        let inserted_count = inserted_roots.len();
 
-        // Increment the per-root version counter for each actually-inserted commit artifact.
         let mut version_increments: HashMap<&str, i64> = HashMap::new();
         for root_id in inserted_roots.iter().flatten() {
             *version_increments.entry(root_id.as_str()).or_insert(0) += 1;
@@ -208,18 +207,14 @@ impl Handler for ArtifactPipeline {
                 .await?;
         }
 
-        let new_bytes: i64 = if !file_rows.is_empty() {
-            let inserted_sizes: Vec<i64> = diesel::insert_into(artifact_file::table)
+        if !file_rows.is_empty() {
+            diesel::insert_into(artifact_file::table)
                 .values(&file_rows)
                 .on_conflict((artifact_file::artifact_id, artifact_file::patch_id))
                 .do_nothing()
-                .returning(artifact_file::size_bytes)
-                .load::<i64>(conn)
+                .execute(conn)
                 .await?;
-            inserted_sizes.iter().sum()
-        } else {
-            0
-        };
+        }
 
         let creator_values: Vec<(String,)> = batch
             .iter()
@@ -228,9 +223,7 @@ impl Handler for ArtifactPipeline {
             .into_iter()
             .collect();
 
-        // .execute() returns number of rows inserted (conflicts return 0), so this
-        // is the count of net-new contributors without needing a separate COUNT query.
-        let new_contributor_count: i64 = if !creator_values.is_empty() {
+        if !creator_values.is_empty() {
             diesel::insert_into(contributors::table)
                 .values(
                     creator_values
@@ -241,25 +234,10 @@ impl Handler for ArtifactPipeline {
                 .on_conflict(contributors::creator)
                 .do_nothing()
                 .execute(conn)
-                .await? as i64
-        } else {
-            0
-        };
-
-        // Single UPDATE for all counters maintained at write time.
-        if new_artifact_count > 0 || new_bytes > 0 || new_contributor_count > 0 {
-            diesel::update(network_stats::table)
-                .set((
-                    network_stats::total_size_bytes.eq(network_stats::total_size_bytes + new_bytes),
-                    network_stats::artifact_count.eq(network_stats::artifact_count + new_artifact_count),
-                    network_stats::root_count.eq(network_stats::root_count + new_root_count),
-                    network_stats::contributor_count.eq(network_stats::contributor_count + new_contributor_count),
-                ))
-                .execute(conn)
                 .await?;
         }
 
-        Ok(new_artifact_count as usize)
+        Ok(inserted_count)
     }
 }
 
