@@ -1,4 +1,4 @@
-import { Links, Meta, Outlet, Scripts } from "react-router";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 
 import "public/css/index.css";
 import "@fontsource-variable/inter";
@@ -36,6 +36,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <body>
         {children}
+
+        <ScrollRestoration />
 
         <Scripts />
       </body>

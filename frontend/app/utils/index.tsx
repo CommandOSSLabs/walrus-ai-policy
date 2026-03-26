@@ -144,3 +144,13 @@ export const estimatedFee = async (txBytes: Uint8Array) => {
     };
   });
 };
+
+export const formatCalendar = (createdAt: number) => {
+  const forkDate = new Date(createdAt);
+
+  return `${forkDate.getFullYear()}.${forkDate.getMonth()}.${forkDate.getDate()}`;
+};
+
+export const formatIdentify = (name: string) => {
+  return name.replaceAll(" ", "-");
+};

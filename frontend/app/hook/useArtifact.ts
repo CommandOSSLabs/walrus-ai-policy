@@ -3,6 +3,7 @@ import utilsSui from "app/utils/utils.sui";
 import useSignAndExecuteTransaction from "./useSignAndExecuteTransaction";
 import type useUploadQuilt from "./useUploadQuilt";
 import type useSteps from "./useSteps";
+import { formatIdentify } from "app/utils";
 
 type MetadataType = {
   title: string;
@@ -53,6 +54,10 @@ export default () => {
           tx.pure.vector(
             "u64",
             quilt.files.map((file) => file.size),
+          ),
+          tx.pure.vector(
+            "string",
+            quilt.files.map((file) => formatIdentify(file.name)),
           ),
         ],
       }),

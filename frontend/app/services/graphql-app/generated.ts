@@ -137,6 +137,23 @@ export type ArtifactsQuery = {
   };
 };
 
+export type ArtifactQueryVariables = Exact<{
+  suiObjectId: Scalars["String"]["input"];
+}>;
+
+export type ArtifactQuery = {
+  artifact?: {
+    suiObjectId: string;
+    title: string;
+    description: string;
+    creator: string;
+    createdAt: number;
+    category: string;
+    version: number;
+    files: Array<{ patchId: string; mimeType: string; sizeBytes: number }>;
+  };
+};
+
 export const ArtifactsDocument = `
     query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!) {
   artifacts(filter: $filter, limit: $limit, offset: $offset) {
@@ -187,6 +204,62 @@ useArtifactsQuery.fetcher = (
   fetcher<ArtifactsQuery, ArtifactsQueryVariables>(
     client,
     ArtifactsDocument,
+    variables,
+    headers,
+  );
+
+export const ArtifactDocument = `
+    query Artifact($suiObjectId: String!) {
+  artifact(suiObjectId: $suiObjectId) {
+    suiObjectId
+    title
+    description
+    creator
+    createdAt
+    category
+    version
+    files {
+      patchId
+      mimeType
+      sizeBytes
+    }
+  }
+}
+    `;
+
+export const useArtifactQuery = <TData = ArtifactQuery, TError = unknown>(
+  client: GraphQLClient,
+  variables: ArtifactQueryVariables,
+  options?: Omit<UseQueryOptions<ArtifactQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<ArtifactQuery, TError, TData>["queryKey"];
+  },
+  headers?: RequestInit["headers"],
+) => {
+  return useQuery<ArtifactQuery, TError, TData>({
+    queryKey: ["Artifact", variables],
+    queryFn: fetcher<ArtifactQuery, ArtifactQueryVariables>(
+      client,
+      ArtifactDocument,
+      variables,
+      headers,
+    ),
+    ...options,
+  });
+};
+
+useArtifactQuery.getKey = (variables: ArtifactQueryVariables) => [
+  "Artifact",
+  variables,
+];
+
+useArtifactQuery.fetcher = (
+  client: GraphQLClient,
+  variables: ArtifactQueryVariables,
+  headers?: RequestInit["headers"],
+) =>
+  fetcher<ArtifactQuery, ArtifactQueryVariables>(
+    client,
+    ArtifactDocument,
     variables,
     headers,
   );
