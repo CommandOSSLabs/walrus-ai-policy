@@ -5,9 +5,8 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
-    "start-static": "npx serve build/client",
+    "start": "npx serve build/client",
     "clean": "eslint . --fix && prettier --write . && tsc --noEmit",
-    "start": "react-router-serve ./build/server/index.js",
     "generate-graphql": "graphql-codegen"
   },
   "dependencies": {

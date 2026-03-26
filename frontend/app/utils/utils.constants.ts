@@ -36,10 +36,17 @@ const FORMAT_RESOURCE = [
   },
 ];
 
+const FORMAT_SEO = {
+  title: "WalArchive — Preserve & Verify AI Governance Knowledge",
+  description: `WalArchive preserves AI governance research and policy artifacts with immutable content storage and on-chain metadata. Prevent link rot, ensure reproducibility, and verify provenance for every contribution.`,
+};
+
 const MAX_ARTIFACT_CARD = 9;
 
 export default {
   FORMAT_BYTES,
   FORMAT_RESOURCE,
+  FORMAT_SEO,
+
   MAX_ARTIFACT_CARD,
 };
