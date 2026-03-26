@@ -12,7 +12,7 @@ use sui_types::base_types::ObjectID;
 use sui_types::object::Owner;
 
 use crate::db::models::{NewArtifact, NewArtifactFile};
-use crate::db::schema::{artifact, artifact_file};
+use crate::db::schema::{artifact, artifact_file, artifact_version_counts, contributors, network_stats};
 use crate::events::{ArtifactEvent, FieldObject, FileRef, FileInfo};
 
 const FILE_REF_DF: u8 = 1;
@@ -126,17 +126,16 @@ impl Handler for ArtifactPipeline {
             .into_iter()
             .collect();
 
+        // O(1) per root lookup instead of GROUP BY COUNT scan on the artifact table.
         let db_counts: HashMap<String, i64> = if distinct_roots.is_empty() {
             HashMap::new()
         } else {
-            artifact::table
-                .filter(artifact::root_id.eq_any(&distinct_roots))
-                .group_by(artifact::root_id)
-                .select((artifact::root_id, diesel::dsl::count_star()))
-                .load::<(Option<String>, i64)>(&mut *conn)
+            artifact_version_counts::table
+                .filter(artifact_version_counts::root_id.eq_any(&distinct_roots))
+                .select((artifact_version_counts::root_id, artifact_version_counts::version_count))
+                .load::<(String, i64)>(&mut *conn)
                 .await?
                 .into_iter()
-                .filter_map(|(root_id, count)| root_id.map(|id| (id, count)))
                 .collect()
         };
 
@@ -166,26 +165,101 @@ impl Handler for ArtifactPipeline {
                 patch_id: f.patch_id.clone(),
                 mime_type: f.mime_type.clone(),
                 size_bytes: f.size_bytes as i64,
+                file_name: f.file_name.clone(),
             }));
         }
 
-        let affected = diesel::insert_into(artifact::table)
+        // Use RETURNING so we know exactly which rows were inserted vs skipped by
+        // ON CONFLICT DO NOTHING (idempotency re-runs). All counter updates below
+        // are derived from this set, not the batch, so replays stay safe.
+        let inserted_roots: Vec<Option<String>> = diesel::insert_into(artifact::table)
             .values(&artifact_rows)
             .on_conflict(artifact::sui_object_id)
             .do_nothing()
-            .execute(conn)
+            .returning(artifact::root_id)
+            .load::<Option<String>>(conn)
             .await?;
 
-        if !file_rows.is_empty() {
-            diesel::insert_into(artifact_file::table)
-                .values(&file_rows)
-                .on_conflict((artifact_file::artifact_id, artifact_file::patch_id))
-                .do_nothing()
+        let new_artifact_count = inserted_roots.len() as i64;
+        let new_root_count = inserted_roots.iter().filter(|r| r.is_none()).count() as i64;
+
+        // Increment the per-root version counter for each actually-inserted commit artifact.
+        let mut version_increments: HashMap<&str, i64> = HashMap::new();
+        for root_id in inserted_roots.iter().flatten() {
+            *version_increments.entry(root_id.as_str()).or_insert(0) += 1;
+        }
+        if !version_increments.is_empty() {
+            use diesel::upsert::excluded;
+            let rows: Vec<_> = version_increments
+                .iter()
+                .map(|(root_id, count)| (
+                    artifact_version_counts::root_id.eq(*root_id),
+                    artifact_version_counts::version_count.eq(count),
+                ))
+                .collect();
+            diesel::insert_into(artifact_version_counts::table)
+                .values(&rows)
+                .on_conflict(artifact_version_counts::root_id)
+                .do_update()
+                .set(artifact_version_counts::version_count.eq(
+                    artifact_version_counts::version_count + excluded(artifact_version_counts::version_count)
+                ))
                 .execute(conn)
                 .await?;
         }
 
-        Ok(affected)
+        let new_bytes: i64 = if !file_rows.is_empty() {
+            let inserted_sizes: Vec<i64> = diesel::insert_into(artifact_file::table)
+                .values(&file_rows)
+                .on_conflict((artifact_file::artifact_id, artifact_file::patch_id))
+                .do_nothing()
+                .returning(artifact_file::size_bytes)
+                .load::<i64>(conn)
+                .await?;
+            inserted_sizes.iter().sum()
+        } else {
+            0
+        };
+
+        let creator_values: Vec<(String,)> = batch
+            .iter()
+            .map(|item| (bytes_to_hex(&item.event.metadata.creator),))
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        // .execute() returns number of rows inserted (conflicts return 0), so this
+        // is the count of net-new contributors without needing a separate COUNT query.
+        let new_contributor_count: i64 = if !creator_values.is_empty() {
+            diesel::insert_into(contributors::table)
+                .values(
+                    creator_values
+                        .iter()
+                        .map(|(c,)| (contributors::creator.eq(c.as_str()),))
+                        .collect::<Vec<_>>()
+                )
+                .on_conflict(contributors::creator)
+                .do_nothing()
+                .execute(conn)
+                .await? as i64
+        } else {
+            0
+        };
+
+        // Single UPDATE for all counters maintained at write time.
+        if new_artifact_count > 0 || new_bytes > 0 || new_contributor_count > 0 {
+            diesel::update(network_stats::table)
+                .set((
+                    network_stats::total_size_bytes.eq(network_stats::total_size_bytes + new_bytes),
+                    network_stats::artifact_count.eq(network_stats::artifact_count + new_artifact_count),
+                    network_stats::root_count.eq(network_stats::root_count + new_root_count),
+                    network_stats::contributor_count.eq(network_stats::contributor_count + new_contributor_count),
+                ))
+                .execute(conn)
+                .await?;
+        }
+
+        Ok(new_artifact_count as usize)
     }
 }
 
@@ -239,10 +313,10 @@ mod tests {
     }
 
     #[test]
-    fn first_commit_gets_version_one() {
+    fn first_commit_gets_version_two() {
         let batch = vec![make_item(2, Some(1))];
         let versions = compute_versions(&batch, &HashMap::new());
-        assert_eq!(versions, vec![1]);
+        assert_eq!(versions, vec![2]);
     }
 
     #[test]
@@ -253,14 +327,15 @@ mod tests {
             make_item(4, Some(1)),
         ];
         let versions = compute_versions(&batch, &HashMap::new());
-        assert_eq!(versions, vec![1, 2, 3]);
+        assert_eq!(versions, vec![2, 3, 4]);
     }
 
     #[test]
     fn db_count_offsets_version() {
+        // root(v1) + 4 revisions(v2-v5) = 5 total in lineage; next is v6
         let batch = vec![make_item(2, Some(1))];
         let mut counts = HashMap::new();
-        counts.insert(bytes_to_hex(&[1u8; 32]), 5i64);
+        counts.insert(bytes_to_hex(&[1u8; 32]), 4i64);
         let versions = compute_versions(&batch, &counts);
         assert_eq!(versions, vec![6]);
     }
@@ -273,6 +348,6 @@ mod tests {
             make_item(4, Some(1)),
         ];
         let versions = compute_versions(&batch, &HashMap::new());
-        assert_eq!(versions, vec![1, 1, 2]);
+        assert_eq!(versions, vec![2, 2, 3]);
     }
 }

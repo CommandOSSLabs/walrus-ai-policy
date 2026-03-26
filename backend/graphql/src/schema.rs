@@ -8,6 +8,8 @@ use serde::Deserialize;
 
 use archive_db::artifact;
 use archive_db::artifact_file;
+use archive_db::contributors;
+use archive_db::network_stats;
 use crate::db::DbPool;
 
 pub type AppSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
@@ -48,6 +50,7 @@ pub struct StoredArtifactFile {
     pub patch_id: String,
     pub mime_type: String,
     pub size_bytes: i64,
+    pub file_name: Option<String>,
 }
 
 #[derive(SimpleObject)]
@@ -66,7 +69,7 @@ pub enum SortField {
 
 #[derive(InputObject)]
 pub struct ArtifactFilter {
-    pub category: Option<String>,
+    pub category: Option<Vec<String>>,
     pub creator: Option<String>,
     pub root_id: Option<String>,
     pub search: Option<String>,
@@ -77,6 +80,11 @@ pub struct ArtifactFilter {
 pub struct ArtifactConnection {
     pub items: Vec<StoredArtifact>,
     pub total_count: i64,
+}
+
+#[derive(SimpleObject)]
+pub struct NetworkStats {
+    pub total_size_bytes: i64,
 }
 
 pub struct QueryRoot;
@@ -101,8 +109,10 @@ impl QueryRoot {
         macro_rules! apply_filter {
             ($q:ident, $f:expr) => {
                 if let Some(f) = $f {
-                    if let Some(cat) = &f.category {
-                        $q = $q.filter(artifact::category.eq(cat));
+                    if let Some(cats) = &f.category {
+                        if !cats.is_empty() {
+                            $q = $q.filter(artifact::category.eq_any(cats));
+                        }
                     }
                     if let Some(creator) = &f.creator {
                         $q = $q.filter(artifact::creator.eq(creator));
@@ -127,9 +137,35 @@ impl QueryRoot {
             };
         }
 
-        let mut count_q = artifact::table.into_boxed();
-        apply_filter!(count_q, &filter);
-        let total_count: i64 = AsyncDsl::get_result(count_q.count(), &mut conn).await?;
+        // Only run the count query if the client actually requested `totalCount`.
+        // For unfiltered queries (or only_roots), use the pre-computed counter
+        // maintained by the indexer at write time — O(1) vs O(n) full-table scan.
+        let total_count: i64 = if ctx.look_ahead().field("totalCount").exists() {
+            let has_selective_filter = filter.as_ref().map(|f| {
+                f.category.as_ref().map(|v| !v.is_empty()).unwrap_or(false)
+                    || f.creator.is_some()
+                    || f.root_id.is_some()
+                    || f.search.is_some()
+            }).unwrap_or(false);
+
+            if has_selective_filter {
+                let mut count_q = artifact::table.into_boxed();
+                apply_filter!(count_q, &filter);
+                AsyncDsl::get_result(count_q.count(), &mut conn).await?
+            } else {
+                let only_roots = filter.as_ref().and_then(|f| f.only_roots).unwrap_or(false);
+                let (artifact_count, root_count): (i64, i64) = AsyncDsl::get_result(
+                    network_stats::table.select((
+                        network_stats::artifact_count,
+                        network_stats::root_count,
+                    )),
+                    &mut conn,
+                ).await?;
+                if only_roots { root_count } else { artifact_count }
+            }
+        } else {
+            0
+        };
 
         let mut items_q = artifact::table.into_boxed();
         apply_filter!(items_q, &filter);
@@ -179,6 +215,7 @@ impl QueryRoot {
                     artifact_file::patch_id,
                     artifact_file::mime_type,
                     artifact_file::size_bytes,
+                    artifact_file::file_name,
                 )),
             &mut conn,
         )
@@ -213,5 +250,50 @@ impl QueryRoot {
         .await?;
 
         Ok(artifacts)
+    }
+
+    async fn network_stats(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<NetworkStats> {
+        use diesel_async::RunQueryDsl as AsyncDsl;
+
+        let pool = ctx.data::<DbPool>()?;
+        let mut conn = pool.get().await?;
+
+        let total: i64 = AsyncDsl::get_result(
+            network_stats::table.select(network_stats::total_size_bytes),
+            &mut conn,
+        )
+        .await?;
+
+        Ok(NetworkStats { total_size_bytes: total })
+    }
+
+    async fn contributors(
+        &self,
+        ctx: &Context<'_>,
+        #[graphql(default = 50)] limit: i64,
+        #[graphql(default = 0)] offset: i64,
+    ) -> async_graphql::Result<Vec<String>> {
+        use diesel_async::RunQueryDsl as AsyncDsl;
+
+        let limit = limit.clamp(1, MAX_PAGE_SIZE);
+        let offset = offset.max(0);
+
+        let pool = ctx.data::<DbPool>()?;
+        let mut conn = pool.get().await?;
+
+        let result: Vec<String> = AsyncDsl::load(
+            contributors::table
+                .select(contributors::creator)
+                .order(contributors::creator.asc())
+                .limit(limit)
+                .offset(offset),
+            &mut conn,
+        )
+        .await?;
+
+        Ok(result)
     }
 }

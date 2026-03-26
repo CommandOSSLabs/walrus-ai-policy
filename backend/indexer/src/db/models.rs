@@ -24,4 +24,5 @@ pub struct NewArtifactFile {
     pub patch_id: String,
     pub mime_type: String,
     pub size_bytes: i64,
+    pub file_name: String,
 }

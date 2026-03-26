@@ -19,5 +19,29 @@ diesel::table! {
         patch_id    -> Text,
         mime_type   -> Text,
         size_bytes  -> BigInt,
+        file_name   -> Nullable<Text>,
+    }
+}
+
+diesel::table! {
+    network_stats (id) {
+        id                -> Bool,
+        total_size_bytes  -> BigInt,
+        artifact_count    -> BigInt,
+        root_count        -> BigInt,
+        contributor_count -> BigInt,
+    }
+}
+
+diesel::table! {
+    contributors (creator) {
+        creator -> Text,
+    }
+}
+
+diesel::table! {
+    artifact_version_counts (root_id) {
+        root_id       -> Text,
+        version_count -> BigInt,
     }
 }
