@@ -13,6 +13,7 @@ import { formatBytesSizes, sumNumber } from "app/utils";
 import Hstack from "app/components/Hstack";
 import type { CreateArtifactFieldProps } from "..";
 import Vstack from "app/components/Vstack";
+import { extension } from "mime-types";
 
 interface CreateArtifactDocumentPreviewProps {
   fields: FieldArrayWithId<CreateArtifactFieldProps>[];
@@ -37,35 +38,31 @@ export default ({ fields, remove }: CreateArtifactDocumentPreviewProps) => {
       </Center>
 
       <Vstack className="max-h-52 overflow-y-scroll">
-        {fields.map(({ file, id }, index) => {
-          const isFolder = file.type.endsWith(".zip");
+        {fields.map(({ file, id }, index) => (
+          <Center
+            key={id}
+            className="justify-between min-h-11 px-4 not-last:border-b not-last:border-[#352F2F]"
+          >
+            <Hstack>
+              {extension(file.type) === "zip" ? <FolderLine /> : <FilesLine />}
 
-          return (
-            <Center
-              key={id}
-              className="justify-between min-h-11 px-4 not-last:border-b not-last:border-[#352F2F]"
-            >
-              <Hstack>
-                {isFolder ? <FolderLine /> : <FilesLine />}
+              <Typography font="jetbrains">{file.name}</Typography>
+            </Hstack>
 
-                <Typography font="jetbrains">{file.name}</Typography>
-              </Hstack>
+            <Hstack>
+              <Typography font="jetbrains">
+                {formatBytesSizes(file.size)}
+              </Typography>
 
-              <Hstack>
-                <Typography font="jetbrains">
-                  {formatBytesSizes(file.size)}
-                </Typography>
-
-                <button
-                  className="bg-[#2A303F] size-6 rounded-full flex items-center justify-center"
-                  onClick={() => remove(index)}
-                >
-                  <CloseLine className="size-3" />
-                </button>
-              </Hstack>
-            </Center>
-          );
-        })}
+              <button
+                className="bg-[#2A303F] size-6 rounded-full flex items-center justify-center"
+                onClick={() => remove(index)}
+              >
+                <CloseLine className="size-3" />
+              </button>
+            </Hstack>
+          </Center>
+        ))}
       </Vstack>
     </div>
   );
