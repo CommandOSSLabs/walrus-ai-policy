@@ -9,15 +9,16 @@ import type { Route } from "./+types/root";
 import Header from "./layout/Header";
 import ProviderDappkit from "./layout/Provider/ProviderDappkit";
 import ProviderReactQuery from "./layout/Provider/ProviderReactQuery";
+import utilsConstants from "./utils/utils.constants";
 
 export function meta({}: Route.MetaArgs) {
   return [
     {
-      title: "Walrus AI Policy",
+      title: utilsConstants.FORMAT_SEO.title,
     },
     {
       name: "description",
-      content: "Welcome to Walrus Policy",
+      content: utilsConstants.FORMAT_SEO.description,
     },
   ];
 }
