@@ -1,8 +1,3 @@
--- Deduplicated creator addresses.
-CREATE TABLE contributors (
-    creator TEXT PRIMARY KEY
-);
-
 -- Per-root version counter. Replaces GROUP BY COUNT scan for version numbering.
 CREATE TABLE artifact_version_counts (
     root_id       TEXT   PRIMARY KEY,

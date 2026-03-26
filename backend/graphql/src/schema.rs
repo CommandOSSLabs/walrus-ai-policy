@@ -8,7 +8,6 @@ use serde::Deserialize;
 
 use archive_db::artifact;
 use archive_db::artifact_file;
-use archive_db::contributors;
 use crate::db::DbPool;
 
 pub type AppSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
@@ -225,26 +224,25 @@ impl QueryRoot {
         Ok(artifacts)
     }
 
-    async fn contributors(
+    async fn artifact_contributors(
         &self,
         ctx: &Context<'_>,
-        #[graphql(default = 50)] limit: i64,
-        #[graphql(default = 0)] offset: i64,
+        root_id: String,
     ) -> async_graphql::Result<Vec<String>> {
         use diesel_async::RunQueryDsl as AsyncDsl;
-
-        let limit = limit.clamp(1, MAX_PAGE_SIZE);
-        let offset = offset.max(0);
 
         let pool = ctx.data::<DbPool>()?;
         let mut conn = pool.get().await?;
 
+        // All unique creators across the root artifact and every commit in its tree.
         let result: Vec<String> = AsyncDsl::load(
-            contributors::table
-                .select(contributors::creator)
-                .order(contributors::creator.asc())
-                .limit(limit)
-                .offset(offset),
+            artifact::table
+                .filter(
+                    artifact::sui_object_id.eq(&root_id)
+                        .or(artifact::root_id.eq(&root_id))
+                )
+                .select(artifact::creator)
+                .distinct(),
             &mut conn,
         )
         .await?;

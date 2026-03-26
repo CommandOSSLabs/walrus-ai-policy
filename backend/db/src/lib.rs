@@ -25,12 +25,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    contributors (creator) {
-        creator -> Text,
-    }
-}
-
-diesel::table! {
     artifact_version_counts (root_id) {
         root_id       -> Text,
         version_count -> BigInt,

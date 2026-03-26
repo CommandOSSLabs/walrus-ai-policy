@@ -12,7 +12,7 @@ use sui_types::base_types::ObjectID;
 use sui_types::object::Owner;
 
 use crate::db::models::{NewArtifact, NewArtifactFile};
-use crate::db::schema::{artifact, artifact_file, artifact_version_counts, contributors};
+use crate::db::schema::{artifact, artifact_file, artifact_version_counts};
 use crate::events::{ArtifactEvent, FieldObject, FileRef, FileInfo};
 
 const FILE_REF_DF: u8 = 1;
@@ -211,27 +211,6 @@ impl Handler for ArtifactPipeline {
             diesel::insert_into(artifact_file::table)
                 .values(&file_rows)
                 .on_conflict((artifact_file::artifact_id, artifact_file::patch_id))
-                .do_nothing()
-                .execute(conn)
-                .await?;
-        }
-
-        let creator_values: Vec<(String,)> = batch
-            .iter()
-            .map(|item| (bytes_to_hex(&item.event.metadata.creator),))
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .collect();
-
-        if !creator_values.is_empty() {
-            diesel::insert_into(contributors::table)
-                .values(
-                    creator_values
-                        .iter()
-                        .map(|(c,)| (contributors::creator.eq(c.as_str()),))
-                        .collect::<Vec<_>>()
-                )
-                .on_conflict(contributors::creator)
                 .do_nothing()
                 .execute(conn)
                 .await?;
