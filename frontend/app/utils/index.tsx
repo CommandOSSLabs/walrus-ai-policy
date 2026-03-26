@@ -2,6 +2,7 @@ import { BigNumber } from "bignumber.js";
 import { SUI_DECIMALS } from "@mysten/sui/utils";
 import utilsConstants from "./utils.constants";
 import utilsSui from "./utils.sui";
+import { extension } from "mime-types";
 
 export const waitForSeconds = async (cb?: () => void, seconds?: number) => {
   await new Promise((resolve) => {
@@ -143,4 +144,33 @@ export const estimatedFee = async (txBytes: Uint8Array) => {
       })(),
     };
   });
+};
+
+export const formatCalendar = (createdAt: number) => {
+  const forkDate = new Date(createdAt);
+
+  return `${forkDate.getFullYear()}.${forkDate.getMonth()}.${forkDate.getDate()}`;
+};
+
+export const formatIdentify = (name: string) => {
+  return name.replaceAll(" ", "-");
+};
+
+export const downloadFileWithBlob = (
+  blob: Blob,
+  mimeType: string,
+  fileName: string,
+) => {
+  const blobUrl = URL.createObjectURL(blob);
+
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  anchor.download = `${fileName}.${extension(mimeType)}`;
+
+  document.body.appendChild(anchor);
+  anchor.click();
+
+  // cleanup
+  anchor.remove();
+  URL.revokeObjectURL(blobUrl);
 };

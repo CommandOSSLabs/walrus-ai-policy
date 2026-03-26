@@ -18,3 +18,23 @@ const artifacts = gql`
     }
   }
 `;
+
+const artifact = gql`
+  query Artifact($suiObjectId: String!) {
+    artifact(suiObjectId: $suiObjectId) {
+      suiObjectId
+      title
+      description
+      creator
+      createdAt
+      category
+      version
+
+      files {
+        patchId
+        mimeType
+        sizeBytes
+      }
+    }
+  }
+`;

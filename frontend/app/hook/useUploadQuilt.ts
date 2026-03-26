@@ -3,6 +3,7 @@ import utilsWalrus from "app/utils/utils.walrus";
 import { WalrusFile } from "@mysten/walrus";
 import useSignAndExecuteTransaction from "./useSignAndExecuteTransaction";
 import type useSteps from "./useSteps";
+import { formatIdentify } from "app/utils";
 
 export type RegisterEventType = {
   digest: string;
@@ -28,7 +29,7 @@ export default () => {
         files.map(async (file) =>
           WalrusFile.from({
             contents: await file.bytes(),
-            identifier: file.name.replaceAll(" ", "-"),
+            identifier: formatIdentify(file.name),
           }),
         ),
       ),
