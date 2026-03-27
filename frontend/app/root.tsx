@@ -10,6 +10,7 @@ import Header from "./layout/Header";
 import ProviderDappkit from "./layout/Provider/ProviderDappkit";
 import ProviderReactQuery from "./layout/Provider/ProviderReactQuery";
 import utilsConstants from "./utils/utils.constants";
+import { Toaster } from "./components/ui/sonner";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -37,6 +38,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <body>
         {children}
+
+        <Toaster
+          position="top-right"
+          richColors
+          toastOptions={{
+            style: {
+              alignItems: "start",
+              width: "fit-content",
+            },
+          }}
+        />
 
         <Scripts />
       </body>

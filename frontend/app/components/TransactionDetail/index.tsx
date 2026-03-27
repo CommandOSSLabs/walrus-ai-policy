@@ -37,7 +37,7 @@ export default ({ steps }: TransactionDetailProps) => {
             <Flex key={step.key} className="gap-2 text-white">
               {(function () {
                 if (isError) {
-                  return <RemoveFill className="size-6 text-red" />;
+                  return <RemoveFill className="size-6 text-red-500" />;
                 }
 
                 if (isSuccess) {
