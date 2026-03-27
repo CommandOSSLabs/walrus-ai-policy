@@ -1,4 +1,4 @@
-# Walrus AI Policy & Governance Archive — Product Requirements
+# Walrus Archive & Governance Archive — Product Requirements
 
 **Status:** Draft
 **Date:** 2026-03-20

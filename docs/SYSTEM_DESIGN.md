@@ -1,4 +1,4 @@
-# Walrus AI Policy & Governance Archive — System Design
+# Walrus Archive & Governance Archive — System Design
 
 **Source PRD:** `docs/PRD.md`
 **Date:** 2026-03-20

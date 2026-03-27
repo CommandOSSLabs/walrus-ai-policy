@@ -1,4 +1,4 @@
-# Walrus AI Policy Archive — Design System
+# Walrus Archive — Design System
 
 **Version:** 1.0.0
 **Date:** 2026-03-16
@@ -1026,7 +1026,7 @@ Appears on Artifact Detail page below the file list.
 │                                                       │
 │  ┌──────────────────────────────────────────────┐    │
 │  │ Author, A. B., & Author, C. D. (2026).        │    │  bg/surface-sunken
-│  │ Title of Artifact. Walrus AI Policy Archive. │    │  body/sm mono-font for BibTeX
+│  │ Title of Artifact. Walrus Archive Archive. │    │  body/sm mono-font for BibTeX
 │  │ https://aipolicyarchive.wal.app/0x1a2b...    │    │
 │  └──────────────────────────────────────────────┘    │
 │                                                       │

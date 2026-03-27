@@ -1,4 +1,4 @@
-# Walrus AI Policy Archive — Data Model
+# Walrus Archive — Data Model
 
 **Audience:** Engineering leads, new contributors
 **Date:** 2026-03-20
