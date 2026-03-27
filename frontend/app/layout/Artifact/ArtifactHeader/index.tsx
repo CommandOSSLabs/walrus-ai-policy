@@ -33,7 +33,12 @@ export default ({ artifact }: ArtifactHeaderProps) => {
         </Hstack>
       </Hstack>
 
-      <Vstack>
+      <Vstack
+        className="w-full"
+        style={{
+          wordBreak: "break-word",
+        }}
+      >
         <Flex className="gap-4 justify-between">
           <Typography
             font="grotesk"

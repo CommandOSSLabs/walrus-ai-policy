@@ -28,13 +28,13 @@ export default () => {
     <header
       className={tv({
         base: [
-          "sticky top-0 z-50 h-18 px-4",
-          "backdrop-blur-3xl bg-[#0D1320]/80",
-          "border-b border-[#00D4B4]/15",
+          "sticky top-0 z-50 h-18",
+          "backdrop-blur-3xl bg-[#191F2D]/40",
+          "border-b border-white/10",
         ],
       })()}
     >
-      <Center className="h-full justify-between">
+      <Center className="container size-full justify-between">
         <Hstack className="gap-8">
           <Link to="/">
             <Typography

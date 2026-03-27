@@ -13,11 +13,11 @@ import useClickOutside from "app/hook/useClickOutside";
 import Spinner from "app/components/Spinner";
 import { extension } from "mime-types";
 
-interface ArtifactFilesProps {
+interface ArtifactFileListProps {
   files: ArtifactFile[];
 }
 
-export default ({ files }: ArtifactFilesProps) => {
+export default ({ files }: ArtifactFileListProps) => {
   const [loading, setLoading] = useState<string>();
 
   const fileRef = useRef<HTMLButtonElement>(null);
@@ -37,6 +37,10 @@ export default ({ files }: ArtifactFilesProps) => {
       fileRef.current?.classList.remove("isSelected");
     }
   };
+
+  if (files.length === 1 && files.some((meta) => meta.name === "README.md")) {
+    return;
+  }
 
   return (
     <div
@@ -117,7 +121,9 @@ export default ({ files }: ArtifactFilesProps) => {
                         utilsWalrus.getQuiltPatchId(meta.patchId),
                       );
 
-                      if (!request.ok) throw new Error("Download failed");
+                      if (!request.ok) {
+                        throw new Error(`Download failed for ${meta.name}`);
+                      }
 
                       const blob = await request.blob();
 

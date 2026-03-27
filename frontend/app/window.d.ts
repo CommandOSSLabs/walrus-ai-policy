@@ -6,3 +6,19 @@ declare module "*.svg" {
 
 /* fonts */
 declare module "@fontsource-variable/*";
+
+/* third-party */
+declare module "react-csv-to-table" {
+  import type { ComponentType } from "react";
+
+  export interface CsvToHtmlTableProps {
+    data: string;
+    csvDelimiter?: string;
+    hasHeader?: boolean;
+    tableClassName?: string;
+    tableRowClassName?: string;
+    tableColumnClassName?: string;
+  }
+
+  export const CsvToHtmlTable: ComponentType<CsvToHtmlTableProps>;
+}

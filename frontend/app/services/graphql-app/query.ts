@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { gql } from "graphql-request";
 
+// home page
 const artifacts = gql`
   query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!) {
     artifacts(filter: $filter, limit: $limit, offset: $offset) {
@@ -19,10 +20,20 @@ const artifacts = gql`
   }
 `;
 
+const platformStats = gql`
+  query PlatformStats {
+    platformStats {
+      totalSizeBytes
+    }
+  }
+`;
+
+// artifact detail
 const artifact = gql`
   query Artifact($suiObjectId: String!) {
     artifact(suiObjectId: $suiObjectId) {
       suiObjectId
+      rootId
       title
       description
       creator
@@ -30,20 +41,24 @@ const artifact = gql`
       category
       version
 
+      versions {
+        suiObjectId
+        version
+        createdAt
+        creator
+      }
+
+      contributors {
+        creator
+        role
+      }
+
       files {
         patchId
         mimeType
         sizeBytes
         name
       }
-    }
-  }
-`;
-
-const platformStats = gql`
-  query PlatformStats {
-    platformStats {
-      totalSizeBytes
     }
   }
 `;
