@@ -65,7 +65,7 @@
   }
 
   .input-bold {
-    @apply text-[#BACAC4] font-JetBrains_Mono;
+    @apply text-[#BACAC4] text-sm font-JetBrains_Mono;
     @apply bg-[#272B33]/65 outline-none;
     @apply border border-[#352F2F] rounded-lg;
     @apply w-full p-4 placeholder-[#BACAC4]/45;
