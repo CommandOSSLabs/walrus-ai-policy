@@ -117,7 +117,9 @@ export default ({ files }: ArtifactFilesProps) => {
                         utilsWalrus.getQuiltPatchId(meta.patchId),
                       );
 
-                      if (!request.ok) throw new Error("Download failed");
+                      if (!request.ok) {
+                        throw new Error(`Download failed for ${meta.name}`);
+                      }
 
                       const blob = await request.blob();
 

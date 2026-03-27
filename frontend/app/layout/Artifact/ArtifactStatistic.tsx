@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import DownloadLine from "public/assets/line/download.svg";
 import Hstack from "app/components/Hstack";
 import Typography from "app/components/Typography";
@@ -7,8 +8,15 @@ import Stack from "app/components/Stack";
 import EyesLine from "public/assets/line/eyes.svg";
 import HeartLine from "public/assets/line/heart.svg";
 import ShareLine from "public/assets/line/share.svg";
+import type { ArtifactQuery } from "app/services/graphql-app/generated";
+import utilsWalrus from "app/utils/utils.walrus";
+import { downloadFileWithBlob } from "app/utils";
 
-export default () => {
+interface ArtifactStatisticProps {
+  artifact: NonNullable<ArtifactQuery["artifact"]>;
+}
+
+export default ({ artifact }: ArtifactStatisticProps) => {
   return (
     <Stack
       className={tv({
@@ -24,6 +32,35 @@ export default () => {
           className="text-[#00382E] rounded-lg h-10 flex gap-2 items-center justify-center"
           style={{
             background: "linear-gradient(135deg, #46F1CF 0%, #00D4B4 100%)",
+          }}
+          onClick={async () => {
+            const zip = new JSZip();
+
+            await Promise.all(
+              artifact.files.map(async (meta) => {
+                const request = await fetch(
+                  utilsWalrus.getQuiltPatchId(meta.patchId),
+                );
+
+                if (!request.ok) {
+                  throw new Error(`Download failed for ${meta.name}`);
+                }
+
+                const blob = await request.blob();
+
+                zip.file(meta.name, blob);
+              }),
+            );
+
+            const zipBlob = await zip.generateAsync({
+              type: "blob",
+            });
+
+            downloadFileWithBlob(
+              zipBlob,
+              "application/zip",
+              `artifact-${artifact.createdAt}`,
+            );
           }}
         >
           <DownloadLine />

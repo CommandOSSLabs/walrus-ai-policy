@@ -34,7 +34,7 @@ export default ({ loaderData }: Route.ComponentProps) => {
       </Vstack>
 
       <Vstack className="gap-4 md:gap-6 md:w-70">
-        <ArtifactStatistic />
+        <ArtifactStatistic artifact={artifact} />
 
         <ArtifactVersions />
 
