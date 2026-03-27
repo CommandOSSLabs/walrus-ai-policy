@@ -34,11 +34,17 @@ export default ({ loaderData }: Route.ComponentProps) => {
       </Vstack>
 
       <Vstack className="gap-4 md:gap-6 md:w-70">
-        <ArtifactStatistic />
+        <ArtifactStatistic artifact={artifact} />
 
-        <ArtifactVersions />
+        <ArtifactVersions
+          suiObjectId={artifact.suiObjectId}
+          rootId={artifact.rootId}
+        />
 
-        <ArtifactContributors />
+        <ArtifactContributors
+          suiObjectId={artifact.suiObjectId}
+          rootId={artifact.rootId}
+        />
       </Vstack>
     </Flex>
   );
