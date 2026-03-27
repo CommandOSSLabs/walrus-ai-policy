@@ -39,3 +39,11 @@ const artifact = gql`
     }
   }
 `;
+
+const platformStats = gql`
+  query PlatformStats {
+    platformStats {
+      totalSizeBytes
+    }
+  }
+`;

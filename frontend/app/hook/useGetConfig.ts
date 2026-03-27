@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import utilsWalrus from "app/utils/utils.walrus";
 
 export default () => {
   const contributorConfig = useQuery({
@@ -32,9 +33,19 @@ export default () => {
     },
   });
 
+  const walrusConfig = useQuery({
+    queryKey: ["walrus_config"],
+    queryFn: async () => {
+      const system = await utilsWalrus.walrusClient.systemState();
+
+      return system.used_capacity_size;
+    },
+  });
+
   return {
     contributorConfig,
     fileConfig,
     metadataConfig,
+    walrusConfig,
   };
 };
