@@ -10,6 +10,9 @@ import TransactionDetail from "app/components/TransactionDetail";
 import { waitForSeconds } from "app/utils";
 import useSteps from "app/hook/useSteps";
 import ConnectWalletWrapper from "app/components/ConnectWalletWrapper";
+import { getQueryClient } from "app/layout/Provider/ProviderReactQuery";
+import { useArtifactsQuery } from "app/services/graphql-app/generated";
+import utilsConstants from "app/utils/utils.constants";
 
 interface CreateArtifactSubmitProps {
   isSubmitting: boolean;
@@ -62,7 +65,15 @@ export default ({ isSubmitting, handleSubmit }: CreateArtifactSubmitProps) => {
               updateStatus,
             );
 
-            await waitForSeconds(undefined, 1000);
+            // refetch home page
+            await waitForSeconds(() => {
+              getQueryClient.refetchQueries({
+                queryKey: useArtifactsQuery.getKey({
+                  limit: utilsConstants.MAX_ARTIFACT_CARD,
+                  offset: 0,
+                }),
+              });
+            }, 1000);
 
             navigate(`/artifact/${artifact.id}`);
           })}
