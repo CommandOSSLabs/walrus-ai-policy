@@ -66,7 +66,7 @@ export default ({ files }: ArtifactFilesProps) => {
             disabled={!!loading?.length}
             className={tv({
               base: [
-                "flex justify-between",
+                "flex gap-6 justify-between",
                 "text-[#BACAC4] text-xs",
                 "w-full h-10 px-3.5",
                 "not-last:border-b not-last:border-inherit",
@@ -92,10 +92,15 @@ export default ({ files }: ArtifactFilesProps) => {
                 <FilesLine />
               )}
 
-              <Typography font="jetbrains">{meta.name}</Typography>
+              <Typography
+                font="jetbrains"
+                className="text-left line-clamp-1 flex-1"
+              >
+                {meta.name}
+              </Typography>
             </Hstack>
 
-            <Hstack>
+            <Hstack className="whitespace-pre">
               <Typography>{formatBytesSizes(meta.sizeBytes)}</Typography>
 
               {loading === meta.patchId ? (

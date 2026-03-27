@@ -7,6 +7,7 @@ import ArtifactVersions from "./ArtifactVersions";
 import ArtifactContributors from "./ArtifactContributors";
 import ArtifactStatistic from "./ArtifactStatistic";
 import ArtifactReadme from "./ArtifactReadme";
+import { tv } from "tailwind-variants";
 
 export default ({ loaderData }: Route.ComponentProps) => {
   const artifact = loaderData.artifact;
@@ -14,8 +15,17 @@ export default ({ loaderData }: Route.ComponentProps) => {
   if (!artifact) return null;
 
   return (
-    <Flex className="gap-12 pt-8 pb-12 mx-auto max-w-5xl">
-      <Vstack className="items-start flex-1 gap-8">
+    <Flex
+      //
+      className={tv({
+        base: [
+          "flex-col md:flex-row",
+          "gap-6 md:gap-12 pt-8 pb-12 px-4 2xl:px-0",
+          "mx-auto max-w-5xl",
+        ],
+      })()}
+    >
+      <Vstack className="items-start flex-1 gap-4 md:gap-8">
         <ArtifactHeader artifact={artifact} />
 
         <ArtifactFiles files={artifact.files} />
@@ -23,7 +33,7 @@ export default ({ loaderData }: Route.ComponentProps) => {
         <ArtifactReadme />
       </Vstack>
 
-      <Vstack className="gap-6 w-70">
+      <Vstack className="gap-4 md:gap-6 md:w-70">
         <ArtifactStatistic />
 
         <ArtifactVersions />

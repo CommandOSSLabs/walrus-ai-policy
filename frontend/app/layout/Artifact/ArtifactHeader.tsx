@@ -34,7 +34,7 @@ export default ({ artifact }: ArtifactHeaderProps) => {
       </Hstack>
 
       <Vstack>
-        <Flex className="justify-between">
+        <Flex className="gap-4 justify-between">
           <Typography
             font="grotesk"
             className="text-[#DDE2F5] text-2xl font-medium flex-1"
