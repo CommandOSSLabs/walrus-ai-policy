@@ -14,7 +14,7 @@ import utilsConstants from "./utils/utils.constants";
 export function meta({}: Route.MetaArgs) {
   return [
     {
-      title: utilsConstants.FORMAT_SEO.title,
+      title: `${utilsConstants.FORMAT_SEO.brand} | Research Preservation`,
     },
     {
       name: "description",

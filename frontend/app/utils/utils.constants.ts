@@ -37,7 +37,7 @@ const FORMAT_RESOURCE = [
 ];
 
 const FORMAT_SEO = {
-  title: "WalArchive — Preserve & Verify AI Governance Knowledge",
+  brand: "WalArchive",
   description: `WalArchive preserves AI governance research and policy artifacts with immutable content storage and on-chain metadata. Prevent link rot, ensure reproducibility, and verify provenance for every contribution.`,
 };
 
