@@ -150,6 +150,10 @@ export type ArtifactsQuery = {
   };
 };
 
+export type PlatformStatsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type PlatformStatsQuery = { platformStats: { totalSizeBytes: number } };
+
 export type ArtifactQueryVariables = Exact<{
   suiObjectId: Scalars["String"]["input"];
 }>;
@@ -157,6 +161,7 @@ export type ArtifactQueryVariables = Exact<{
 export type ArtifactQuery = {
   artifact?: {
     suiObjectId: string;
+    rootId?: string;
     title: string;
     description: string;
     creator: string;
@@ -172,9 +177,24 @@ export type ArtifactQuery = {
   };
 };
 
-export type PlatformStatsQueryVariables = Exact<{ [key: string]: never }>;
+export type ArtifactVersionsQueryVariables = Exact<{
+  rootId: Scalars["String"]["input"];
+}>;
 
-export type PlatformStatsQuery = { platformStats: { totalSizeBytes: number } };
+export type ArtifactVersionsQuery = {
+  artifactVersions: Array<{
+    suiObjectId: string;
+    version: number;
+    createdAt: number;
+    creator: string;
+  }>;
+};
+
+export type ArtifactContributorsQueryVariables = Exact<{
+  rootId: Scalars["String"]["input"];
+}>;
+
+export type ArtifactContributorsQuery = { artifactContributors: Array<string> };
 
 export const ArtifactsDocument = `
     query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!) {
@@ -230,10 +250,63 @@ useArtifactsQuery.fetcher = (
     headers,
   );
 
+export const PlatformStatsDocument = `
+    query PlatformStats {
+  platformStats {
+    totalSizeBytes
+  }
+}
+    `;
+
+export const usePlatformStatsQuery = <
+  TData = PlatformStatsQuery,
+  TError = unknown,
+>(
+  client: GraphQLClient,
+  variables?: PlatformStatsQueryVariables,
+  options?: Omit<
+    UseQueryOptions<PlatformStatsQuery, TError, TData>,
+    "queryKey"
+  > & {
+    queryKey?: UseQueryOptions<PlatformStatsQuery, TError, TData>["queryKey"];
+  },
+  headers?: RequestInit["headers"],
+) => {
+  return useQuery<PlatformStatsQuery, TError, TData>({
+    queryKey:
+      variables === undefined
+        ? ["PlatformStats"]
+        : ["PlatformStats", variables],
+    queryFn: fetcher<PlatformStatsQuery, PlatformStatsQueryVariables>(
+      client,
+      PlatformStatsDocument,
+      variables,
+      headers,
+    ),
+    ...options,
+  });
+};
+
+usePlatformStatsQuery.getKey = (variables?: PlatformStatsQueryVariables) =>
+  variables === undefined ? ["PlatformStats"] : ["PlatformStats", variables];
+
+usePlatformStatsQuery.fetcher = (
+  client: GraphQLClient,
+  variables?: PlatformStatsQueryVariables,
+  headers?: RequestInit["headers"],
+) =>
+  fetcher<PlatformStatsQuery, PlatformStatsQueryVariables>(
+    client,
+    PlatformStatsDocument,
+    variables,
+    headers,
+  );
+
 export const ArtifactDocument = `
     query Artifact($suiObjectId: String!) {
   artifact(suiObjectId: $suiObjectId) {
     suiObjectId
+    rootId
     title
     description
     creator
@@ -287,36 +360,40 @@ useArtifactQuery.fetcher = (
     headers,
   );
 
-export const PlatformStatsDocument = `
-    query PlatformStats {
-  platformStats {
-    totalSizeBytes
+export const ArtifactVersionsDocument = `
+    query ArtifactVersions($rootId: String!) {
+  artifactVersions(rootId: $rootId) {
+    suiObjectId
+    version
+    createdAt
+    creator
   }
 }
     `;
 
-export const usePlatformStatsQuery = <
-  TData = PlatformStatsQuery,
+export const useArtifactVersionsQuery = <
+  TData = ArtifactVersionsQuery,
   TError = unknown,
 >(
   client: GraphQLClient,
-  variables?: PlatformStatsQueryVariables,
+  variables: ArtifactVersionsQueryVariables,
   options?: Omit<
-    UseQueryOptions<PlatformStatsQuery, TError, TData>,
+    UseQueryOptions<ArtifactVersionsQuery, TError, TData>,
     "queryKey"
   > & {
-    queryKey?: UseQueryOptions<PlatformStatsQuery, TError, TData>["queryKey"];
+    queryKey?: UseQueryOptions<
+      ArtifactVersionsQuery,
+      TError,
+      TData
+    >["queryKey"];
   },
   headers?: RequestInit["headers"],
 ) => {
-  return useQuery<PlatformStatsQuery, TError, TData>({
-    queryKey:
-      variables === undefined
-        ? ["PlatformStats"]
-        : ["PlatformStats", variables],
-    queryFn: fetcher<PlatformStatsQuery, PlatformStatsQueryVariables>(
+  return useQuery<ArtifactVersionsQuery, TError, TData>({
+    queryKey: ["ArtifactVersions", variables],
+    queryFn: fetcher<ArtifactVersionsQuery, ArtifactVersionsQueryVariables>(
       client,
-      PlatformStatsDocument,
+      ArtifactVersionsDocument,
       variables,
       headers,
     ),
@@ -324,17 +401,68 @@ export const usePlatformStatsQuery = <
   });
 };
 
-usePlatformStatsQuery.getKey = (variables?: PlatformStatsQueryVariables) =>
-  variables === undefined ? ["PlatformStats"] : ["PlatformStats", variables];
+useArtifactVersionsQuery.getKey = (
+  variables: ArtifactVersionsQueryVariables,
+) => ["ArtifactVersions", variables];
 
-usePlatformStatsQuery.fetcher = (
+useArtifactVersionsQuery.fetcher = (
   client: GraphQLClient,
-  variables?: PlatformStatsQueryVariables,
+  variables: ArtifactVersionsQueryVariables,
   headers?: RequestInit["headers"],
 ) =>
-  fetcher<PlatformStatsQuery, PlatformStatsQueryVariables>(
+  fetcher<ArtifactVersionsQuery, ArtifactVersionsQueryVariables>(
     client,
-    PlatformStatsDocument,
+    ArtifactVersionsDocument,
+    variables,
+    headers,
+  );
+
+export const ArtifactContributorsDocument = `
+    query ArtifactContributors($rootId: String!) {
+  artifactContributors(rootId: $rootId)
+}
+    `;
+
+export const useArtifactContributorsQuery = <
+  TData = ArtifactContributorsQuery,
+  TError = unknown,
+>(
+  client: GraphQLClient,
+  variables: ArtifactContributorsQueryVariables,
+  options?: Omit<
+    UseQueryOptions<ArtifactContributorsQuery, TError, TData>,
+    "queryKey"
+  > & {
+    queryKey?: UseQueryOptions<
+      ArtifactContributorsQuery,
+      TError,
+      TData
+    >["queryKey"];
+  },
+  headers?: RequestInit["headers"],
+) => {
+  return useQuery<ArtifactContributorsQuery, TError, TData>({
+    queryKey: ["ArtifactContributors", variables],
+    queryFn: fetcher<
+      ArtifactContributorsQuery,
+      ArtifactContributorsQueryVariables
+    >(client, ArtifactContributorsDocument, variables, headers),
+    ...options,
+  });
+};
+
+useArtifactContributorsQuery.getKey = (
+  variables: ArtifactContributorsQueryVariables,
+) => ["ArtifactContributors", variables];
+
+useArtifactContributorsQuery.fetcher = (
+  client: GraphQLClient,
+  variables: ArtifactContributorsQueryVariables,
+  headers?: RequestInit["headers"],
+) =>
+  fetcher<ArtifactContributorsQuery, ArtifactContributorsQueryVariables>(
+    client,
+    ArtifactContributorsDocument,
     variables,
     headers,
   );
