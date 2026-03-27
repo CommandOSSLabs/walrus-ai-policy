@@ -172,6 +172,10 @@ export type ArtifactQuery = {
   };
 };
 
+export type PlatformStatsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type PlatformStatsQuery = { platformStats: { totalSizeBytes: number } };
+
 export const ArtifactsDocument = `
     query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!) {
   artifacts(filter: $filter, limit: $limit, offset: $offset) {
@@ -279,6 +283,58 @@ useArtifactQuery.fetcher = (
   fetcher<ArtifactQuery, ArtifactQueryVariables>(
     client,
     ArtifactDocument,
+    variables,
+    headers,
+  );
+
+export const PlatformStatsDocument = `
+    query PlatformStats {
+  platformStats {
+    totalSizeBytes
+  }
+}
+    `;
+
+export const usePlatformStatsQuery = <
+  TData = PlatformStatsQuery,
+  TError = unknown,
+>(
+  client: GraphQLClient,
+  variables?: PlatformStatsQueryVariables,
+  options?: Omit<
+    UseQueryOptions<PlatformStatsQuery, TError, TData>,
+    "queryKey"
+  > & {
+    queryKey?: UseQueryOptions<PlatformStatsQuery, TError, TData>["queryKey"];
+  },
+  headers?: RequestInit["headers"],
+) => {
+  return useQuery<PlatformStatsQuery, TError, TData>({
+    queryKey:
+      variables === undefined
+        ? ["PlatformStats"]
+        : ["PlatformStats", variables],
+    queryFn: fetcher<PlatformStatsQuery, PlatformStatsQueryVariables>(
+      client,
+      PlatformStatsDocument,
+      variables,
+      headers,
+    ),
+    ...options,
+  });
+};
+
+usePlatformStatsQuery.getKey = (variables?: PlatformStatsQueryVariables) =>
+  variables === undefined ? ["PlatformStats"] : ["PlatformStats", variables];
+
+usePlatformStatsQuery.fetcher = (
+  client: GraphQLClient,
+  variables?: PlatformStatsQueryVariables,
+  headers?: RequestInit["headers"],
+) =>
+  fetcher<PlatformStatsQuery, PlatformStatsQueryVariables>(
+    client,
+    PlatformStatsDocument,
     variables,
     headers,
   );
