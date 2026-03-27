@@ -27,7 +27,7 @@ export default ({ control, setValue }: CreateArtifactResourceProps) => {
           required: true,
         }}
         render={({ field }) => (
-          <Hstack className="justify-start">
+          <Hstack className="justify-start flex-wrap">
             {utilsConstants.FORMAT_RESOURCE.map((meta) => {
               const isActive = field.value === meta.key;
 

@@ -34,6 +34,14 @@ const FORMAT_RESOURCE = [
     key: "Economy Gold",
     type: "gold" as const,
   },
+  {
+    key: "Cybersecurity",
+    type: "orange" as const,
+  },
+  {
+    key: "Research & Analytics",
+    type: "green" as const,
+  },
 ];
 
 const FORMAT_SEO = {

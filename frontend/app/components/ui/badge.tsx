@@ -6,7 +6,7 @@ const badgeVariants = tv({
   base: [
     "group/badge",
     "inline-flex items-center",
-    "uppercase text-xs",
+    "uppercase text-xs font-semibold",
     "border rounded-xl",
     "px-5 py-2",
   ],
@@ -15,12 +15,16 @@ const badgeVariants = tv({
       red: "text-[#FF4D4D] border-[#FF4D4D]/40",
       cyan: "text-[#00D4FF] border-[#00D4FF]/40",
       gold: "text-[#FFD700] border-[#FFD700]/40",
+      green: "text-[#22C55E] border-[#22C55E]/40",
+      orange: "text-[#F97316] border-[#F97316]/40",
     },
 
     active: {
       red: "bg-[#FF4D4D]/20",
       cyan: "bg-[#00D4FF]/20",
       gold: "bg-[#FFD700]/20",
+      green: "bg-[#22C55E]/20",
+      orange: "bg-[#F97316]/20",
     },
   },
 });

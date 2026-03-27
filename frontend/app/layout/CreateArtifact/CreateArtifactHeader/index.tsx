@@ -15,7 +15,7 @@ export default () => {
       <Typography
         font="grotesk"
         variant="h1"
-        className="text-[#DDE2F5] text-7xl font-bold tracking-[-0.225rem]"
+        className="text-[#DDE2F5] text-5xl font-bold tracking-[-0.225rem]"
       >
         CREATE ARTIFACT
       </Typography>
