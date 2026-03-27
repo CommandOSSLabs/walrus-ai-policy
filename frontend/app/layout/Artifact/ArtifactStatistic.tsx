@@ -11,12 +11,16 @@ import ShareLine from "public/assets/line/share.svg";
 import type { ArtifactQuery } from "app/services/graphql-app/generated";
 import utilsWalrus from "app/utils/utils.walrus";
 import { downloadFileWithBlob } from "app/utils";
+import { useState } from "react";
+import Spinner from "app/components/Spinner";
 
 interface ArtifactStatisticProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
 }
 
 export default ({ artifact }: ArtifactStatisticProps) => {
+  const [loading, setLoading] = useState<string>();
+
   return (
     <Stack
       className={tv({
@@ -30,40 +34,47 @@ export default ({ artifact }: ArtifactStatisticProps) => {
       <Vstack className="w-full gap-2.5 text-sm font-bold">
         <button
           className="text-[#00382E] rounded-lg h-10 flex gap-2 items-center justify-center"
+          disabled={!!loading?.length}
           style={{
             background: "linear-gradient(135deg, #46F1CF 0%, #00D4B4 100%)",
           }}
           onClick={async () => {
-            const zip = new JSZip();
+            try {
+              setLoading("download");
 
-            await Promise.all(
-              artifact.files.map(async (meta) => {
-                const request = await fetch(
-                  utilsWalrus.getQuiltPatchId(meta.patchId),
-                );
+              const zip = new JSZip();
 
-                if (!request.ok) {
-                  throw new Error(`Download failed for ${meta.name}`);
-                }
+              await Promise.all(
+                artifact.files.map(async (meta) => {
+                  const request = await fetch(
+                    utilsWalrus.getQuiltPatchId(meta.patchId),
+                  );
 
-                const blob = await request.blob();
+                  if (!request.ok) {
+                    throw new Error(`Download failed for ${meta.name}`);
+                  }
 
-                zip.file(meta.name, blob);
-              }),
-            );
+                  const blob = await request.blob();
 
-            const zipBlob = await zip.generateAsync({
-              type: "blob",
-            });
+                  zip.file(meta.name, blob);
+                }),
+              );
 
-            downloadFileWithBlob(
-              zipBlob,
-              "application/zip",
-              `artifact-${artifact.createdAt}`,
-            );
+              const zipBlob = await zip.generateAsync({
+                type: "blob",
+              });
+
+              downloadFileWithBlob(
+                zipBlob,
+                "application/zip",
+                `artifact-${artifact.createdAt}`,
+              );
+            } finally {
+              setLoading(undefined);
+            }
           }}
         >
-          <DownloadLine />
+          {loading?.length ? <Spinner /> : <DownloadLine />}
 
           <Typography font="grotesk">DOWNLOAD ARTIFACT</Typography>
         </button>
