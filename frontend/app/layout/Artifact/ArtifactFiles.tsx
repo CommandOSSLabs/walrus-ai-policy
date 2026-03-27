@@ -92,9 +92,7 @@ export default ({ files }: ArtifactFilesProps) => {
                 <FilesLine />
               )}
 
-              <Typography font="jetbrains">
-                {meta.fileName || meta.mimeType}
-              </Typography>
+              <Typography font="jetbrains">{meta.name}</Typography>
             </Hstack>
 
             <Hstack>
@@ -118,11 +116,7 @@ export default ({ files }: ArtifactFilesProps) => {
 
                       const blob = await request.blob();
 
-                      downloadFileWithBlob(
-                        blob,
-                        meta.mimeType,
-                        meta.fileName || meta.mimeType,
-                      );
+                      downloadFileWithBlob(blob, meta.mimeType, meta.name);
                     } finally {
                       setLoading(undefined);
                     }

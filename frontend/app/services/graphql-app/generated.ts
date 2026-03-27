@@ -79,8 +79,8 @@ export type ArtifactDetail = {
 };
 
 export type ArtifactFile = {
-  fileName?: Maybe<Scalars["String"]["output"]>;
   mimeType: Scalars["String"]["output"];
+  name: Scalars["String"]["output"];
   patchId: Scalars["String"]["output"];
   sizeBytes: Scalars["Int"]["output"];
 };
@@ -163,7 +163,12 @@ export type ArtifactQuery = {
     createdAt: number;
     category: string;
     version: number;
-    files: Array<{ patchId: string; mimeType: string; sizeBytes: number }>;
+    files: Array<{
+      patchId: string;
+      mimeType: string;
+      sizeBytes: number;
+      name: string;
+    }>;
   };
 };
 
@@ -235,6 +240,7 @@ export const ArtifactDocument = `
       patchId
       mimeType
       sizeBytes
+      name
     }
   }
 }

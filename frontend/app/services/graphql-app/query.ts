@@ -34,6 +34,7 @@ const artifact = gql`
         patchId
         mimeType
         sizeBytes
+        name
       }
     }
   }
