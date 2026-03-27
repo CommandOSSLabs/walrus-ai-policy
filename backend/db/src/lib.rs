@@ -20,7 +20,7 @@ diesel::table! {
         patch_id    -> Text,
         mime_type   -> Text,
         size_bytes  -> BigInt,
-        file_name   -> Nullable<Text>,
+        name        -> Text,
     }
 }
 

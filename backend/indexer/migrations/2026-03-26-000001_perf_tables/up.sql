@@ -5,4 +5,4 @@ CREATE TABLE artifact_version_counts (
 );
 
 ALTER TABLE artifact ADD COLUMN total_size_bytes BIGINT NOT NULL DEFAULT 0;
-ALTER TABLE artifact_file ADD COLUMN file_name TEXT;
+ALTER TABLE artifact_file ADD COLUMN name TEXT NOT NULL DEFAULT '';

@@ -167,7 +167,7 @@ impl Handler for ArtifactPipeline {
                 patch_id: f.patch_id.clone(),
                 mime_type: f.mime_type.clone(),
                 size_bytes: f.size_bytes as i64,
-                file_name: f.file_name.clone(),
+                name: f.name.clone(),
             }));
         }
 

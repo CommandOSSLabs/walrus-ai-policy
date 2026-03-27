@@ -50,7 +50,7 @@ pub struct StoredArtifactFile {
     pub patch_id: String,
     pub mime_type: String,
     pub size_bytes: i64,
-    pub file_name: Option<String>,
+    pub name: String,
 }
 
 #[derive(SimpleObject)]
@@ -196,7 +196,7 @@ impl QueryRoot {
                     artifact_file::patch_id,
                     artifact_file::mime_type,
                     artifact_file::size_bytes,
-                    artifact_file::file_name,
+                    artifact_file::name,
                 )),
             &mut conn,
         )
