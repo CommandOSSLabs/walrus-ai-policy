@@ -20,7 +20,7 @@ export default ({
       <meta property="og:url" content={url} />
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
-      <meta property="og:site_name" content="Smashblob" />
+      <meta property="og:site_name" content={utilsConstants.FORMAT_SEO.title} />
       <meta property="og:image" content={image} />
 
       {/* DEFAULT */}
