@@ -23,6 +23,9 @@ export default ({ control, setValue }: CreateArtifactResourceProps) => {
       <Controller
         control={control}
         name="category"
+        rules={{
+          required: true,
+        }}
         render={({ field }) => (
           <Hstack className="justify-start">
             {utilsConstants.FORMAT_RESOURCE.map((meta) => {

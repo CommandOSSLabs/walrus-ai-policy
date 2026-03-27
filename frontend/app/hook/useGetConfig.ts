@@ -22,8 +22,19 @@ export default () => {
     },
   });
 
+  const metadataConfig = useQuery({
+    queryKey: ["metadata_config"],
+    queryFn: async () => {
+      return {
+        title: 100,
+        descrpition: 280,
+      };
+    },
+  });
+
   return {
     contributorConfig,
     fileConfig,
+    metadataConfig,
   };
 };

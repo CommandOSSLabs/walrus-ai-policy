@@ -5,7 +5,6 @@ import type { UseFormHandleSubmit } from "react-hook-form";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { useNavigate } from "react-router";
 import useUploadQuilt from "app/hook/useUploadQuilt";
-import useArtifact from "app/hook/useArtifact";
 import TransactionDetail from "app/components/TransactionDetail";
 import { waitForSeconds } from "app/utils";
 import useSteps from "app/hook/useSteps";
@@ -13,6 +12,8 @@ import ConnectWalletWrapper from "app/components/ConnectWalletWrapper";
 import { getQueryClient } from "app/layout/Provider/ProviderReactQuery";
 import { useArtifactsQuery } from "app/services/graphql-app/generated";
 import utilsConstants from "app/utils/utils.constants";
+import useUploadArtifact from "app/hook/useUploadArtifact";
+import { toast } from "sonner";
 
 interface CreateArtifactSubmitProps {
   isSubmitting: boolean;
@@ -24,7 +25,7 @@ export default ({ isSubmitting, handleSubmit }: CreateArtifactSubmitProps) => {
   const navigate = useNavigate();
 
   const { uploadQuilt } = useUploadQuilt();
-  const { initArtifact } = useArtifact();
+  const { initArtifact } = useUploadArtifact();
 
   const { steps, status, updateFee, updateStatus } = useSteps([
     {
@@ -49,34 +50,59 @@ export default ({ isSubmitting, handleSubmit }: CreateArtifactSubmitProps) => {
           style={{
             background: "linear-gradient(135deg, #46F1CF 0%, #00D4B4 100%)",
           }}
-          onClick={handleSubmit(async (values) => {
-            if (!currentAccount?.address) return;
+          onClick={handleSubmit(
+            async (values) => {
+              try {
+                if (!currentAccount?.address) return;
 
-            const quilt = await uploadQuilt(
-              values.files.map(({ file }) => file),
-              updateFee,
-              updateStatus,
-            );
+                const quilt = await uploadQuilt(
+                  values.files.map(({ file }) => file),
+                  updateFee,
+                  updateStatus,
+                );
 
-            const artifact = await initArtifact(
-              values,
-              quilt,
-              updateFee,
-              updateStatus,
-            );
+                const artifact = await initArtifact(
+                  values,
+                  quilt,
+                  updateFee,
+                  updateStatus,
+                );
 
-            // refetch home page
-            await waitForSeconds(() => {
-              getQueryClient.refetchQueries({
-                queryKey: useArtifactsQuery.getKey({
-                  limit: utilsConstants.MAX_ARTIFACT_CARD,
-                  offset: 0,
-                }),
-              });
-            }, 1000);
+                // refetch home page
+                await waitForSeconds(() => {
+                  getQueryClient.refetchQueries({
+                    queryKey: useArtifactsQuery.getKey({
+                      limit: utilsConstants.MAX_ARTIFACT_CARD,
+                      offset: 0,
+                    }),
+                  });
+                }, 1000);
 
-            navigate(`/artifact/${artifact.id}`);
-          })}
+                navigate(`/artifact/${artifact.id}`);
+
+                toast.success("Artifact created successfully.");
+              } catch (error) {
+                updateStatus("error");
+
+                toast.error(JSON.stringify(error));
+              }
+            },
+            (errors) => {
+              if (errors?.title) {
+                const el = document.querySelector(`[name="title"]`);
+
+                if (!el) return;
+
+                const [header] = document.getElementsByTagName("header");
+                const offset = 32;
+                const top = el.getBoundingClientRect().top + window.scrollY;
+
+                window.scrollTo({
+                  top: top - header.offsetHeight - offset,
+                });
+              }
+            },
+          )}
         >
           <Hstack>
             {isSubmitting && <Spinner />}

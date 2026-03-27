@@ -174,3 +174,19 @@ export const downloadFileWithBlob = (
   anchor.remove();
   URL.revokeObjectURL(blobUrl);
 };
+
+export const forceToNumber = (argument: number | string | null | undefined) => {
+  if (typeof argument === "string") {
+    argument = Number(argument);
+  }
+
+  if (Number.isNaN(argument)) {
+    argument = 0;
+  }
+
+  if (typeof argument !== "number") {
+    argument = 0;
+  }
+
+  return argument;
+};
