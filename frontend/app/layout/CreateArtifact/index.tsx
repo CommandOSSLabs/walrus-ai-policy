@@ -66,7 +66,7 @@ export default () => {
                     }}
                   />
 
-                  <Typography className="text-[#BACAC4]/65 text-right">
+                  <Typography className="text-[#BACAC4]/65 text-sm text-right">
                     {`${forceToNumber(field.value?.length)}/${MAX}`}
                   </Typography>
                 </Vstack>
@@ -105,7 +105,7 @@ export default () => {
                     }}
                   />
 
-                  <Typography className="text-[#BACAC4]/65 text-right">
+                  <Typography className="text-[#BACAC4]/65 text-sm text-right">
                     {`${forceToNumber(field.value?.length)}/${MAX}`}
                   </Typography>
                 </Vstack>
