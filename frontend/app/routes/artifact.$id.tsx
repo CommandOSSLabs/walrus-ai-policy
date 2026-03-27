@@ -2,12 +2,12 @@ import Artifact from "app/layout/Artifact";
 import type { Route } from "./+types/artifact.$id";
 import {
   useArtifactQuery,
-  type ArtifactQuery,
   type ArtifactQueryVariables,
 } from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
-import type { MetaFunction } from "react-router";
 import { getQueryClient } from "app/layout/Provider/ProviderReactQuery";
+import SEO from "app/components/SEO";
+import utilsConstants from "app/utils/utils.constants";
 
 export async function clientLoader({ params }: Route.ClientLoaderArgs) {
   const keys: ArtifactQueryVariables = {
@@ -23,17 +23,21 @@ export async function clientLoader({ params }: Route.ClientLoaderArgs) {
 // force the client loader to run during hydration
 clientLoader.hydrate = true as const; // `as const` for type inference
 
-export const meta: MetaFunction<Route.ClientLoaderArgs> = ({ loaderData }) => {
-  const data = loaderData as ArtifactQuery;
-
-  return [
-    {
-      title: data?.artifact?.title,
-      description: data?.artifact?.description,
-    },
-  ];
-};
-
 export default (props: Route.ComponentProps) => {
-  return <Artifact {...props} />;
+  return (
+    <>
+      <SEO
+        title={
+          props.loaderData.artifact?.title ||
+          `${utilsConstants.FORMAT_SEO.title} | Artifact Detail`
+        }
+        description={
+          props.loaderData.artifact?.description ||
+          utilsConstants.FORMAT_SEO.description
+        }
+      />
+
+      <Artifact {...props} />
+    </>
+  );
 };

@@ -5,24 +5,10 @@ import "@fontsource-variable/inter";
 import "@fontsource-variable/jetbrains-mono";
 import "@fontsource-variable/space-grotesk";
 
-import type { Route } from "./+types/root";
 import Header from "./layout/Header";
 import ProviderDappkit from "./layout/Provider/ProviderDappkit";
 import ProviderReactQuery from "./layout/Provider/ProviderReactQuery";
-import utilsConstants from "./utils/utils.constants";
 import { Toaster } from "./components/ui/sonner";
-
-export function meta({}: Route.MetaArgs) {
-  return [
-    {
-      title: `${utilsConstants.FORMAT_SEO.brand} | Research Preservation`,
-    },
-    {
-      name: "description",
-      content: utilsConstants.FORMAT_SEO.description,
-    },
-  ];
-}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (

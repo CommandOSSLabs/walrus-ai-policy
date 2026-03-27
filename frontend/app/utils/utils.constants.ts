@@ -1,3 +1,5 @@
+import BannerPNG from "public/banner.png";
+
 const FORMAT_BYTES = [
   {
     key: "B",
@@ -45,8 +47,10 @@ const FORMAT_RESOURCE = [
 ];
 
 const FORMAT_SEO = {
-  brand: "WalArchive",
+  title: "WalArchive",
   description: `WalArchive preserves AI governance research and policy artifacts with immutable content storage and on-chain metadata. Prevent link rot, ensure reproducibility, and verify provenance for every contribution.`,
+  url: "https://wal-archive-develop.up.railway.app",
+  image: BannerPNG,
 };
 
 const MAX_ARTIFACT_CARD = 9;
