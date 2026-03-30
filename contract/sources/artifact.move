@@ -127,3 +127,192 @@ fun create_artifact(
     // Share for accessible
     transfer::share_object(artifact_object)
 }
+
+public fun remove_role_from_artifact(
+    artifact: &mut Artifact,
+    target: address,
+    ctx: &mut TxContext,
+) {
+    assert!(artifact.contributor.is_some());
+
+    contributor::remove_role(
+        artifact.contributor.borrow_mut(),
+        target,
+        ctx,
+    );
+}
+
+// ===== Tests =====
+
+#[test_only]
+const ADMIN: address = @0xA;
+#[test_only]
+const USER: address = @0xB;
+#[test_only]
+use std::string;
+#[test_only]
+use sui::clock;
+
+#[test_only]
+fun make_metadata(clock: &clock::Clock, ctx: &mut TxContext): metadata::Metadata {
+    metadata::new_metadata(
+        string::utf8(b"artifact"),
+        string::utf8(b"test metadata"),
+        string::utf8(b"ai"),
+        clock,
+        ctx,
+    )
+}
+
+#[test_only]
+fun make_file_ref(): file::FileRef {
+    let mut patch_id = vector[string::utf8(b"patch-1")];
+    let mut mime_type = vector[string::utf8(b"text/plain")];
+    let mut size_bytes = vector[42];
+    let mut name = vector[string::utf8(b"file.txt")];
+
+    file::new_file(&mut patch_id, &mut mime_type, &mut size_bytes, &mut name)
+}
+
+#[test_only]
+fun delete_local_artifact(artifact: Artifact) {
+    let Artifact {
+        id,
+        root_id: _,
+        parent_id: _,
+        metadata: _,
+        contributor: _,
+    } = artifact;
+
+    object::delete(id);
+}
+
+#[test]
+fun test_init_artifact() {
+    let mut ctx = tx_context::new_from_hint(ADMIN, 0, 0, 0, 0);
+    let test_clock = clock::create_for_testing(&mut ctx);
+
+    init_artifact(make_metadata(&test_clock, &mut ctx), make_file_ref(), &mut ctx);
+
+    clock::destroy_for_testing(test_clock);
+}
+
+#[test]
+fun test_commit_artifact_without_parent() {
+    let mut ctx = tx_context::new_from_hint(ADMIN, 0, 0, 0, 0);
+    let test_clock = clock::create_for_testing(&mut ctx);
+
+    let root = Artifact {
+        id: object::new(&mut ctx),
+        root_id: option::none(),
+        parent_id: option::none(),
+        metadata: make_metadata(&test_clock, &mut ctx),
+        contributor: contributor::init_contributor(ADMIN),
+    };
+
+    commit_artifact_without_parent(
+        &root,
+        make_metadata(&test_clock, &mut ctx),
+        make_file_ref(),
+        &mut ctx,
+    );
+
+    delete_local_artifact(root);
+    clock::destroy_for_testing(test_clock);
+}
+
+#[test]
+fun test_commit_artifact_with_parent() {
+    let mut ctx = tx_context::new_from_hint(ADMIN, 0, 0, 0, 0);
+    let test_clock = clock::create_for_testing(&mut ctx);
+
+    let root = Artifact {
+        id: object::new(&mut ctx),
+        root_id: option::none(),
+        parent_id: option::none(),
+        metadata: make_metadata(&test_clock, &mut ctx),
+        contributor: contributor::init_contributor(ADMIN),
+    };
+
+    let root_id = root.id.to_inner();
+    let parent = Artifact {
+        id: object::new(&mut ctx),
+        root_id: option::some(root_id),
+        parent_id: option::some(root_id),
+        metadata: make_metadata(&test_clock, &mut ctx),
+        contributor: option::none(),
+    };
+
+    commit_artifact_with_parent(
+        &root,
+        &parent,
+        make_metadata(&test_clock, &mut ctx),
+        make_file_ref(),
+        &mut ctx,
+    );
+
+    delete_local_artifact(parent);
+    delete_local_artifact(root);
+    clock::destroy_for_testing(test_clock);
+}
+
+#[test, expected_failure(abort_code = EInvalidRoot)]
+fun test_commit_artifact_with_parent_invalid_root() {
+    let mut ctx = tx_context::new_from_hint(ADMIN, 0, 0, 0, 0);
+    let test_clock = clock::create_for_testing(&mut ctx);
+
+    let root = Artifact {
+        id: object::new(&mut ctx),
+        root_id: option::none(),
+        parent_id: option::none(),
+        metadata: make_metadata(&test_clock, &mut ctx),
+        contributor: contributor::init_contributor(ADMIN),
+    };
+
+    let parent = Artifact {
+        id: object::new(&mut ctx),
+        root_id: option::none(),
+        parent_id: option::none(),
+        metadata: make_metadata(&test_clock, &mut ctx),
+        contributor: option::none(),
+    };
+
+    commit_artifact_with_parent(
+        &root,
+        &parent,
+        make_metadata(&test_clock, &mut ctx),
+        make_file_ref(),
+        &mut ctx,
+    );
+
+    delete_local_artifact(parent);
+    delete_local_artifact(root);
+    clock::destroy_for_testing(test_clock);
+}
+
+#[test]
+fun test_remove_role_from_artifact() {
+    let mut ctx = tx_context::new_from_hint(ADMIN, 0, 0, 0, 0);
+    let test_clock = clock::create_for_testing(&mut ctx);
+
+    let mut contributors = *contributor::init_contributor(ADMIN).borrow();
+    contributor::add_role(
+        &mut contributors,
+        USER,
+        contributor::get_role_moderator(),
+        &ctx,
+    );
+
+    let mut artifact = Artifact {
+        id: object::new(&mut ctx),
+        root_id: option::none(),
+        parent_id: option::none(),
+        metadata: make_metadata(&test_clock, &mut ctx),
+        contributor: option::some(contributors),
+    };
+
+    remove_role_from_artifact(&mut artifact, USER, &mut ctx);
+
+    delete_local_artifact(artifact);
+    clock::destroy_for_testing(test_clock);
+}

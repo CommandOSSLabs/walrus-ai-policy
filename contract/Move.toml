@@ -2,7 +2,7 @@
 name = "walrus_ai_policy"
 version = "0.0.1"
 edition = "2024.beta"
-published-at = "0x479abd3c4a52f7edb0d1a191bc75dc373d17eeab8aedb19d9a4b8e8246c25730"
+published-at = "0x598bb2ad4ae472c07de7bc4fd7571983f5ec4511443488f2ee6e84fc76d17595"
 
 [addresses]
 walrus_ai_policy = "0x0"
