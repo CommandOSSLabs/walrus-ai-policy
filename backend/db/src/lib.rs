@@ -32,6 +32,14 @@ diesel::table! {
 }
 
 diesel::table! {
+    artifact_contributor (root_id, creator) {
+        root_id -> Text,
+        creator -> Text,
+        role    -> SmallInt,
+    }
+}
+
+diesel::table! {
     platform_stats (id) {
         id               -> Integer,
         total_size_bytes -> BigInt,

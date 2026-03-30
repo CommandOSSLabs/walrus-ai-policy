@@ -11,8 +11,8 @@ use sui_indexer_alt_framework::types::full_checkpoint_content::Checkpoint;
 use sui_types::base_types::ObjectID;
 use sui_types::object::Owner;
 
-use crate::db::models::{NewArtifact, NewArtifactFile};
-use crate::db::schema::{artifact, artifact_file, artifact_version_counts, platform_stats};
+use crate::db::models::{NewArtifact, NewArtifactContributor, NewArtifactFile};
+use crate::db::schema::{artifact, artifact_contributor, artifact_file, artifact_version_counts, platform_stats};
 use crate::events::{ArtifactEvent, FieldObject, FileRef, FileInfo};
 
 const FILE_REF_DF: u8 = 1;
@@ -225,6 +225,32 @@ impl Handler for ArtifactPipeline {
                 .values(&file_rows)
                 .on_conflict((artifact_file::artifact_id, artifact_file::patch_id))
                 .do_nothing()
+                .execute(conn)
+                .await?;
+        }
+
+        let contributor_rows: Vec<NewArtifactContributor> = batch.iter()
+            .filter_map(|item| {
+                let e = &item.event;
+                let contributors = e.contributor.as_ref()?;
+                let root = e.root_id.as_ref().map(bytes_to_hex)
+                    .unwrap_or_else(|| bytes_to_hex(&e.id));
+                Some(contributors.iter().map(move |c| NewArtifactContributor {
+                    root_id: root.clone(),
+                    creator: bytes_to_hex(&c.creator),
+                    role: c.role as i16,
+                }))
+            })
+            .flatten()
+            .collect();
+
+        if !contributor_rows.is_empty() {
+            use diesel::upsert::excluded;
+            diesel::insert_into(artifact_contributor::table)
+                .values(&contributor_rows)
+                .on_conflict((artifact_contributor::root_id, artifact_contributor::creator))
+                .do_update()
+                .set(artifact_contributor::role.eq(excluded(artifact_contributor::role)))
                 .execute(conn)
                 .await?;
         }

@@ -1,4 +1,4 @@
-use async_graphql::{Context, EmptyMutation, EmptySubscription, Enum, InputObject, Object, Schema, SimpleObject};
+use async_graphql::{ComplexObject, Context, EmptyMutation, EmptySubscription, Enum, InputObject, Object, Schema, SimpleObject};
 use async_graphql::http::GraphiQLSource;
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::extract::State;
@@ -7,6 +7,7 @@ use diesel::prelude::*;
 use serde::Deserialize;
 
 use archive_db::artifact;
+use archive_db::artifact_contributor;
 use archive_db::artifact_file;
 use archive_db::platform_stats;
 use crate::db::DbPool;
@@ -29,8 +30,15 @@ pub async fn graphql_handler(State(schema): State<AppSchema>, req: GraphQLReques
     schema.execute(req.into_inner()).await.into()
 }
 
+#[derive(Queryable, SimpleObject)]
+#[graphql(name = "Contributor")]
+pub struct StoredContributor {
+    pub creator: String,
+    pub role: i16,
+}
+
 #[derive(Queryable, SimpleObject, Deserialize)]
-#[graphql(name = "Artifact")]
+#[graphql(name = "Artifact", complex)]
 pub struct StoredArtifact {
     pub sui_object_id: String,
     pub root_id: Option<String>,
@@ -42,6 +50,43 @@ pub struct StoredArtifact {
     pub category: String,
     pub created_at: i64,
     pub total_size_bytes: i64,
+}
+
+#[ComplexObject]
+impl StoredArtifact {
+    async fn versions(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<StoredArtifact>> {
+        use diesel_async::RunQueryDsl as AsyncDsl;
+
+        let pool = ctx.data::<DbPool>()?;
+        let mut conn = pool.get().await?;
+        let root = self.root_id.as_deref().unwrap_or(&self.sui_object_id);
+
+        Ok(AsyncDsl::load(
+            artifact::table
+                .filter(
+                    artifact::sui_object_id.eq(root)
+                        .or(artifact::root_id.eq(root))
+                )
+                .select(artifact::all_columns)
+                .order(artifact::version.asc()),
+            &mut conn,
+        ).await?)
+    }
+
+    async fn contributors(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<StoredContributor>> {
+        use diesel_async::RunQueryDsl as AsyncDsl;
+
+        let pool = ctx.data::<DbPool>()?;
+        let mut conn = pool.get().await?;
+        let root = self.root_id.as_deref().unwrap_or(&self.sui_object_id);
+
+        Ok(AsyncDsl::load(
+            artifact_contributor::table
+                .filter(artifact_contributor::root_id.eq(root))
+                .select((artifact_contributor::creator, artifact_contributor::role)),
+            &mut conn,
+        ).await?)
+    }
 }
 
 #[derive(Queryable, SimpleObject)]
@@ -255,25 +300,17 @@ impl QueryRoot {
         &self,
         ctx: &Context<'_>,
         root_id: String,
-    ) -> async_graphql::Result<Vec<String>> {
+    ) -> async_graphql::Result<Vec<StoredContributor>> {
         use diesel_async::RunQueryDsl as AsyncDsl;
 
         let pool = ctx.data::<DbPool>()?;
         let mut conn = pool.get().await?;
 
-        // All unique creators across the root artifact and every commit in its tree.
-        let result: Vec<String> = AsyncDsl::load(
-            artifact::table
-                .filter(
-                    artifact::sui_object_id.eq(&root_id)
-                        .or(artifact::root_id.eq(&root_id))
-                )
-                .select(artifact::creator)
-                .distinct(),
+        Ok(AsyncDsl::load(
+            artifact_contributor::table
+                .filter(artifact_contributor::root_id.eq(&root_id))
+                .select((artifact_contributor::creator, artifact_contributor::role)),
             &mut conn,
-        )
-        .await?;
-
-        Ok(result)
+        ).await?)
     }
 }

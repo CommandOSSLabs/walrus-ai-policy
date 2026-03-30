@@ -1,6 +1,7 @@
 use diesel::prelude::*;
 
 use crate::db::schema::artifact;
+use crate::db::schema::artifact_contributor;
 use crate::db::schema::artifact_file;
 
 #[derive(Insertable, Debug)]
@@ -26,4 +27,12 @@ pub struct NewArtifactFile {
     pub mime_type: String,
     pub size_bytes: i64,
     pub name: String,
+}
+
+#[derive(Insertable, Debug)]
+#[diesel(table_name = artifact_contributor)]
+pub struct NewArtifactContributor {
+    pub root_id: String,
+    pub creator: String,
+    pub role: i16,
 }
