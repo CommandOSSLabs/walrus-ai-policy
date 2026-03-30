@@ -20,7 +20,7 @@ const getSuiClient = new SuiGrpcClient({
 });
 
 const programs = {
-  package: "0x8037e042ffc131b293f55ba6e43daa209ff3e654a649fe82d52f19bda3a43272",
+  package: import.meta.env.VITE_ARCHIVE_PACKAGE_ID,
 };
 
 export default {
