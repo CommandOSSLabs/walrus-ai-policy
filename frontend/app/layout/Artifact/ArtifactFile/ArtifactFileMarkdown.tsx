@@ -27,7 +27,7 @@ export default ({ file }: ArtifactFileMarkdownProps) => {
   if (!data?.length || isError) return null;
 
   return (
-    <div className="border border-[#352F2F] rounded-xl">
+    <div className="w-full border border-[#352F2F] rounded-xl">
       <Hstack className="text-white justify-start h-10 px-3.5 border-b border-[#352F2F]">
         <OpenBookLine />
 
