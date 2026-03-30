@@ -41,8 +41,8 @@ export default () => {
     // handle register
     {
       const tx = flow.register({
-        deletable: true,
-        epochs: 1,
+        deletable: false,
+        epochs: 52,
         owner: currentAccount.address,
       });
 

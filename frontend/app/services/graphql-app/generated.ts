@@ -48,6 +48,7 @@ export type Scalars = {
 
 export type Artifact = {
   category: Scalars["String"]["output"];
+  contributors: Array<Contributor>;
   createdAt: Scalars["Int"]["output"];
   creator: Scalars["String"]["output"];
   description: Scalars["String"]["output"];
@@ -57,6 +58,7 @@ export type Artifact = {
   title: Scalars["String"]["output"];
   totalSizeBytes: Scalars["Int"]["output"];
   version: Scalars["Int"]["output"];
+  versions: Array<Artifact>;
 };
 
 export type ArtifactConnection = {
@@ -66,6 +68,7 @@ export type ArtifactConnection = {
 
 export type ArtifactDetail = {
   category: Scalars["String"]["output"];
+  contributors: Array<Contributor>;
   createdAt: Scalars["Int"]["output"];
   creator: Scalars["String"]["output"];
   description: Scalars["String"]["output"];
@@ -76,6 +79,7 @@ export type ArtifactDetail = {
   title: Scalars["String"]["output"];
   totalSizeBytes: Scalars["Int"]["output"];
   version: Scalars["Int"]["output"];
+  versions: Array<Artifact>;
 };
 
 export type ArtifactFile = {
@@ -93,13 +97,18 @@ export type ArtifactFilter = {
   search?: InputMaybe<Scalars["String"]["input"]>;
 };
 
+export type Contributor = {
+  creator: Scalars["String"]["output"];
+  role: Scalars["Int"]["output"];
+};
+
 export type PlatformStats = {
   totalSizeBytes: Scalars["Int"]["output"];
 };
 
 export type QueryRoot = {
   artifact?: Maybe<ArtifactDetail>;
-  artifactContributors: Array<Scalars["String"]["output"]>;
+  artifactContributors: Array<Contributor>;
   artifactVersions: Array<Artifact>;
   artifacts: ArtifactConnection;
   platformStats: PlatformStats;
@@ -150,6 +159,10 @@ export type ArtifactsQuery = {
   };
 };
 
+export type PlatformStatsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type PlatformStatsQuery = { platformStats: { totalSizeBytes: number } };
+
 export type ArtifactQueryVariables = Exact<{
   suiObjectId: Scalars["String"]["input"];
 }>;
@@ -157,12 +170,20 @@ export type ArtifactQueryVariables = Exact<{
 export type ArtifactQuery = {
   artifact?: {
     suiObjectId: string;
+    rootId?: string;
     title: string;
     description: string;
     creator: string;
     createdAt: number;
     category: string;
     version: number;
+    versions: Array<{
+      suiObjectId: string;
+      version: number;
+      createdAt: number;
+      creator: string;
+    }>;
+    contributors: Array<{ creator: string; role: number }>;
     files: Array<{
       patchId: string;
       mimeType: string;
@@ -171,10 +192,6 @@ export type ArtifactQuery = {
     }>;
   };
 };
-
-export type PlatformStatsQueryVariables = Exact<{ [key: string]: never }>;
-
-export type PlatformStatsQuery = { platformStats: { totalSizeBytes: number } };
 
 export const ArtifactsDocument = `
     query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!) {
@@ -230,63 +247,6 @@ useArtifactsQuery.fetcher = (
     headers,
   );
 
-export const ArtifactDocument = `
-    query Artifact($suiObjectId: String!) {
-  artifact(suiObjectId: $suiObjectId) {
-    suiObjectId
-    title
-    description
-    creator
-    createdAt
-    category
-    version
-    files {
-      patchId
-      mimeType
-      sizeBytes
-      name
-    }
-  }
-}
-    `;
-
-export const useArtifactQuery = <TData = ArtifactQuery, TError = unknown>(
-  client: GraphQLClient,
-  variables: ArtifactQueryVariables,
-  options?: Omit<UseQueryOptions<ArtifactQuery, TError, TData>, "queryKey"> & {
-    queryKey?: UseQueryOptions<ArtifactQuery, TError, TData>["queryKey"];
-  },
-  headers?: RequestInit["headers"],
-) => {
-  return useQuery<ArtifactQuery, TError, TData>({
-    queryKey: ["Artifact", variables],
-    queryFn: fetcher<ArtifactQuery, ArtifactQueryVariables>(
-      client,
-      ArtifactDocument,
-      variables,
-      headers,
-    ),
-    ...options,
-  });
-};
-
-useArtifactQuery.getKey = (variables: ArtifactQueryVariables) => [
-  "Artifact",
-  variables,
-];
-
-useArtifactQuery.fetcher = (
-  client: GraphQLClient,
-  variables: ArtifactQueryVariables,
-  headers?: RequestInit["headers"],
-) =>
-  fetcher<ArtifactQuery, ArtifactQueryVariables>(
-    client,
-    ArtifactDocument,
-    variables,
-    headers,
-  );
-
 export const PlatformStatsDocument = `
     query PlatformStats {
   platformStats {
@@ -335,6 +295,74 @@ usePlatformStatsQuery.fetcher = (
   fetcher<PlatformStatsQuery, PlatformStatsQueryVariables>(
     client,
     PlatformStatsDocument,
+    variables,
+    headers,
+  );
+
+export const ArtifactDocument = `
+    query Artifact($suiObjectId: String!) {
+  artifact(suiObjectId: $suiObjectId) {
+    suiObjectId
+    rootId
+    title
+    description
+    creator
+    createdAt
+    category
+    version
+    versions {
+      suiObjectId
+      version
+      createdAt
+      creator
+    }
+    contributors {
+      creator
+      role
+    }
+    files {
+      patchId
+      mimeType
+      sizeBytes
+      name
+    }
+  }
+}
+    `;
+
+export const useArtifactQuery = <TData = ArtifactQuery, TError = unknown>(
+  client: GraphQLClient,
+  variables: ArtifactQueryVariables,
+  options?: Omit<UseQueryOptions<ArtifactQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<ArtifactQuery, TError, TData>["queryKey"];
+  },
+  headers?: RequestInit["headers"],
+) => {
+  return useQuery<ArtifactQuery, TError, TData>({
+    queryKey: ["Artifact", variables],
+    queryFn: fetcher<ArtifactQuery, ArtifactQueryVariables>(
+      client,
+      ArtifactDocument,
+      variables,
+      headers,
+    ),
+    ...options,
+  });
+};
+
+useArtifactQuery.getKey = (variables: ArtifactQueryVariables) => [
+  "Artifact",
+  variables,
+];
+
+useArtifactQuery.fetcher = (
+  client: GraphQLClient,
+  variables: ArtifactQueryVariables,
+  headers?: RequestInit["headers"],
+) =>
+  fetcher<ArtifactQuery, ArtifactQueryVariables>(
+    client,
+    ArtifactDocument,
     variables,
     headers,
   );
