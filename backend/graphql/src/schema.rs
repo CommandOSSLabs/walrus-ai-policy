@@ -1,4 +1,4 @@
-use async_graphql::{ComplexObject, Context, EmptyMutation, EmptySubscription, Enum, InputObject, Object, Schema, SimpleObject};
+use async_graphql::{ComplexObject, Context, EmptySubscription, Enum, InputObject, Object, Schema, SimpleObject};
 use async_graphql::http::GraphiQLSource;
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::extract::State;
@@ -9,15 +9,16 @@ use serde::Deserialize;
 use archive_db::artifact;
 use archive_db::artifact_contributor;
 use archive_db::artifact_file;
+use archive_db::artifact_stats;
 use archive_db::platform_stats;
 use crate::db::DbPool;
 
-pub type AppSchema = Schema<QueryRoot, EmptyMutation, EmptySubscription>;
+pub type AppSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 
 const MAX_PAGE_SIZE: i64 = 200;
 
 pub fn build(pool: DbPool) -> AppSchema {
-    Schema::build(QueryRoot, EmptyMutation, EmptySubscription)
+    Schema::build(QueryRoot, MutationRoot, EmptySubscription)
         .data(pool)
         .finish()
 }
@@ -52,6 +53,12 @@ pub struct StoredArtifact {
     pub total_size_bytes: i64,
 }
 
+impl StoredArtifact {
+    fn root_id_str(&self) -> &str {
+        self.root_id.as_deref().unwrap_or(&self.sui_object_id)
+    }
+}
+
 #[ComplexObject]
 impl StoredArtifact {
     async fn versions(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<StoredArtifact>> {
@@ -59,7 +66,7 @@ impl StoredArtifact {
 
         let pool = ctx.data::<DbPool>()?;
         let mut conn = pool.get().await?;
-        let root = self.root_id.as_deref().unwrap_or(&self.sui_object_id);
+        let root = self.root_id_str();
 
         Ok(AsyncDsl::load(
             artifact::table
@@ -78,7 +85,7 @@ impl StoredArtifact {
 
         let pool = ctx.data::<DbPool>()?;
         let mut conn = pool.get().await?;
-        let root = self.root_id.as_deref().unwrap_or(&self.sui_object_id);
+        let root = self.root_id_str();
 
         Ok(AsyncDsl::load(
             artifact_contributor::table
@@ -87,6 +94,32 @@ impl StoredArtifact {
             &mut conn,
         ).await?)
     }
+
+    async fn stats(&self, ctx: &Context<'_>) -> async_graphql::Result<StoredArtifactStats> {
+        use diesel_async::RunQueryDsl as AsyncDsl;
+
+        let pool = ctx.data::<DbPool>()?;
+        let mut conn = pool.get().await?;
+        let root = self.root_id_str();
+
+        let result: Option<StoredArtifactStats> = AsyncDsl::first(
+            artifact_stats::table
+                .filter(artifact_stats::root_id.eq(root))
+                .select((artifact_stats::view_count, artifact_stats::download_count)),
+            &mut conn,
+        )
+        .await
+        .optional()?;
+
+        Ok(result.unwrap_or(StoredArtifactStats { view_count: 0, download_count: 0 }))
+    }
+}
+
+#[derive(Queryable, SimpleObject)]
+#[graphql(name = "ArtifactStats")]
+pub struct StoredArtifactStats {
+    pub view_count: i64,
+    pub download_count: i64,
 }
 
 #[derive(Queryable, SimpleObject)]
@@ -110,6 +143,8 @@ pub struct ArtifactDetail {
 pub enum SortField {
     CreatedAtDesc,
     CreatedAtAsc,
+    ViewCountDesc,
+    DownloadCountDesc,
 }
 
 #[derive(InputObject)]
@@ -133,6 +168,13 @@ pub struct StoredPlatformStats {
     #[graphql(skip)]
     pub id: i32,
     pub total_size_bytes: i64,
+}
+
+fn stats_sort_sql(column: &str) -> diesel::expression::SqlLiteral<diesel::sql_types::BigInt> {
+    diesel::dsl::sql::<diesel::sql_types::BigInt>(&format!(
+        "COALESCE((SELECT {column} FROM artifact_stats \
+         WHERE root_id = COALESCE(artifact.root_id, artifact.sui_object_id)), 0) DESC"
+    ))
 }
 
 pub struct QueryRoot;
@@ -198,6 +240,8 @@ impl QueryRoot {
         let sorted = match sort {
             SortField::CreatedAtDesc => items_q.order(artifact::created_at.desc()),
             SortField::CreatedAtAsc  => items_q.order(artifact::created_at.asc()),
+            SortField::ViewCountDesc     => items_q.order(stats_sort_sql("view_count")),
+            SortField::DownloadCountDesc => items_q.order(stats_sort_sql("download_count")),
         };
 
         let items: Vec<StoredArtifact> = AsyncDsl::load(
@@ -312,5 +356,278 @@ impl QueryRoot {
                 .select((artifact_contributor::creator, artifact_contributor::role)),
             &mut conn,
         ).await?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_artifact(sui_object_id: &str, root_id: Option<&str>) -> StoredArtifact {
+        StoredArtifact {
+            sui_object_id: sui_object_id.to_string(),
+            root_id: root_id.map(str::to_string),
+            parent_id: None,
+            title: String::new(),
+            description: String::new(),
+            version: 1,
+            creator: String::new(),
+            category: String::new(),
+            created_at: 0,
+            total_size_bytes: 0,
+        }
+    }
+
+    #[test]
+    fn root_id_str_returns_root_id_when_present() {
+        let a = make_artifact("0xobj", Some("0xroot"));
+        assert_eq!(a.root_id_str(), "0xroot");
+    }
+
+    #[test]
+    fn root_id_str_falls_back_to_sui_object_id_for_root_artifacts() {
+        let a = make_artifact("0xobj", None);
+        assert_eq!(a.root_id_str(), "0xobj");
+    }
+
+    #[test]
+    fn page_size_clamps_above_max() {
+        assert_eq!(1000i64.clamp(1, MAX_PAGE_SIZE), MAX_PAGE_SIZE);
+    }
+
+    #[test]
+    fn page_size_clamps_zero_to_one() {
+        assert_eq!(0i64.clamp(1, MAX_PAGE_SIZE), 1);
+    }
+
+    #[test]
+    fn page_size_clamps_negative_to_one() {
+        assert_eq!((-5i64).clamp(1, MAX_PAGE_SIZE), 1);
+    }
+
+    #[test]
+    fn page_size_passes_through_valid_value() {
+        let mid = MAX_PAGE_SIZE / 2;
+        assert_eq!(mid.clamp(1, MAX_PAGE_SIZE), mid);
+    }
+
+    #[test]
+    fn page_size_exact_max_is_allowed() {
+        assert_eq!(MAX_PAGE_SIZE.clamp(1, MAX_PAGE_SIZE), MAX_PAGE_SIZE);
+    }
+
+}
+
+pub struct MutationRoot;
+
+#[Object]
+impl MutationRoot {
+    async fn increment_view(
+        &self,
+        ctx: &Context<'_>,
+        root_id: String,
+    ) -> async_graphql::Result<bool> {
+        use diesel_async::RunQueryDsl as AsyncDsl;
+
+        let pool = ctx.data::<DbPool>()?;
+        let mut conn = pool.get().await?;
+
+        AsyncDsl::execute(
+            diesel::insert_into(artifact_stats::table)
+                .values((
+                    artifact_stats::root_id.eq(&root_id),
+                    artifact_stats::view_count.eq(1i64),
+                ))
+                .on_conflict(artifact_stats::root_id)
+                .do_update()
+                .set(artifact_stats::view_count.eq(artifact_stats::view_count + 1i64)),
+            &mut conn,
+        )
+        .await?;
+
+        Ok(true)
+    }
+
+    async fn increment_download(
+        &self,
+        ctx: &Context<'_>,
+        root_id: String,
+    ) -> async_graphql::Result<bool> {
+        use diesel_async::RunQueryDsl as AsyncDsl;
+
+        let pool = ctx.data::<DbPool>()?;
+        let mut conn = pool.get().await?;
+
+        AsyncDsl::execute(
+            diesel::insert_into(artifact_stats::table)
+                .values((
+                    artifact_stats::root_id.eq(&root_id),
+                    artifact_stats::download_count.eq(1i64),
+                ))
+                .on_conflict(artifact_stats::root_id)
+                .do_update()
+                .set(artifact_stats::download_count.eq(artifact_stats::download_count + 1i64)),
+            &mut conn,
+        )
+        .await?;
+
+        Ok(true)
+    }
+}
+
+// DB integration tests live in their own module so they don't inherit
+// `use diesel::prelude::*` from the parent.
+//
+// IMPORTANT: diesel_async has a blanket `impl<T, Conn> RunQueryDsl<Conn> for T`,
+// so its `execute(self, conn)` (taking owned self) beats async_graphql's inherent
+// `execute(&self, request)` in method resolution whenever RunQueryDsl is in scope.
+// We prevent this by importing RunQueryDsl only inside inner blocks that appear
+// AFTER the GraphQL call in each test.
+#[cfg(test)]
+mod db_integration_tests {
+    use super::{build, AppSchema};
+    use async_graphql::Request as GqlRequest;
+    use diesel_async::AsyncPgConnection;
+    use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+
+    static MIGRATED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+    static TEST_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+    const MIGRATIONS: EmbeddedMigrations = embed_migrations!("../indexer/migrations");
+
+    fn test_db_url() -> Option<String> {
+        std::env::var("TEST_DATABASE_URL").ok()
+    }
+
+    fn ensure_migrated(url: &str) {
+        MIGRATED.get_or_init(|| {
+            use diesel::Connection;
+            let mut conn = diesel::PgConnection::establish(url)
+                .expect("TEST_DATABASE_URL connection failed");
+            conn.run_pending_migrations(MIGRATIONS).expect("migrations failed");
+        });
+    }
+
+    fn unique_root_id(label: &str) -> String {
+        let n = TEST_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        format!("0x_gql_test_{label}_{n:016x}")
+    }
+
+    async fn make_schema_and_conn(url: &str) -> (AppSchema, AsyncPgConnection) {
+        use diesel_async::AsyncConnection;
+        let pool = crate::db::create_pool(url.parse().unwrap()).await.unwrap();
+        let schema = build(pool);
+        let conn = AsyncPgConnection::establish(url).await.unwrap();
+        (schema, conn)
+    }
+
+    #[tokio::test]
+    async fn increment_view_creates_row_on_first_call() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let (schema, mut conn) = make_schema_and_conn(&url).await;
+
+        let root = unique_root_id("view_create");
+        // RunQueryDsl is NOT in scope here, so schema.execute resolves to
+        // async_graphql::Schema::execute(&self, impl Into<Request>).
+        let result = schema.execute(GqlRequest::new(
+            format!(r#"mutation {{ incrementView(rootId: "{root}") }}"#),
+        )).await;
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+
+        // Import diesel only after the GraphQL call to avoid method-resolution conflict.
+        {
+            use archive_db::artifact_stats;
+            use diesel::ExpressionMethods;
+            use diesel::QueryDsl;
+            use diesel_async::RunQueryDsl;
+
+            let count: i64 = artifact_stats::table
+                .filter(artifact_stats::root_id.eq(&root))
+                .select(artifact_stats::view_count)
+                .first(&mut conn).await.unwrap();
+            assert_eq!(count, 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn increment_view_increments_existing_row() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let (schema, mut conn) = make_schema_and_conn(&url).await;
+
+        let root = unique_root_id("view_inc");
+        for _ in 0..3 {
+            schema.execute(GqlRequest::new(
+                format!(r#"mutation {{ incrementView(rootId: "{root}") }}"#),
+            )).await;
+        }
+
+        {
+            use archive_db::artifact_stats;
+            use diesel::ExpressionMethods;
+            use diesel::QueryDsl;
+            use diesel_async::RunQueryDsl;
+
+            let count: i64 = artifact_stats::table
+                .filter(artifact_stats::root_id.eq(&root))
+                .select(artifact_stats::view_count)
+                .first(&mut conn).await.unwrap();
+            assert_eq!(count, 3);
+        }
+    }
+
+    #[tokio::test]
+    async fn increment_download_is_independent_of_view_count() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let (schema, mut conn) = make_schema_and_conn(&url).await;
+
+        let root = unique_root_id("dl_ind");
+        schema.execute(GqlRequest::new(format!(r#"mutation {{ incrementView(rootId: "{root}") }}"#))).await;
+        schema.execute(GqlRequest::new(format!(r#"mutation {{ incrementView(rootId: "{root}") }}"#))).await;
+        schema.execute(GqlRequest::new(format!(r#"mutation {{ incrementDownload(rootId: "{root}") }}"#))).await;
+
+        {
+            use archive_db::artifact_stats;
+            use diesel::ExpressionMethods;
+            use diesel::QueryDsl;
+            use diesel_async::RunQueryDsl;
+
+            let (views, downloads): (i64, i64) = artifact_stats::table
+                .filter(artifact_stats::root_id.eq(&root))
+                .select((artifact_stats::view_count, artifact_stats::download_count))
+                .first(&mut conn).await.unwrap();
+            assert_eq!(views, 2);
+            assert_eq!(downloads, 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn artifact_query_returns_null_for_unknown_id() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let (schema, _) = make_schema_and_conn(&url).await;
+
+        let result = schema.execute(GqlRequest::new(
+            r#"{ artifact(suiObjectId: "0x_does_not_exist") { suiObjectId } }"#,
+        )).await;
+        assert!(result.errors.is_empty());
+        assert!(result.data.into_json().unwrap()["artifact"].is_null());
+    }
+
+    #[tokio::test]
+    async fn artifacts_returns_empty_for_unknown_creator() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let (schema, _) = make_schema_and_conn(&url).await;
+
+        let result = schema.execute(GqlRequest::new(
+            r#"{ artifacts(filter: { creator: "0x_no_such_creator" }) { totalCount items { suiObjectId } } }"#,
+        )).await;
+        assert!(result.errors.is_empty());
+        let json = result.data.into_json().unwrap();
+        assert_eq!(json["artifacts"]["totalCount"], 0);
+        assert_eq!(json["artifacts"]["items"].as_array().unwrap().len(), 0);
     }
 }

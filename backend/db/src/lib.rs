@@ -45,3 +45,11 @@ diesel::table! {
         total_size_bytes -> BigInt,
     }
 }
+
+diesel::table! {
+    artifact_stats (root_id) {
+        root_id        -> Text,
+        view_count     -> BigInt,
+        download_count -> BigInt,
+    }
+}
