@@ -8,7 +8,7 @@ interface ArtifactFileSVGProps {
 }
 
 export default ({ file }: ArtifactFileSVGProps) => {
-  const { data, isError, isLoading } = useGetFileByPatchId(file);
+  const { data, isError, isLoading } = useGetFileByPatchId(file, "text");
 
   if (isLoading) {
     return <Skeleton className="w-full min-h-10" />;

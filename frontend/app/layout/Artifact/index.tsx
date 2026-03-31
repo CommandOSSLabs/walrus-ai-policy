@@ -6,11 +6,12 @@ import ArtifactVersions from "./ArtifactVersions";
 import ArtifactContributors from "./ArtifactContributors";
 import ArtifactStatistic from "./ArtifactStatistic";
 import { tv } from "tailwind-variants";
-import React, { lazy } from "react";
+import { lazy } from "react";
 import ArtifactFileList from "./ArtifactFile/ArtifactFileList";
 import ArtifactFileMarkdown from "./ArtifactFile/ArtifactFileMarkdown";
 import utilsWalrus from "app/utils/utils.walrus";
 import ArtifactFileSVG from "./ArtifactFile/ArtifactFileSVG";
+import ArtifactFilePDF from "./ArtifactFile/ArtifactFilePDF";
 
 const ArtifactFileCSV = lazy(() => import("./ArtifactFile/ArtifactFileCSV"));
 
@@ -68,6 +69,10 @@ export default ({ loaderData }: Route.ComponentProps) => {
 
             if (artifact.files[0].mimeType === "text/markdown") {
               return <ArtifactFileMarkdown file={artifact.files[0]} />;
+            }
+
+            if (artifact.files[0].mimeType === "application/pdf") {
+              return <ArtifactFilePDF file={artifact.files[0]} />;
             }
           }
 

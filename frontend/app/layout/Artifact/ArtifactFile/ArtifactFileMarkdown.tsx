@@ -13,7 +13,7 @@ interface ArtifactFileMarkdownProps {
 }
 
 export default ({ file }: ArtifactFileMarkdownProps) => {
-  const { data, isError, isLoading } = useGetFileByPatchId(file);
+  const { data, isError, isLoading } = useGetFileByPatchId(file, "text");
 
   if (isLoading) {
     return (

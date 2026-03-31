@@ -9,7 +9,7 @@ interface ArtifactFileCSVProps {
 }
 
 export default ({ file }: ArtifactFileCSVProps) => {
-  const { data, isError, isLoading } = useGetFileByPatchId(file);
+  const { data, isError, isLoading } = useGetFileByPatchId(file, "text");
 
   if (isLoading) return <Skeleton className="w-full min-h-56" />;
 
