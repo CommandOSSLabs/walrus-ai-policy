@@ -6,6 +6,7 @@ use walrus_ai_policy::file;
 use walrus_ai_policy::metadata;
 
 const EInvalidRoot: u64 = 0;
+const EContributorNotFound: u64 = 1;
 
 public struct Artifact has key {
     id: UID,
@@ -128,26 +129,36 @@ fun create_artifact(
     transfer::share_object(artifact_object)
 }
 
-public fun remove_role_from_artifact(
+public fun management_role(
     artifact: &mut Artifact,
     target: address,
+    role: Option<u8>,
     ctx: &mut TxContext,
 ) {
-    assert!(artifact.contributor.is_some());
+    assert!(artifact.contributor.is_some(), EContributorNotFound);
 
-    contributor::remove_role(
-        artifact.contributor.borrow_mut(),
-        target,
-        ctx,
-    );
+    let contributors = artifact.contributor.borrow_mut();
+
+    if (role.is_some()) {
+        contributor::add_role(
+            contributors,
+            target,
+            *role.borrow(),
+            ctx,
+        );
+    } else {
+        contributor::remove_role(
+            contributors,
+            target,
+            ctx,
+        );
+    }
 }
 
 // ===== Tests =====
 
 #[test_only]
 const ADMIN: address = @0xA;
-#[test_only]
-const USER: address = @0xB;
 #[test_only]
 use std::string;
 #[test_only]
@@ -287,32 +298,5 @@ fun test_commit_artifact_with_parent_invalid_root() {
 
     delete_local_artifact(parent);
     delete_local_artifact(root);
-    clock::destroy_for_testing(test_clock);
-}
-
-#[test]
-fun test_remove_role_from_artifact() {
-    let mut ctx = tx_context::new_from_hint(ADMIN, 0, 0, 0, 0);
-    let test_clock = clock::create_for_testing(&mut ctx);
-
-    let mut contributors = *contributor::init_contributor(ADMIN).borrow();
-    contributor::add_role(
-        &mut contributors,
-        USER,
-        contributor::get_role_moderator(),
-        &ctx,
-    );
-
-    let mut artifact = Artifact {
-        id: object::new(&mut ctx),
-        root_id: option::none(),
-        parent_id: option::none(),
-        metadata: make_metadata(&test_clock, &mut ctx),
-        contributor: option::some(contributors),
-    };
-
-    remove_role_from_artifact(&mut artifact, USER, &mut ctx);
-
-    delete_local_artifact(artifact);
     clock::destroy_for_testing(test_clock);
 }

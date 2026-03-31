@@ -1,5 +1,7 @@
 module walrus_ai_policy::contributor;
 
+use sui::event;
+
 const ROLE_MODERATOR: u8 = 0;
 const ROLE_ADMIN: u8 = 1;
 
@@ -34,19 +36,24 @@ public fun remove_role(contributor: &mut vector<Contributor>, target: address, c
     check_role(contributor, get_role_admin(), ctx);
 
     assert!(target != ctx.sender(), ECannotRemoveSelf);
-    assert!(contributor.any!(|c| c.creator == target), ECreatorNotFound);
 
     let mut i = 0;
     while (i < contributor.length()) {
-        let borrow_contributor = contributor.borrow(i);
+        if (contributor.borrow(i).creator == target) {
+            let borrow_contributor = contributor.remove(i);
 
-        if (borrow_contributor.creator == target) {
-            contributor.remove(i);
+            event::emit(Contributor {
+                creator: borrow_contributor.creator,
+                role: borrow_contributor.role,
+            });
+
             return
         };
 
         i = i + 1;
     };
+
+    abort ECreatorNotFound;
 }
 
 public fun add_role(
@@ -64,6 +71,11 @@ public fun add_role(
         role,
         creator: target,
     });
+
+    event::emit(Contributor {
+        role,
+        creator: target,
+    })
 }
 
 public fun get_role_admin(): u8 {
