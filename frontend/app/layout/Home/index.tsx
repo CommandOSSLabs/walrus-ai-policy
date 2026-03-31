@@ -4,12 +4,10 @@ import HomeArticle from "./HomeArticle";
 
 export default () => {
   return (
-    <>
-      <Flex className="gap-8 py-5 px-8">
-        <HomeSidebar />
+    <Flex className="container gap-5 py-5">
+      <HomeSidebar />
 
-        <HomeArticle />
-      </Flex>
-    </>
+      <HomeArticle />
+    </Flex>
   );
 };

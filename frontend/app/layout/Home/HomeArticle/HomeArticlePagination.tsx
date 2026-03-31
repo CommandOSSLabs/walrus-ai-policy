@@ -7,6 +7,7 @@ import {
   PaginationPrevious,
 } from "app/components/ui/pagination";
 import utilsConstants from "app/utils/utils.constants";
+import { useEffect } from "react";
 
 interface HomeArticlePaginationProps {
   totalCount: number;
@@ -22,6 +23,14 @@ export default ({
   const pageCount = Math.ceil(totalCount / utilsConstants.MAX_ARTIFACT_CARD);
 
   if (pageCount <= 1) return null;
+
+  // handle scroll to top
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, [currentPage]);
 
   return (
     <Pagination className="mt-8">
