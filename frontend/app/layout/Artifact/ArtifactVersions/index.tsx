@@ -12,15 +12,17 @@ import type { ArtifactQuery } from "app/services/graphql-app/generated";
 
 interface ArtifactVersionsProps {
   suiObjectId: string;
-  versions: NonNullable<ArtifactQuery["artifact"]>["versions"];
+  versions: NonNullable<ArtifactQuery["artifact"]>["versions"] | undefined;
 }
 
 export default ({ suiObjectId, versions }: ArtifactVersionsProps) => {
   const currentAccount = useCurrentAccount();
 
-  const isContributors = versions.some(
-    (meta) => meta.creator === currentAccount?.address,
+  const isContributors = versions?.some(
+    (meta) => meta?.creator === currentAccount?.address,
   );
+
+  if (!versions?.length) return null;
 
   return (
     <Stack

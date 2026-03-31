@@ -12,7 +12,7 @@ import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { shorten } from "app/utils";
 
 interface ArtifactContributorsProps {
-  contributors: Contributor[];
+  contributors: Contributor[] | undefined;
 }
 
 export default ({ contributors }: ArtifactContributorsProps) => {
@@ -22,9 +22,11 @@ export default ({ contributors }: ArtifactContributorsProps) => {
 
   if (contributorConfig.isLoading) return <Skeleton className="min-h-68.5" />;
 
-  const isAdmin = contributors.some(
-    (meta) => meta.creator === currentAccount?.address,
+  const isAdmin = contributors?.some(
+    (meta) => meta?.creator === currentAccount?.address,
   );
+
+  if (!contributors?.length) return null;
 
   return (
     <Stack
@@ -74,7 +76,7 @@ export default ({ contributors }: ArtifactContributorsProps) => {
 
                 <Typography
                   font="jetbrains"
-                  className="text-[#84948F] text-2xs"
+                  className="text-[#84948F] text-2xs capitalize"
                 >
                   {contributorConfig.data?.[meta.role] || "Unknown"}
                 </Typography>

@@ -35,6 +35,8 @@ export default ({ loaderData }: Route.ComponentProps) => {
         <ArtifactHeader artifact={artifact} />
 
         {(function () {
+          if (!artifact?.files?.length) return null;
+
           if (artifact.files.length) {
             if (artifact.files[0].mimeType === "text/csv") {
               return <ArtifactFileCSV file={artifact.files[0]} />;
