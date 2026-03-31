@@ -28,7 +28,7 @@ pub struct ArtifactWithFiles {
     pub files: Vec<FileInfo>,
 }
 
-fn bytes_to_hex(bytes: &[u8; 32]) -> String {
+pub(crate) fn bytes_to_hex(bytes: &[u8; 32]) -> String {
     format!("0x{}", hex::encode(bytes))
 }
 

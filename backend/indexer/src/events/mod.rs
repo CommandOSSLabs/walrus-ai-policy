@@ -17,6 +17,13 @@ pub struct Contributor {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct ContributorEvent {
+    pub role: Option<u8>,
+    pub creator: [u8; 32],
+    pub root_id: [u8; 32],
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ArtifactEvent {
     pub id: [u8; 32],
     pub root_id: Option<[u8; 32]>,

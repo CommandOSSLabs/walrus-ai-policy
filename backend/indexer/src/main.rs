@@ -1,5 +1,5 @@
 use anyhow::Result;
-use archive_indexer::{processors::ArtifactPipeline, MIGRATIONS};
+use archive_indexer::{processors::{ArtifactPipeline, ContributorPipeline}, MIGRATIONS};
 use clap::Parser;
 use sui_indexer_alt_framework::cluster::{Args, IndexerCluster};
 use sui_indexer_alt_framework::pipeline::sequential::SequentialConfig;
@@ -37,6 +37,13 @@ async fn main() -> Result<()> {
     indexer
         .sequential_pipeline(
             ArtifactPipeline { package_id },
+            SequentialConfig::default(),
+        )
+        .await?;
+
+    indexer
+        .sequential_pipeline(
+            ContributorPipeline { package_id },
             SequentialConfig::default(),
         )
         .await?;
