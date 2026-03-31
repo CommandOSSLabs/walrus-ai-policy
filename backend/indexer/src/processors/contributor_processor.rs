@@ -85,19 +85,22 @@ impl Handler for ContributorPipeline {
                 .await?;
         }
 
-        let to_delete: Vec<(String, String)> = batch.iter()
+        let (root_ids_to_delete, creators_to_delete): (Vec<String>, Vec<String>) = batch.iter()
             .filter(|ev| ev.role.is_none())
             .map(|ev| (bytes_to_hex(&ev.root_id), bytes_to_hex(&ev.creator)))
-            .collect();
+            .unzip();
 
-        if !to_delete.is_empty() {
-            diesel::delete(artifact_contributor::table)
-                .filter(
-                    (artifact_contributor::root_id, artifact_contributor::creator)
-                        .eq_any(to_delete)
-                )
-                .execute(conn)
-                .await?;
+        if !root_ids_to_delete.is_empty() {
+            // (root_id, creator) IN (...) via UNNEST — single round-trip, composite key match.
+            diesel::sql_query(
+                "DELETE FROM artifact_contributor \
+                 USING (SELECT unnest($1::text[]) AS r, unnest($2::text[]) AS c) AS t \
+                 WHERE root_id = t.r AND creator = t.c"
+            )
+            .bind::<diesel::sql_types::Array<diesel::sql_types::Text>, _>(root_ids_to_delete)
+            .bind::<diesel::sql_types::Array<diesel::sql_types::Text>, _>(creators_to_delete)
+            .execute(conn)
+            .await?;
         }
 
         Ok(batch.len())
