@@ -1,14 +1,23 @@
+import { bcs } from "@mysten/sui/bcs";
 import { useQuery } from "@tanstack/react-query";
+import { forceToNumber } from "app/utils";
+import utilsSui from "app/utils/utils.sui";
 import utilsWalrus from "app/utils/utils.walrus";
 
 export default () => {
   const contributorConfig = useQuery({
     queryKey: ["contributor_config"],
     queryFn: async () => {
-      const roles: Record<number, string> = {
-        0: "Admin",
-        1: "Moderator",
-      };
+      const roles: Record<number, string> = {};
+
+      for (const key of ["admin", "moderator"]) {
+        const value = await utilsSui.commandResults(
+          `contributor::get_role_${key}`,
+          bcs.u8(),
+        );
+
+        roles[value] = key;
+      }
 
       return roles;
     },
@@ -17,19 +26,31 @@ export default () => {
   const fileConfig = useQuery({
     queryKey: ["file_config"],
     queryFn: async () => {
-      const get_limit_file = 100;
-
-      return get_limit_file;
+      return forceToNumber(
+        await utilsSui.commandResults("file::get_file_limit", bcs.u64()),
+      );
     },
   });
 
   const metadataConfig = useQuery({
     queryKey: ["metadata_config"],
     queryFn: async () => {
-      return {
-        title: 100,
-        descrpition: 280,
+      const table = {
+        title: 0,
+        description: 0,
+        category: 0,
       };
+
+      for (const key of Object.keys(table)) {
+        const value = await utilsSui.commandResults(
+          `metadata::get_${key}_limit`,
+          bcs.u64(),
+        );
+
+        table[key as keyof typeof table] = forceToNumber(value);
+      }
+
+      return table;
     },
   });
 

@@ -85,7 +85,7 @@ export default () => {
               required: true,
             }}
             render={({ field, formState }) => {
-              const MAX = forceToNumber(metadataConfig.data?.descrpition);
+              const MAX = forceToNumber(metadataConfig.data?.description);
 
               return (
                 <Vstack>
