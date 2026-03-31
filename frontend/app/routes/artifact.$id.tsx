@@ -9,15 +9,32 @@ import { getQueryClient } from "app/layout/Provider/ProviderReactQuery";
 import SEO from "app/components/SEO";
 import utilsConstants from "app/utils/utils.constants";
 
-export async function clientLoader({ params }: Route.ClientLoaderArgs) {
+const fetchArtifact = async (suiObjectId: string) => {
   const keys: ArtifactQueryVariables = {
-    suiObjectId: params.id,
+    suiObjectId,
   };
 
   return await getQueryClient.fetchQuery({
     queryKey: useArtifactQuery.getKey(keys),
     queryFn: useArtifactQuery.fetcher(graphqlApp.client, keys),
   });
+};
+
+export async function loader({ params }: Route.LoaderArgs) {
+  return fetchArtifact(params.id);
+}
+
+export async function clientLoader({
+  params,
+  serverLoader,
+}: Route.ClientLoaderArgs) {
+  try {
+    return await serverLoader();
+  } catch {
+    // if server not found or error, below will request (client) instead (server)
+  }
+
+  return fetchArtifact(params.id);
 }
 
 // force the client loader to run during hydration

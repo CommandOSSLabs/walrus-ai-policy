@@ -1,8 +1,14 @@
 import { Skeleton } from "app/components/ui/skeleton";
 import useGetFileByPatchId from "app/hook/useGetFileByPatchId";
 import type { ArtifactFile } from "app/services/graphql-app/generated";
-import { CsvToHtmlTable } from "react-csv-to-table";
+import { lazy } from "react";
 import { tv } from "tailwind-variants";
+
+const CsvToHtmlTable = lazy(() =>
+  import("react-csv-to-table").then((module) => {
+    return { default: module.CsvToHtmlTable };
+  }),
+);
 
 interface ArtifactFileCSVProps {
   file: ArtifactFile;
