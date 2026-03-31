@@ -15,7 +15,7 @@ use crate::db::models::{NewArtifact, NewArtifactContributor, NewArtifactFile};
 use crate::db::schema::{artifact, artifact_contributor, artifact_file, artifact_version_counts, platform_stats};
 use crate::events::{ArtifactEvent, FieldObject, FileRef, FileInfo};
 
-const FILE_REF_DF: u8 = 1;
+const FILE_REF_DF: u8 = 0;
 const ARTIFACT_MODULE: &str = "artifact";
 const ARTIFACT_EVENT_TYPE: &str = "ArtifactEvent";
 
@@ -86,15 +86,15 @@ impl Processor for ArtifactPipeline {
 
             let mut files_map = build_files_map(tx.output_objects(&checkpoint.object_set));
 
-            for artifact_event in artifact_events {
-                let files = files_map.remove(&artifact_event.id).unwrap_or_default();
+            for event in artifact_events {
+                let files = files_map.remove(&event.id).unwrap_or_default();
                 if files.is_empty() && tracing::enabled!(tracing::Level::DEBUG) {
                     tracing::debug!(
-                        artifact_id = %bytes_to_hex(&artifact_event.id),
+                        artifact_id = %bytes_to_hex(&event.id),
                         "No FileRef dynamic field found for artifact"
                     );
                 }
-                results.push(ArtifactWithFiles { event: artifact_event, files });
+                results.push(ArtifactWithFiles { event, files });
             }
         }
 
@@ -182,7 +182,6 @@ impl Handler for ArtifactPipeline {
             .await?;
 
         let inserted_count = inserted_data.len();
-
         let inserted_size: i64 = inserted_data.iter().map(|(_, s)| s).sum();
 
         let mut version_increments: HashMap<&str, i64> = HashMap::new();
@@ -301,6 +300,38 @@ mod tests {
         }
     }
 
+    // --- bytes_to_hex ---
+
+    #[test]
+    fn bytes_to_hex_all_zeros() {
+        assert_eq!(bytes_to_hex(&[0u8; 32]), format!("0x{}", "00".repeat(32)));
+    }
+
+    #[test]
+    fn bytes_to_hex_all_ff() {
+        assert_eq!(bytes_to_hex(&[0xffu8; 32]), format!("0x{}", "ff".repeat(32)));
+    }
+
+    #[test]
+    fn bytes_to_hex_output_is_always_66_chars() {
+        // "0x" prefix + 64 lowercase hex digits
+        for b in [0u8, 1, 127, 255] {
+            assert_eq!(bytes_to_hex(&[b; 32]).len(), 66);
+        }
+    }
+
+    #[test]
+    fn bytes_to_hex_encodes_leading_and_trailing_bytes() {
+        let mut bytes = [0u8; 32];
+        bytes[0] = 0xca;
+        bytes[31] = 0xfe;
+        let h = bytes_to_hex(&bytes);
+        assert!(h.starts_with("0xca00"));
+        assert!(h.ends_with("fe"));
+    }
+
+    // --- compute_versions ---
+
     #[test]
     fn root_gets_version_one() {
         let batch = vec![make_item(1, None)];
@@ -345,5 +376,310 @@ mod tests {
         ];
         let versions = compute_versions(&batch, &HashMap::new());
         assert_eq!(versions, vec![2, 2, 3]);
+    }
+
+    #[test]
+    fn empty_batch_yields_empty_versions() {
+        assert!(compute_versions(&[], &HashMap::new()).is_empty());
+    }
+
+    #[test]
+    fn two_independent_roots_in_same_batch_both_get_version_one() {
+        let batch = vec![make_item(1, None), make_item(2, None)];
+        let versions = compute_versions(&batch, &HashMap::new());
+        assert_eq!(versions, vec![1, 1]);
+    }
+
+    #[test]
+    fn root_and_its_commits_in_same_batch() {
+        // Root (v1) followed immediately by two commits in the same batch.
+        // Commits use root_id=1 (same byte as root's id), so the version counter
+        // for that lineage starts at db_count=0, batch_counter=0 → 2, then 3.
+        let batch = vec![
+            make_item(1, None),    // root → v1
+            make_item(2, Some(1)), // first commit → v2
+            make_item(3, Some(1)), // second commit → v3
+        ];
+        let versions = compute_versions(&batch, &HashMap::new());
+        assert_eq!(versions, vec![1, 2, 3]);
+    }
+
+    // --- build_files_map ---
+
+    #[test]
+    fn build_files_map_empty_input_returns_empty_map() {
+        let map = build_files_map(std::iter::empty());
+        assert!(map.is_empty());
+    }
+
+    // --- DB integration tests ---
+    // These validate the SQL semantics commit() relies on: ON CONFLICT behaviour,
+    // accumulating counters, and upsert correctness.
+    //
+    // Set TEST_DATABASE_URL to a throwaway Postgres database to run these.
+    // They use begin_test_transaction() for automatic rollback on each test.
+
+    fn test_db_url() -> Option<String> {
+        std::env::var("TEST_DATABASE_URL").ok()
+    }
+
+    static MIGRATED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+
+    fn ensure_migrated(url: &str) {
+        MIGRATED.get_or_init(|| {
+            use diesel_migrations::MigrationHarness;
+            let mut conn = diesel::PgConnection::establish(url)
+                .expect("TEST_DATABASE_URL connection failed");
+            conn.run_pending_migrations(crate::MIGRATIONS).expect("migrations failed");
+        });
+    }
+
+    async fn open_test_conn(url: &str) -> diesel_async::AsyncPgConnection {
+        use diesel_async::AsyncConnection;
+        let mut conn = diesel_async::AsyncPgConnection::establish(url)
+            .await
+            .expect("async TEST_DATABASE_URL connection failed");
+        conn.begin_test_transaction().await.expect("begin_test_transaction failed");
+        conn
+    }
+
+    fn make_artifact_row(id: u8, root_id: Option<u8>) -> crate::db::models::NewArtifact {
+        crate::db::models::NewArtifact {
+            sui_object_id: bytes_to_hex(&[id; 32]),
+            root_id: root_id.map(|r| bytes_to_hex(&[r; 32])),
+            parent_id: None,
+            title: format!("artifact-{id}"),
+            description: "test".to_string(),
+            version: if root_id.is_some() { 2 } else { 1 },
+            creator: bytes_to_hex(&[id; 32]),
+            category: "test".to_string(),
+            created_at: 0,
+            total_size_bytes: 0,
+        }
+    }
+
+    #[tokio::test]
+    async fn artifact_on_conflict_do_nothing_is_idempotent() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let mut conn = open_test_conn(&url).await;
+
+        use diesel_async::RunQueryDsl;
+
+        let row = make_artifact_row(0xA1, None);
+
+        // First insert returns the row via RETURNING
+        let first: Vec<String> = diesel::insert_into(artifact::table)
+            .values(&row)
+            .on_conflict(artifact::sui_object_id)
+            .do_nothing()
+            .returning(artifact::sui_object_id)
+            .load(&mut conn).await.unwrap();
+        assert_eq!(first.len(), 1);
+
+        // Duplicate insert must be silently ignored (DO NOTHING)
+        let second: Vec<String> = diesel::insert_into(artifact::table)
+            .values(&row)
+            .on_conflict(artifact::sui_object_id)
+            .do_nothing()
+            .returning(artifact::sui_object_id)
+            .load(&mut conn).await.unwrap();
+        assert!(second.is_empty(), "duplicate artifact must not be re-inserted");
+    }
+
+    #[tokio::test]
+    async fn version_count_upsert_accumulates() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let mut conn = open_test_conn(&url).await;
+
+        use diesel::upsert::excluded;
+        use diesel_async::RunQueryDsl;
+
+        let root = "0x_test_vc_acc";
+
+        // Insert initial count of 1
+        diesel::insert_into(artifact_version_counts::table)
+            .values((
+                artifact_version_counts::root_id.eq(root),
+                artifact_version_counts::version_count.eq(1i64),
+            ))
+            .on_conflict(artifact_version_counts::root_id)
+            .do_update()
+            .set(artifact_version_counts::version_count.eq(
+                artifact_version_counts::version_count + excluded(artifact_version_counts::version_count),
+            ))
+            .execute(&mut conn).await.unwrap();
+
+        // Second upsert adds 2 more
+        diesel::insert_into(artifact_version_counts::table)
+            .values((
+                artifact_version_counts::root_id.eq(root),
+                artifact_version_counts::version_count.eq(2i64),
+            ))
+            .on_conflict(artifact_version_counts::root_id)
+            .do_update()
+            .set(artifact_version_counts::version_count.eq(
+                artifact_version_counts::version_count + excluded(artifact_version_counts::version_count),
+            ))
+            .execute(&mut conn).await.unwrap();
+
+        let count: i64 = artifact_version_counts::table
+            .filter(artifact_version_counts::root_id.eq(root))
+            .select(artifact_version_counts::version_count)
+            .first(&mut conn).await.unwrap();
+
+        assert_eq!(count, 3);
+    }
+
+    #[tokio::test]
+    async fn platform_stats_total_size_accumulates() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let mut conn = open_test_conn(&url).await;
+
+        use diesel_async::RunQueryDsl;
+
+        let before: i64 = platform_stats::table
+            .find(1)
+            .select(platform_stats::total_size_bytes)
+            .first(&mut conn).await.unwrap();
+
+        diesel::update(platform_stats::table.find(1))
+            .set(platform_stats::total_size_bytes.eq(
+                platform_stats::total_size_bytes + 1_000_000i64,
+            ))
+            .execute(&mut conn).await.unwrap();
+
+        let after: i64 = platform_stats::table
+            .find(1)
+            .select(platform_stats::total_size_bytes)
+            .first(&mut conn).await.unwrap();
+
+        assert_eq!(after - before, 1_000_000);
+    }
+
+    #[tokio::test]
+    async fn contributor_upsert_updates_role_and_deduplicates() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let mut conn = open_test_conn(&url).await;
+
+        use diesel::upsert::excluded;
+        use diesel_async::RunQueryDsl;
+
+        let root = "0x_test_contrib_upsert";
+        let creator = "0x_test_creator_upsert";
+
+        let insert = |role: i16| {
+            crate::db::models::NewArtifactContributor {
+                root_id: root.to_string(),
+                creator: creator.to_string(),
+                role,
+            }
+        };
+
+        // Insert with role 0
+        diesel::insert_into(artifact_contributor::table)
+            .values(&insert(0))
+            .on_conflict((artifact_contributor::root_id, artifact_contributor::creator))
+            .do_update()
+            .set(artifact_contributor::role.eq(excluded(artifact_contributor::role)))
+            .execute(&mut conn).await.unwrap();
+
+        // Upsert with role 1 — must update, not duplicate
+        diesel::insert_into(artifact_contributor::table)
+            .values(&insert(1))
+            .on_conflict((artifact_contributor::root_id, artifact_contributor::creator))
+            .do_update()
+            .set(artifact_contributor::role.eq(excluded(artifact_contributor::role)))
+            .execute(&mut conn).await.unwrap();
+
+        let role: i16 = artifact_contributor::table
+            .filter(artifact_contributor::root_id.eq(root))
+            .filter(artifact_contributor::creator.eq(creator))
+            .select(artifact_contributor::role)
+            .first(&mut conn).await.unwrap();
+        assert_eq!(role, 1);
+
+        let row_count: i64 = artifact_contributor::table
+            .filter(artifact_contributor::root_id.eq(root))
+            .count()
+            .get_result(&mut conn).await.unwrap();
+        assert_eq!(row_count, 1, "upsert must not create duplicate contributor rows");
+    }
+
+    #[tokio::test]
+    async fn artifact_file_on_conflict_do_nothing_deduplicates() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let mut conn = open_test_conn(&url).await;
+
+        use diesel_async::RunQueryDsl;
+
+        // artifact_file has a FK to artifact, so seed the parent row first
+        let art = make_artifact_row(0xC1, None);
+        diesel::insert_into(artifact::table)
+            .values(&art)
+            .execute(&mut conn).await.unwrap();
+
+        let file = crate::db::models::NewArtifactFile {
+            artifact_id: bytes_to_hex(&[0xC1u8; 32]),
+            patch_id: "patch-c1".to_string(),
+            mime_type: "text/plain".to_string(),
+            size_bytes: 512,
+            name: "file.txt".to_string(),
+        };
+
+        diesel::insert_into(artifact_file::table)
+            .values(&file)
+            .on_conflict((artifact_file::artifact_id, artifact_file::patch_id))
+            .do_nothing()
+            .execute(&mut conn).await.unwrap();
+
+        // Second identical insert must be ignored
+        diesel::insert_into(artifact_file::table)
+            .values(&file)
+            .on_conflict((artifact_file::artifact_id, artifact_file::patch_id))
+            .do_nothing()
+            .execute(&mut conn).await.unwrap();
+
+        let count: i64 = artifact_file::table
+            .filter(artifact_file::artifact_id.eq(bytes_to_hex(&[0xC1u8; 32])))
+            .count()
+            .get_result(&mut conn).await.unwrap();
+        assert_eq!(count, 1, "duplicate file must not be inserted");
+    }
+
+    #[tokio::test]
+    async fn artifact_stats_on_conflict_increments_view_count() {
+        let Some(url) = test_db_url() else { return };
+        ensure_migrated(&url);
+        let mut conn = open_test_conn(&url).await;
+
+        use archive_db::artifact_stats;
+        use diesel_async::RunQueryDsl;
+
+        let root = "0x_test_stats_view";
+
+        let inc_view = || {
+            diesel::insert_into(artifact_stats::table)
+                .values((
+                    artifact_stats::root_id.eq(root),
+                    artifact_stats::view_count.eq(1i64),
+                ))
+                .on_conflict(artifact_stats::root_id)
+                .do_update()
+                .set(artifact_stats::view_count.eq(artifact_stats::view_count + 1i64))
+        };
+
+        inc_view().execute(&mut conn).await.unwrap();
+        inc_view().execute(&mut conn).await.unwrap();
+
+        let count: i64 = artifact_stats::table
+            .filter(artifact_stats::root_id.eq(root))
+            .select(artifact_stats::view_count)
+            .first(&mut conn).await.unwrap();
+        assert_eq!(count, 2);
     }
 }
