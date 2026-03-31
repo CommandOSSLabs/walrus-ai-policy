@@ -5,26 +5,35 @@ import Center from "app/components/Center";
 import { tv } from "tailwind-variants";
 import Stack from "app/components/Stack";
 import Jazzicon from "app/components/Jazzicon";
-import useGetConfig from "app/hook/useGetConfig";
+import useGetConfig, { contributorConfigEnum } from "app/hook/useGetConfig";
 import { type Contributor } from "app/services/graphql-app/generated";
 import { Skeleton } from "app/components/ui/skeleton";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { shorten } from "app/utils";
+import { useState } from "react";
+
+import ArtifactContributorsAddRole from "./ArtifactContributorsAddRole";
+import ArtifactContributorsRemoveRole from "./ArtifactContributorsRemoveRole";
 
 interface ArtifactContributorsProps {
   contributors: Contributor[] | undefined;
+  suiObjectId: string;
 }
 
-export default ({ contributors }: ArtifactContributorsProps) => {
+export default ({ contributors, suiObjectId }: ArtifactContributorsProps) => {
   const currentAccount = useCurrentAccount();
 
   const { contributorConfig } = useGetConfig();
 
-  if (contributorConfig.isLoading) return <Skeleton className="min-h-68.5" />;
+  const [isAddRole, setIsAddRole] = useState(false);
 
   const isAdmin = contributors?.some(
-    (meta) => meta?.creator === currentAccount?.address,
+    (meta) =>
+      meta?.creator === currentAccount?.address &&
+      contributorConfig.data?.[meta.role] === contributorConfigEnum.admin,
   );
+
+  if (contributorConfig.isLoading) return <Skeleton className="min-h-68.5" />;
 
   if (!contributors?.length) return null;
 
@@ -46,6 +55,7 @@ export default ({ contributors }: ArtifactContributorsProps) => {
         {isAdmin && (
           <button
             className="rounded-lg w-14 h-6"
+            onClick={() => setIsAddRole((prev) => !prev)}
             style={{
               background: "linear-gradient(135deg, #46F1CF 0%, #00D4B4 100%)",
             }}
@@ -57,21 +67,31 @@ export default ({ contributors }: ArtifactContributorsProps) => {
         )}
       </Center>
 
+      {isAddRole && contributorConfig.data && (
+        <ArtifactContributorsAddRole
+          suiObjectId={suiObjectId}
+          roles={contributorConfig.data}
+          onRefetch={() => setIsAddRole(false)}
+        />
+      )}
+
       <Vstack className="w-full gap-3">
         {contributors.map((meta) => {
+          const isYou = currentAccount?.address === meta.creator;
+
           return (
             <Flex
               key={meta.creator}
-              className="bg-[#191F2D] border border-[#3B4A45] rounded-lg px-3 py-2 gap-3"
+              className="bg-[#191F2D] border border-[#3B4A45] rounded-lg px-3 py-2 gap-3 group"
             >
               <Jazzicon address={meta.creator} className="size-9" />
 
-              <Vstack className="gap-0.5">
+              <Vstack className="gap-0.5 flex-1">
                 <Typography
                   font="grotesk"
                   className="text-[#DDE2F5] text-xs font-bold"
                 >
-                  {shorten(meta.creator)}
+                  {isYou ? "You" : shorten(meta.creator)}
                 </Typography>
 
                 <Typography
@@ -81,6 +101,13 @@ export default ({ contributors }: ArtifactContributorsProps) => {
                   {contributorConfig.data?.[meta.role] || "Unknown"}
                 </Typography>
               </Vstack>
+
+              {!isYou && isAdmin && (
+                <ArtifactContributorsRemoveRole
+                  suiObjectId={suiObjectId}
+                  creator={meta.creator}
+                />
+              )}
             </Flex>
           );
         })}

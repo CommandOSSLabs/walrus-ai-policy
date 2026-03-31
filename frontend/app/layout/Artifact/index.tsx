@@ -12,11 +12,23 @@ import ArtifactFileMarkdown from "./ArtifactFile/ArtifactFileMarkdown";
 import utilsWalrus from "app/utils/utils.walrus";
 import ArtifactFileSVG from "./ArtifactFile/ArtifactFileSVG";
 import ArtifactFilePDF from "./ArtifactFile/ArtifactFilePDF";
+import { useArtifactQuery } from "app/services/graphql-app/generated";
+import graphqlApp from "app/services/graphql-app";
 
 const ArtifactFileCSV = lazy(() => import("./ArtifactFile/ArtifactFileCSV"));
 
-export default ({ loaderData }: Route.ComponentProps) => {
-  const artifact = loaderData.artifact;
+export default ({ loaderData, params }: Route.ComponentProps) => {
+  const { data } = useArtifactQuery(
+    graphqlApp.client,
+    {
+      suiObjectId: params.id,
+    },
+    {
+      initialData: loaderData,
+    },
+  );
+
+  const artifact = data?.artifact;
 
   if (!artifact) return null;
 
@@ -94,7 +106,10 @@ export default ({ loaderData }: Route.ComponentProps) => {
           versions={artifact.versions}
         />
 
-        <ArtifactContributors contributors={artifact.contributors} />
+        <ArtifactContributors
+          contributors={artifact.contributors}
+          suiObjectId={artifact.suiObjectId}
+        />
       </Vstack>
     </Flex>
   );
