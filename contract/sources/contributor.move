@@ -16,6 +16,12 @@ public struct Contributor has copy, drop, store {
     creator: address,
 }
 
+public struct ContributorEvent has copy, drop {
+    role: Option<u8>,
+    creator: address,
+    root_id: ID,
+}
+
 public fun init_contributor(creator: address): Option<vector<Contributor>> {
     option::some(vector[
         Contributor {
@@ -32,7 +38,12 @@ public fun check_role(contributors: &vector<Contributor>, role: u8, ctx: &TxCont
     assert!(contributors.any!(|c| c.creator == sender && c.role == role), EMustHaveRole);
 }
 
-public fun remove_role(contributor: &mut vector<Contributor>, target: address, ctx: &TxContext) {
+public fun remove_role(
+    contributor: &mut vector<Contributor>,
+    root_id: ID,
+    target: address,
+    ctx: &TxContext,
+) {
     check_role(contributor, get_role_admin(), ctx);
 
     assert!(target != ctx.sender(), ECannotRemoveSelf);
@@ -42,9 +53,10 @@ public fun remove_role(contributor: &mut vector<Contributor>, target: address, c
         if (contributor.borrow(i).creator == target) {
             let borrow_contributor = contributor.remove(i);
 
-            event::emit(Contributor {
+            event::emit(ContributorEvent {
+                role: option::none(),
                 creator: borrow_contributor.creator,
-                role: borrow_contributor.role,
+                root_id,
             });
 
             return
@@ -58,6 +70,7 @@ public fun remove_role(contributor: &mut vector<Contributor>, target: address, c
 
 public fun add_role(
     contributor: &mut vector<Contributor>,
+    root_id: ID,
     target: address,
     role: u8,
     ctx: &TxContext,
@@ -72,10 +85,11 @@ public fun add_role(
         creator: target,
     });
 
-    event::emit(Contributor {
-        role,
+    event::emit(ContributorEvent {
+        role: option::some(role),
         creator: target,
-    })
+        root_id,
+    });
 }
 
 public fun get_role_admin(): u8 {
@@ -92,6 +106,8 @@ public fun get_role_moderator(): u8 {
 const ADMIN: address = @0xA;
 #[test_only]
 const NEW_USER: address = @0xD;
+#[test_only]
+const ROOT_ID: address = @0xABCD;
 
 #[test]
 fun test_init_contributor() {
@@ -115,11 +131,23 @@ fun test_role() {
         let role = vector::pop_back(&mut roles);
 
         // add role
-        add_role(&mut vec, NEW_USER, role, &ctx);
+        add_role(
+            &mut vec,
+            object::id_from_address(ROOT_ID),
+            NEW_USER,
+            role,
+            &ctx,
+        );
         assert!(vec.any!(|e| e.creator == NEW_USER && e.role == role), EMustHaveRole);
 
         // remove role
-        remove_role(&mut vec, NEW_USER, &ctx);
+        remove_role(
+            &mut vec,
+            object::id_from_address(ROOT_ID),
+            NEW_USER,
+            &ctx,
+        );
+
         assert!(!vec.any!(|e| e.creator == NEW_USER), EMustHaveRole);
     };
 }

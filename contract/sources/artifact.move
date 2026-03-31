@@ -138,10 +138,12 @@ public fun management_role(
     assert!(artifact.contributor.is_some(), EContributorNotFound);
 
     let contributors = artifact.contributor.borrow_mut();
+    let root_id = artifact.root_id.get_with_default(artifact.id.to_inner());
 
     if (role.is_some()) {
         contributor::add_role(
             contributors,
+            root_id,
             target,
             *role.borrow(),
             ctx,
@@ -149,10 +151,11 @@ public fun management_role(
     } else {
         contributor::remove_role(
             contributors,
+            root_id,
             target,
             ctx,
         );
-    }
+    };
 }
 
 // ===== Tests =====
