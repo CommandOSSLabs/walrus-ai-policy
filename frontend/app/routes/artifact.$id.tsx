@@ -10,13 +10,11 @@ import SEO from "app/components/SEO";
 import utilsConstants from "app/utils/utils.constants";
 
 const fetchArtifact = async (suiObjectId: string) => {
-  const keys: ArtifactQueryVariables = {
-    suiObjectId,
-  };
-
-  return await getQueryClient.fetchQuery({
+  const keys: ArtifactQueryVariables = { suiObjectId };
+  return getQueryClient.fetchQuery({
     queryKey: useArtifactQuery.getKey(keys),
     queryFn: useArtifactQuery.fetcher(graphqlApp.client, keys),
+    staleTime: 0,
   });
 };
 

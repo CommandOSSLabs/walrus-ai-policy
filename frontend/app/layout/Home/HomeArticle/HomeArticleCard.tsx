@@ -9,6 +9,7 @@ import { tv } from "tailwind-variants";
 import utilsConstants from "app/utils/utils.constants";
 import { type ArtifactsQuery } from "app/services/graphql-app/generated";
 import { Badge } from "app/components/ui/badge";
+import { formatCount } from "app/utils";
 
 interface HomeArticleCardProps {
   artifact: ArtifactsQuery["artifacts"]["items"][number];
@@ -72,13 +73,17 @@ export default ({ artifact }: HomeArticleCardProps) => {
           <Hstack>
             <EyesLine />
 
-            <Typography font="jetbrains">12.5K</Typography>
+            <Typography font="jetbrains">
+              {formatCount(artifact.stats.viewCount)}
+            </Typography>
           </Hstack>
 
           <Hstack>
             <DownloadLine />
 
-            <Typography font="jetbrains">1.5K</Typography>
+            <Typography font="jetbrains">
+              {formatCount(artifact.stats.downloadCount)}
+            </Typography>
           </Hstack>
         </Hstack>
       </Center>

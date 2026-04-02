@@ -12,10 +12,7 @@ import ArtifactFileMarkdown from "./ArtifactFile/ArtifactFileMarkdown";
 import utilsWalrus from "app/utils/utils.walrus";
 import ArtifactFileSVG from "./ArtifactFile/ArtifactFileSVG";
 import ArtifactFilePDF from "./ArtifactFile/ArtifactFilePDF";
-import {
-  useArtifactQuery,
-  useArtifactVersionsQuery,
-} from "app/services/graphql-app/generated";
+import { useArtifactQuery } from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
 import useGetConfig, { contributorConfigEnum } from "app/hook/useGetConfig";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
@@ -41,17 +38,6 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
     },
   );
 
-  const versions = useArtifactVersionsQuery(
-    graphqlApp.client,
-    {
-      rootId: (artifact.data?.artifact?.rootId ||
-        artifact.data?.artifact?.suiObjectId) as string,
-    },
-    {
-      enabled: !!artifact.data?.artifact,
-    },
-  );
-
   const getSingleFile = artifact.data?.artifact?.files[0];
 
   const getREADME = artifact.data?.artifact?.files?.find?.(
@@ -72,7 +58,7 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
         artifact={artifact.data.artifact}
         isAdmin={isAdmin}
         isLoading={contributorConfig.isLoading}
-        onRefetch={versions.refetch}
+        onRefetch={artifact.refetch}
       />
     );
   }
@@ -133,7 +119,10 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
 
           return (
             <>
-              <ArtifactFileList files={artifact.data.artifact.files} />
+              <ArtifactFileList
+                files={artifact.data.artifact.files}
+                rootId={artifact.data.artifact.rootId}
+              />
 
               {getREADME && <ArtifactFileMarkdown file={getREADME} />}
             </>
@@ -146,9 +135,9 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
 
         <ArtifactVersions
           suiObjectId={artifact.data.artifact.suiObjectId}
-          versions={versions.data?.artifactVersions}
+          versions={artifact.data.artifact.versions}
           isAdmin={isAdmin}
-          isLoading={versions.isLoading || contributorConfig.isLoading}
+          isLoading={contributorConfig.isLoading}
         />
 
         <ArtifactContributors

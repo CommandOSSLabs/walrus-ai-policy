@@ -83,7 +83,7 @@ export default ({
                         name: file.name,
                         patchId: quilt.quiltIds[index],
                         sizeBytes: file.size,
-                        hash: quilt.hash[index],
+                        hash: quilt.hashes[index],
                       })),
                     );
                   } else {
@@ -105,7 +105,7 @@ export default ({
                         name: meta.file.name,
                         patchId: meta.id,
                         sizeBytes: meta.file.size,
-                        hash: meta.id,
+                        hash: meta.hash ?? "",
                       })),
                     );
                   }

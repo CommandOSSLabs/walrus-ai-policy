@@ -72,19 +72,17 @@ export default () => {
       });
     }
 
-    const listFiles = await flow.listFiles();
+    const [listFiles, hashes] = await Promise.all([
+      flow.listFiles(),
+      Promise.all(files.map(computeSHA256)),
+    ]);
 
     updateStatus("success");
-
-    console.log("listFiles", listFiles);
-    console.log("files", files);
 
     return {
       blobObject: listFiles[0].blobObject.id,
       quiltIds: listFiles.map((file) => file.id),
-      hash: await Promise.all(
-        files.map(async (file) => await computeSHA256(file)),
-      ),
+      hashes,
       files,
     };
   };

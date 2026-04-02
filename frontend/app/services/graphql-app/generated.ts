@@ -2,7 +2,12 @@
 // @ts-nocheck
 import type { GraphQLClient } from "graphql-request";
 import type { RequestInit } from "graphql-request/dist/types.dom";
-import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  type UseQueryOptions,
+  type UseMutationOptions,
+} from "@tanstack/react-query";
 export type Maybe<T> = T;
 export type InputMaybe<T> = T;
 export type Exact<T extends { [key: string]: unknown }> = {
@@ -179,6 +184,7 @@ export type ArtifactsQuery = {
       createdAt: number;
       category: string;
       version: number;
+      stats: { viewCount: number; downloadCount: number };
     }>;
   };
 };
@@ -210,21 +216,28 @@ export type ArtifactQuery = {
       name: string;
       hash: string;
     }>;
+    stats: { viewCount: number; downloadCount: number };
+    versions: Array<{
+      suiObjectId: string;
+      version: number;
+      createdAt: number;
+      creator: string;
+    }>;
   };
 };
 
-export type ArtifactVersionsQueryVariables = Exact<{
+export type IncrementViewMutationVariables = Exact<{
+  rootId: Scalars["String"]["input"];
+  viewerAddress: Scalars["String"]["input"];
+}>;
+
+export type IncrementViewMutation = { incrementView: boolean };
+
+export type IncrementDownloadMutationVariables = Exact<{
   rootId: Scalars["String"]["input"];
 }>;
 
-export type ArtifactVersionsQuery = {
-  artifactVersions: Array<{
-    suiObjectId: string;
-    version: number;
-    createdAt: number;
-    creator: string;
-  }>;
-};
+export type IncrementDownloadMutation = { incrementDownload: boolean };
 
 export const ArtifactsDocument = `
     query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!) {
@@ -238,6 +251,10 @@ export const ArtifactsDocument = `
       createdAt
       category
       version
+      stats {
+        viewCount
+        downloadCount
+      }
     }
   }
 }
@@ -355,6 +372,16 @@ export const ArtifactDocument = `
       name
       hash
     }
+    stats {
+      viewCount
+      downloadCount
+    }
+    versions {
+      suiObjectId
+      version
+      createdAt
+      creator
+    }
   }
 }
     `;
@@ -396,59 +423,97 @@ useArtifactQuery.fetcher = (
     headers,
   );
 
-export const ArtifactVersionsDocument = `
-    query ArtifactVersions($rootId: String!) {
-  artifactVersions(rootId: $rootId) {
-    suiObjectId
-    version
-    createdAt
-    creator
-  }
+export const IncrementViewDocument = `
+    mutation IncrementView($rootId: String!, $viewerAddress: String!) {
+  incrementView(rootId: $rootId, viewerAddress: $viewerAddress)
 }
     `;
 
-export const useArtifactVersionsQuery = <
-  TData = ArtifactVersionsQuery,
-  TError = unknown,
->(
+export const useIncrementViewMutation = <TError = unknown, TContext = unknown>(
   client: GraphQLClient,
-  variables: ArtifactVersionsQueryVariables,
-  options?: Omit<
-    UseQueryOptions<ArtifactVersionsQuery, TError, TData>,
-    "queryKey"
-  > & {
-    queryKey?: UseQueryOptions<
-      ArtifactVersionsQuery,
-      TError,
-      TData
-    >["queryKey"];
-  },
+  options?: UseMutationOptions<
+    IncrementViewMutation,
+    TError,
+    IncrementViewMutationVariables,
+    TContext
+  >,
   headers?: RequestInit["headers"],
 ) => {
-  return useQuery<ArtifactVersionsQuery, TError, TData>({
-    queryKey: ["ArtifactVersions", variables],
-    queryFn: fetcher<ArtifactVersionsQuery, ArtifactVersionsQueryVariables>(
-      client,
-      ArtifactVersionsDocument,
-      variables,
-      headers,
-    ),
+  return useMutation<
+    IncrementViewMutation,
+    TError,
+    IncrementViewMutationVariables,
+    TContext
+  >({
+    mutationKey: ["IncrementView"],
+    mutationFn: (variables?: IncrementViewMutationVariables) =>
+      fetcher<IncrementViewMutation, IncrementViewMutationVariables>(
+        client,
+        IncrementViewDocument,
+        variables,
+        headers,
+      )(),
     ...options,
   });
 };
 
-useArtifactVersionsQuery.getKey = (
-  variables: ArtifactVersionsQueryVariables,
-) => ["ArtifactVersions", variables];
-
-useArtifactVersionsQuery.fetcher = (
+useIncrementViewMutation.fetcher = (
   client: GraphQLClient,
-  variables: ArtifactVersionsQueryVariables,
+  variables: IncrementViewMutationVariables,
   headers?: RequestInit["headers"],
 ) =>
-  fetcher<ArtifactVersionsQuery, ArtifactVersionsQueryVariables>(
+  fetcher<IncrementViewMutation, IncrementViewMutationVariables>(
     client,
-    ArtifactVersionsDocument,
+    IncrementViewDocument,
+    variables,
+    headers,
+  );
+
+export const IncrementDownloadDocument = `
+    mutation IncrementDownload($rootId: String!) {
+  incrementDownload(rootId: $rootId)
+}
+    `;
+
+export const useIncrementDownloadMutation = <
+  TError = unknown,
+  TContext = unknown,
+>(
+  client: GraphQLClient,
+  options?: UseMutationOptions<
+    IncrementDownloadMutation,
+    TError,
+    IncrementDownloadMutationVariables,
+    TContext
+  >,
+  headers?: RequestInit["headers"],
+) => {
+  return useMutation<
+    IncrementDownloadMutation,
+    TError,
+    IncrementDownloadMutationVariables,
+    TContext
+  >({
+    mutationKey: ["IncrementDownload"],
+    mutationFn: (variables?: IncrementDownloadMutationVariables) =>
+      fetcher<IncrementDownloadMutation, IncrementDownloadMutationVariables>(
+        client,
+        IncrementDownloadDocument,
+        variables,
+        headers,
+      )(),
+    ...options,
+  });
+};
+
+useIncrementDownloadMutation.fetcher = (
+  client: GraphQLClient,
+  variables: IncrementDownloadMutationVariables,
+  headers?: RequestInit["headers"],
+) =>
+  fetcher<IncrementDownloadMutation, IncrementDownloadMutationVariables>(
+    client,
+    IncrementDownloadDocument,
     variables,
     headers,
   );

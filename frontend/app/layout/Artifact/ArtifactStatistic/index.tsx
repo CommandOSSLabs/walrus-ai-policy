@@ -9,10 +9,19 @@ import EyesLine from "public/assets/line/eyes.svg";
 import HeartLine from "public/assets/line/heart.svg";
 import ShareLine from "public/assets/line/share.svg";
 import type { ArtifactQuery } from "app/services/graphql-app/generated";
+import {
+  useIncrementViewMutation,
+  useIncrementDownloadMutation,
+} from "app/services/graphql-app/generated";
+import graphqlApp from "app/services/graphql-app";
 import utilsWalrus from "app/utils/utils.walrus";
-import { downloadFileWithBlob } from "app/utils";
+import { downloadFileWithBlob, formatCount } from "app/utils";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import useMount from "app/hook/useMount";
 import Spinner from "app/components/Spinner";
+import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useArtifactQuery } from "app/services/graphql-app/generated";
 
 interface ArtifactStatisticProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
@@ -20,6 +29,26 @@ interface ArtifactStatisticProps {
 
 export default ({ artifact }: ArtifactStatisticProps) => {
   const [loading, setLoading] = useState<string>();
+  const currentAccount = useCurrentAccount();
+  const queryClient = useQueryClient();
+
+  const incrementView = useIncrementViewMutation(graphqlApp.client);
+  const incrementDownload = useIncrementDownloadMutation(graphqlApp.client);
+
+  const artifactQueryKey = useArtifactQuery.getKey({
+    suiObjectId: artifact.suiObjectId,
+  });
+  const effectiveRootId = artifact.rootId ?? artifact.suiObjectId;
+
+  useMount(() => {
+    incrementView.mutate(
+      { rootId: effectiveRootId, viewerAddress: currentAccount!.address },
+      {
+        onSuccess: () =>
+          queryClient.invalidateQueries({ queryKey: artifactQueryKey }),
+      },
+    );
+  }, [effectiveRootId, currentAccount?.address]);
 
   return (
     <Stack
@@ -69,6 +98,16 @@ export default ({ artifact }: ArtifactStatisticProps) => {
                 "application/zip",
                 `artifact-${artifact.createdAt}`,
               );
+
+              incrementDownload.mutate(
+                { rootId: effectiveRootId },
+                {
+                  onSuccess: () =>
+                    queryClient.invalidateQueries({
+                      queryKey: artifactQueryKey,
+                    }),
+                },
+              );
             } finally {
               setLoading(undefined);
             }
@@ -96,13 +135,17 @@ export default ({ artifact }: ArtifactStatisticProps) => {
         <Hstack>
           <EyesLine />
 
-          <Typography font="jetbrains">12.4K views</Typography>
+          <Typography font="jetbrains">
+            {formatCount(artifact.stats.viewCount)} views
+          </Typography>
         </Hstack>
 
         <Hstack>
           <DownloadLine />
 
-          <Typography font="jetbrains">842 downloads</Typography>
+          <Typography font="jetbrains">
+            {formatCount(artifact.stats.downloadCount)} downloads
+          </Typography>
         </Hstack>
       </Hstack>
     </Stack>
