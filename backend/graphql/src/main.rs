@@ -6,6 +6,7 @@ use tower_http::cors::CorsLayer;
 use url::Url;
 
 mod db;
+mod loaders;
 mod schema;
 
 #[derive(Parser, Debug)]

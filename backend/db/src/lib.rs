@@ -53,3 +53,11 @@ diesel::table! {
         download_count -> BigInt,
     }
 }
+
+diesel::table! {
+    artifact_viewer (root_id, viewer_address) {
+        root_id        -> Text,
+        viewer_address -> Text,
+    }
+}
+

@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use diesel::prelude::*;
+use diesel_async::AsyncConnection;
 use diesel_async::RunQueryDsl;
+use diesel_async::scoped_futures::ScopedFutureExt;
 use sui_indexer_alt_framework::pipeline::Processor;
 use sui_indexer_alt_framework::pipeline::sequential::Handler;
 use sui_indexer_alt_framework::postgres;
@@ -14,6 +16,7 @@ use sui_types::object::Owner;
 use crate::db::models::{NewArtifact, NewArtifactContributor, NewArtifactFile};
 use crate::db::schema::{artifact, artifact_contributor, artifact_file, artifact_version_counts, platform_stats};
 use crate::events::{ArtifactEvent, FieldObject, FileRef, FileInfo};
+use super::is_transient_error;
 
 const FILE_REF_DF: u8 = 0;
 const ARTIFACT_MODULE: &str = "artifact";
@@ -120,13 +123,16 @@ impl Handler for ArtifactPipeline {
             return Ok(0);
         }
 
+        // Pre-read outside the transaction: used only for version planning.
+        // Safe to keep outside because on retry the transaction was rolled back,
+        // so no artifacts were actually inserted and db_counts is still accurate.
+        // Assumes single indexer process (sequential_pipeline in main.rs guarantees this).
         let distinct_roots: Vec<String> = batch.iter()
             .filter_map(|item| item.event.root_id.as_ref().map(bytes_to_hex))
             .collect::<std::collections::HashSet<_>>()
             .into_iter()
             .collect();
 
-        // O(1) per root lookup instead of GROUP BY COUNT scan on the artifact table.
         let db_counts: HashMap<String, i64> = if distinct_roots.is_empty() {
             HashMap::new()
         } else {
@@ -171,63 +177,6 @@ impl Handler for ArtifactPipeline {
             }));
         }
 
-        // RETURNING lets us know which rows were actually inserted vs skipped by
-        // ON CONFLICT DO NOTHING, so version counter and global size updates stay idempotent on replay.
-        let inserted_data: Vec<(Option<String>, i64)> = diesel::insert_into(artifact::table)
-            .values(&artifact_rows)
-            .on_conflict(artifact::sui_object_id)
-            .do_nothing()
-            .returning((artifact::root_id, artifact::total_size_bytes))
-            .load::<(Option<String>, i64)>(conn)
-            .await?;
-
-        let inserted_count = inserted_data.len();
-        let inserted_size: i64 = inserted_data.iter().map(|(_, s)| s).sum();
-
-        let mut version_increments: HashMap<&str, i64> = HashMap::new();
-        for (root_id, _) in inserted_data.iter() {
-            if let Some(root_id) = root_id {
-                *version_increments.entry(root_id.as_str()).or_insert(0) += 1;
-            }
-        }
-        if !version_increments.is_empty() {
-            use diesel::upsert::excluded;
-            let rows: Vec<_> = version_increments
-                .iter()
-                .map(|(root_id, count)| (
-                    artifact_version_counts::root_id.eq(*root_id),
-                    artifact_version_counts::version_count.eq(count),
-                ))
-                .collect();
-            diesel::insert_into(artifact_version_counts::table)
-                .values(&rows)
-                .on_conflict(artifact_version_counts::root_id)
-                .do_update()
-                .set(artifact_version_counts::version_count.eq(
-                    artifact_version_counts::version_count + excluded(artifact_version_counts::version_count)
-                ))
-                .execute(conn)
-                .await?;
-        }
-
-        if inserted_size > 0 {
-            diesel::update(platform_stats::table.find(1))
-                .set(platform_stats::total_size_bytes.eq(
-                    platform_stats::total_size_bytes + inserted_size
-                ))
-                .execute(conn)
-                .await?;
-        }
-
-        if !file_rows.is_empty() {
-            diesel::insert_into(artifact_file::table)
-                .values(&file_rows)
-                .on_conflict((artifact_file::artifact_id, artifact_file::patch_id))
-                .do_nothing()
-                .execute(conn)
-                .await?;
-        }
-
         let contributor_rows: Vec<NewArtifactContributor> = batch.iter()
             .filter_map(|item| {
                 let e = &item.event;
@@ -243,18 +192,105 @@ impl Handler for ArtifactPipeline {
             .flatten()
             .collect();
 
-        if !contributor_rows.is_empty() {
-            use diesel::upsert::excluded;
-            diesel::insert_into(artifact_contributor::table)
-                .values(&contributor_rows)
-                .on_conflict((artifact_contributor::root_id, artifact_contributor::creator))
-                .do_update()
-                .set(artifact_contributor::role.eq(excluded(artifact_contributor::role)))
-                .execute(conn)
-                .await?;
-        }
+        // Up to 3 retries (4 total attempts) on transient serialization failures.
+        let mut attempt = 0u32;
+        loop {
+            // Clone outside the closure so the async move owns the data without
+            // fighting the connection's scoped lifetime `'1`.
+            let artifact_rows_c = artifact_rows.clone();
+            let file_rows_c = file_rows.clone();
+            let contributor_rows_c = contributor_rows.clone();
+            let result: Result<usize, diesel::result::Error> = conn.transaction(|conn| {
+                let artifact_rows = artifact_rows_c;
+                let file_rows = file_rows_c;
+                let contributor_rows = contributor_rows_c;
+                async move {
+                    // RETURNING ensures only newly-inserted rows count toward size/version increments.
+                    // ON CONFLICT DO NOTHING makes the whole transaction idempotent on checkpoint replay.
+                    let inserted_data: Vec<(Option<String>, i64)> =
+                        diesel::insert_into(artifact::table)
+                            .values(artifact_rows)
+                            .on_conflict(artifact::sui_object_id)
+                            .do_nothing()
+                            .returning((artifact::root_id, artifact::total_size_bytes))
+                            .load::<(Option<String>, i64)>(conn)
+                            .await?;
 
-        Ok(inserted_count)
+                    let inserted_count = inserted_data.len();
+                    let inserted_size: i64 = inserted_data.iter().map(|(_, s)| s).sum();
+
+                    let mut version_increments: HashMap<&str, i64> = HashMap::new();
+                    for (root_id, _) in inserted_data.iter() {
+                        if let Some(root_id) = root_id {
+                            *version_increments.entry(root_id.as_str()).or_insert(0) += 1;
+                        }
+                    }
+                    if !version_increments.is_empty() {
+                        use diesel::upsert::excluded;
+                        let rows: Vec<_> = version_increments
+                            .iter()
+                            .map(|(root_id, batch_increment)| (
+                                artifact_version_counts::root_id.eq(*root_id),
+                                artifact_version_counts::version_count.eq(batch_increment),
+                            ))
+                            .collect();
+                        diesel::insert_into(artifact_version_counts::table)
+                            .values(&rows)
+                            .on_conflict(artifact_version_counts::root_id)
+                            .do_update()
+                            .set(artifact_version_counts::version_count.eq(
+                                artifact_version_counts::version_count
+                                    + excluded(artifact_version_counts::version_count)
+                            ))
+                            .execute(conn)
+                            .await?;
+                    }
+
+                    if inserted_size > 0 {
+                        diesel::update(platform_stats::table.find(1))
+                            .set(platform_stats::total_size_bytes.eq(
+                                platform_stats::total_size_bytes + inserted_size
+                            ))
+                            .execute(conn)
+                            .await?;
+                    }
+
+                    if !file_rows.is_empty() {
+                        diesel::insert_into(artifact_file::table)
+                            .values(file_rows)
+                            .on_conflict((artifact_file::artifact_id, artifact_file::patch_id))
+                            .do_nothing()
+                            .execute(conn)
+                            .await?;
+                    }
+
+                    if !contributor_rows.is_empty() {
+                        use diesel::upsert::excluded;
+                        diesel::insert_into(artifact_contributor::table)
+                            .values(contributor_rows)
+                            .on_conflict((artifact_contributor::root_id, artifact_contributor::creator))
+                            .do_update()
+                            .set(artifact_contributor::role.eq(excluded(artifact_contributor::role)))
+                            .execute(conn)
+                            .await?;
+                    }
+
+                    Ok(inserted_count)
+                }
+                .scope_boxed()
+            })
+            .await;
+
+            match result {
+                Ok(n) => return Ok(n),
+                Err(ref e) if attempt < 3 && is_transient_error(e) => {
+                    tracing::warn!(attempt, "transient DB error in artifact commit, retrying: {e}");
+                    tokio::time::sleep(std::time::Duration::from_millis(50u64 * (1 << attempt))).await;
+                    attempt += 1;
+                }
+                Err(e) => return Err(anyhow::anyhow!(e)),
+            }
+        }
     }
 }
 

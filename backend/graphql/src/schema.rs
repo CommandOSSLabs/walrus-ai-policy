@@ -1,4 +1,5 @@
 use async_graphql::{ComplexObject, Context, EmptySubscription, Enum, InputObject, Object, Schema, SimpleObject};
+use async_graphql::dataloader::DataLoader;
 use async_graphql::http::GraphiQLSource;
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::extract::State;
@@ -10,8 +11,10 @@ use archive_db::artifact;
 use archive_db::artifact_contributor;
 use archive_db::artifact_file;
 use archive_db::artifact_stats;
+use archive_db::artifact_viewer;
 use archive_db::platform_stats;
 use crate::db::DbPool;
+use crate::loaders::{ContributorsLoader, StatsLoader, VersionsLoader};
 
 pub type AppSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 
@@ -19,7 +22,10 @@ const MAX_PAGE_SIZE: i64 = 200;
 
 pub fn build(pool: DbPool) -> AppSchema {
     Schema::build(QueryRoot, MutationRoot, EmptySubscription)
-        .data(pool)
+        .data(pool.clone())
+        .data(DataLoader::new(ContributorsLoader { pool: pool.clone() }, tokio::spawn))
+        .data(DataLoader::new(VersionsLoader { pool: pool.clone() }, tokio::spawn))
+        .data(DataLoader::new(StatsLoader { pool }, tokio::spawn))
         .finish()
 }
 
@@ -31,14 +37,14 @@ pub async fn graphql_handler(State(schema): State<AppSchema>, req: GraphQLReques
     schema.execute(req.into_inner()).await.into()
 }
 
-#[derive(Queryable, SimpleObject)]
+#[derive(Queryable, SimpleObject, Clone)]
 #[graphql(name = "Contributor")]
 pub struct StoredContributor {
     pub creator: String,
     pub role: i16,
 }
 
-#[derive(Queryable, SimpleObject, Deserialize)]
+#[derive(Queryable, SimpleObject, Deserialize, Clone)]
 #[graphql(name = "Artifact", complex)]
 pub struct StoredArtifact {
     pub sui_object_id: String,
@@ -62,60 +68,25 @@ impl StoredArtifact {
 #[ComplexObject]
 impl StoredArtifact {
     async fn versions(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<StoredArtifact>> {
-        use diesel_async::RunQueryDsl as AsyncDsl;
-
-        let pool = ctx.data::<DbPool>()?;
-        let mut conn = pool.get().await?;
-        let root = self.root_id_str();
-
-        Ok(AsyncDsl::load(
-            artifact::table
-                .filter(
-                    artifact::sui_object_id.eq(root)
-                        .or(artifact::root_id.eq(root))
-                )
-                .select(artifact::all_columns)
-                .order(artifact::version.asc()),
-            &mut conn,
-        ).await?)
+        let loader = ctx.data::<DataLoader<VersionsLoader>>()?;
+        let root = self.root_id_str().to_string();
+        Ok(loader.load_one(root).await?.unwrap_or_default())
     }
 
     async fn contributors(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<StoredContributor>> {
-        use diesel_async::RunQueryDsl as AsyncDsl;
-
-        let pool = ctx.data::<DbPool>()?;
-        let mut conn = pool.get().await?;
-        let root = self.root_id_str();
-
-        Ok(AsyncDsl::load(
-            artifact_contributor::table
-                .filter(artifact_contributor::root_id.eq(root))
-                .select((artifact_contributor::creator, artifact_contributor::role)),
-            &mut conn,
-        ).await?)
+        let loader = ctx.data::<DataLoader<ContributorsLoader>>()?;
+        let root = self.root_id_str().to_string();
+        Ok(loader.load_one(root).await?.unwrap_or_default())
     }
 
     async fn stats(&self, ctx: &Context<'_>) -> async_graphql::Result<StoredArtifactStats> {
-        use diesel_async::RunQueryDsl as AsyncDsl;
-
-        let pool = ctx.data::<DbPool>()?;
-        let mut conn = pool.get().await?;
-        let root = self.root_id_str();
-
-        let result: Option<StoredArtifactStats> = AsyncDsl::first(
-            artifact_stats::table
-                .filter(artifact_stats::root_id.eq(root))
-                .select((artifact_stats::view_count, artifact_stats::download_count)),
-            &mut conn,
-        )
-        .await
-        .optional()?;
-
-        Ok(result.unwrap_or(StoredArtifactStats { view_count: 0, download_count: 0 }))
+        let loader = ctx.data::<DataLoader<StatsLoader>>()?;
+        let root = self.root_id_str().to_string();
+        Ok(loader.load_one(root).await?.unwrap_or(StoredArtifactStats { view_count: 0, download_count: 0 }))
     }
 }
 
-#[derive(Queryable, SimpleObject)]
+#[derive(Queryable, SimpleObject, Clone)]
 #[graphql(name = "ArtifactStats")]
 pub struct StoredArtifactStats {
     pub view_count: i64,
@@ -426,26 +397,57 @@ impl MutationRoot {
         &self,
         ctx: &Context<'_>,
         root_id: String,
+        viewer_address: String,
     ) -> async_graphql::Result<bool> {
-        use diesel_async::RunQueryDsl as AsyncDsl;
+        use diesel_async::scoped_futures::ScopedFutureExt;
+        use diesel_async::{AsyncConnection, RunQueryDsl as AsyncDsl};
 
         let pool = ctx.data::<DbPool>()?;
         let mut conn = pool.get().await?;
 
-        AsyncDsl::execute(
-            diesel::insert_into(artifact_stats::table)
-                .values((
-                    artifact_stats::root_id.eq(&root_id),
-                    artifact_stats::view_count.eq(1i64),
-                ))
-                .on_conflict(artifact_stats::root_id)
-                .do_update()
-                .set(artifact_stats::view_count.eq(artifact_stats::view_count + 1i64)),
-            &mut conn,
-        )
-        .await?;
+        let is_new = conn
+            .transaction(|conn| {
+                async move {
+                    let inserted = AsyncDsl::execute(
+                        diesel::insert_into(artifact_viewer::table)
+                            .values((
+                                artifact_viewer::root_id.eq(&root_id),
+                                artifact_viewer::viewer_address.eq(&viewer_address),
+                            ))
+                            .on_conflict((
+                                artifact_viewer::root_id,
+                                artifact_viewer::viewer_address,
+                            ))
+                            .do_nothing(),
+                        conn,
+                    )
+                    .await?;
 
-        Ok(true)
+                    if inserted > 0 {
+                        AsyncDsl::execute(
+                            diesel::insert_into(artifact_stats::table)
+                                .values((
+                                    artifact_stats::root_id.eq(&root_id),
+                                    artifact_stats::view_count.eq(1i64),
+                                ))
+                                .on_conflict(artifact_stats::root_id)
+                                .do_update()
+                                .set(
+                                    artifact_stats::view_count
+                                        .eq(artifact_stats::view_count + 1i64),
+                                ),
+                            conn,
+                        )
+                        .await?;
+                    }
+
+                    Ok::<bool, diesel::result::Error>(inserted > 0)
+                }
+                .scope_boxed()
+            })
+            .await?;
+
+        Ok(is_new)
     }
 
     async fn increment_download(
@@ -531,7 +533,7 @@ mod db_integration_tests {
         // RunQueryDsl is NOT in scope here, so schema.execute resolves to
         // async_graphql::Schema::execute(&self, impl Into<Request>).
         let result = schema.execute(GqlRequest::new(
-            format!(r#"mutation {{ incrementView(rootId: "{root}") }}"#),
+            format!(r#"mutation {{ incrementView(rootId: "{root}", viewerAddress: "0xaaa") }}"#),
         )).await;
         assert!(result.errors.is_empty(), "{:?}", result.errors);
 
@@ -551,17 +553,22 @@ mod db_integration_tests {
     }
 
     #[tokio::test]
-    async fn increment_view_increments_existing_row() {
+    async fn increment_view_deduplicates_same_address() {
         let Some(url) = test_db_url() else { return };
         ensure_migrated(&url);
         let (schema, mut conn) = make_schema_and_conn(&url).await;
 
-        let root = unique_root_id("view_inc");
+        let root = unique_root_id("view_dedup");
+        // Same address 3 times → count must be 1.
         for _ in 0..3 {
             schema.execute(GqlRequest::new(
-                format!(r#"mutation {{ incrementView(rootId: "{root}") }}"#),
+                format!(r#"mutation {{ incrementView(rootId: "{root}", viewerAddress: "0xaaa") }}"#),
             )).await;
         }
+        // Different address → count must become 2.
+        schema.execute(GqlRequest::new(
+            format!(r#"mutation {{ incrementView(rootId: "{root}", viewerAddress: "0xbbb") }}"#),
+        )).await;
 
         {
             use archive_db::artifact_stats;
@@ -573,7 +580,7 @@ mod db_integration_tests {
                 .filter(artifact_stats::root_id.eq(&root))
                 .select(artifact_stats::view_count)
                 .first(&mut conn).await.unwrap();
-            assert_eq!(count, 3);
+            assert_eq!(count, 2);
         }
     }
 
@@ -584,8 +591,8 @@ mod db_integration_tests {
         let (schema, mut conn) = make_schema_and_conn(&url).await;
 
         let root = unique_root_id("dl_ind");
-        schema.execute(GqlRequest::new(format!(r#"mutation {{ incrementView(rootId: "{root}") }}"#))).await;
-        schema.execute(GqlRequest::new(format!(r#"mutation {{ incrementView(rootId: "{root}") }}"#))).await;
+        schema.execute(GqlRequest::new(format!(r#"mutation {{ incrementView(rootId: "{root}", viewerAddress: "0xaaa") }}"#))).await;
+        schema.execute(GqlRequest::new(format!(r#"mutation {{ incrementView(rootId: "{root}", viewerAddress: "0xbbb") }}"#))).await;
         schema.execute(GqlRequest::new(format!(r#"mutation {{ incrementDownload(rootId: "{root}") }}"#))).await;
 
         {

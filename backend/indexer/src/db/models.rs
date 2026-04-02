@@ -4,7 +4,7 @@ use crate::db::schema::artifact;
 use crate::db::schema::artifact_contributor;
 use crate::db::schema::artifact_file;
 
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = artifact)]
 pub struct NewArtifact {
     pub sui_object_id: String,
@@ -19,7 +19,7 @@ pub struct NewArtifact {
     pub total_size_bytes: i64,
 }
 
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = artifact_file)]
 pub struct NewArtifactFile {
     pub artifact_id: String,
@@ -29,7 +29,7 @@ pub struct NewArtifactFile {
     pub name: String,
 }
 
-#[derive(Insertable, Debug)]
+#[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = artifact_contributor)]
 pub struct NewArtifactContributor {
     pub root_id: String,
