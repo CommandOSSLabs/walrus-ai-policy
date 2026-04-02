@@ -16,10 +16,10 @@ export interface CreateArtifactFieldProps {
   category: string;
   files: {
     id: string;
+    hash?: string; // from old files
     file: File;
 
     // state
-    isOld?: boolean;
     isCompared?: boolean;
     isRemoved?: boolean;
   }[];

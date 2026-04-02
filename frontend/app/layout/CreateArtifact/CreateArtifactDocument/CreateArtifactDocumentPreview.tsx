@@ -82,7 +82,7 @@ export default ({
                 className="bg-[#2A303F] border border-white/12 text-[#CBD5E1] size-6 rounded-full flex items-center justify-center"
                 onClick={() => {
                   // revert old file when click undo
-                  if (field?.isOld) {
+                  if (field?.hash) {
                     // remove new files, if it exists
                     const newFileIndex = fields.findIndex(
                       (value) =>

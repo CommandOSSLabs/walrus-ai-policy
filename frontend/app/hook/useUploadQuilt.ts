@@ -3,6 +3,7 @@ import utilsWalrus from "app/utils/utils.walrus";
 import { WalrusFile } from "@mysten/walrus";
 import useSignAndExecuteTransaction from "./useSignAndExecuteTransaction";
 import type useSteps from "./useSteps";
+import { computeSHA256 } from "app/utils";
 
 export type RegisterEventType = {
   digest: string;
@@ -81,6 +82,9 @@ export default () => {
     return {
       blobObject: listFiles[0].blobObject.id,
       quiltIds: listFiles.map((file) => file.id),
+      hash: await Promise.all(
+        files.map(async (file) => await computeSHA256(file)),
+      ),
       files,
     };
   };

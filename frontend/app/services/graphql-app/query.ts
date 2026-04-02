@@ -42,13 +42,6 @@ const artifact = gql`
       category
       version
 
-      versions {
-        suiObjectId
-        version
-        createdAt
-        creator
-      }
-
       contributors {
         creator
         role
@@ -59,7 +52,19 @@ const artifact = gql`
         mimeType
         sizeBytes
         name
+        hash
       }
+    }
+  }
+`;
+
+const artifactVersions = gql`
+  query ArtifactVersions($rootId: String!) {
+    artifactVersions(rootId: $rootId) {
+      suiObjectId
+      version
+      createdAt
+      creator
     }
   }
 `;
