@@ -17,10 +17,11 @@ import { extension } from "mime-types";
 
 interface ArtifactFileListProps {
   files: ArtifactFile[];
-  rootId?: string;
+  rootId: string;
+  onRefetch: () => void;
 }
 
-export default ({ files, rootId }: ArtifactFileListProps) => {
+export default ({ files, rootId, onRefetch }: ArtifactFileListProps) => {
   const [loading, setLoading] = useState<string>();
   const incrementDownload = useIncrementDownloadMutation(graphqlApp.client);
 
@@ -41,10 +42,6 @@ export default ({ files, rootId }: ArtifactFileListProps) => {
       fileRef.current?.classList.remove("isSelected");
     }
   };
-
-  if (files.length === 1 && files.some((meta) => meta.name === "README.md")) {
-    return;
-  }
 
   return (
     <div
@@ -71,7 +68,7 @@ export default ({ files, rootId }: ArtifactFileListProps) => {
         return (
           <button
             key={meta.patchId}
-            disabled={!!loading?.length}
+            disabled={loading === meta.patchId}
             className={tv({
               base: [
                 "flex gap-6 justify-between",
@@ -133,9 +130,14 @@ export default ({ files, rootId }: ArtifactFileListProps) => {
 
                       downloadFileWithBlob(blob, meta.mimeType, meta.name);
 
-                      if (rootId) {
-                        incrementDownload.mutate({ rootId });
-                      }
+                      incrementDownload.mutate(
+                        {
+                          rootId,
+                        },
+                        {
+                          onSuccess: onRefetch,
+                        },
+                      );
                     } finally {
                       setLoading(undefined);
                     }

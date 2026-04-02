@@ -121,7 +121,11 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
             <>
               <ArtifactFileList
                 files={artifact.data.artifact.files}
-                rootId={artifact.data.artifact.rootId}
+                rootId={
+                  artifact.data.artifact?.rootId ||
+                  artifact.data.artifact.suiObjectId
+                }
+                onRefetch={artifact.refetch}
               />
 
               {getREADME && <ArtifactFileMarkdown file={getREADME} />}
@@ -131,7 +135,10 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
       </Vstack>
 
       <Vstack className="gap-4 md:gap-6 md:w-70">
-        <ArtifactStatistic artifact={artifact.data.artifact} />
+        <ArtifactStatistic
+          artifact={artifact.data.artifact}
+          onRefetch={artifact.refetch}
+        />
 
         <ArtifactVersions
           suiObjectId={artifact.data.artifact.suiObjectId}

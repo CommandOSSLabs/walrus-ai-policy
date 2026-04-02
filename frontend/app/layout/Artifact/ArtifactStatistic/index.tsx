@@ -17,35 +17,32 @@ import graphqlApp from "app/services/graphql-app";
 import utilsWalrus from "app/utils/utils.walrus";
 import { downloadFileWithBlob, formatCount } from "app/utils";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import useMount from "app/hook/useMount";
 import Spinner from "app/components/Spinner";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { useArtifactQuery } from "app/services/graphql-app/generated";
 
 interface ArtifactStatisticProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
+  onRefetch: () => void;
 }
 
-export default ({ artifact }: ArtifactStatisticProps) => {
+export default ({ artifact, onRefetch }: ArtifactStatisticProps) => {
   const [loading, setLoading] = useState<string>();
   const currentAccount = useCurrentAccount();
-  const queryClient = useQueryClient();
 
   const incrementView = useIncrementViewMutation(graphqlApp.client);
   const incrementDownload = useIncrementDownloadMutation(graphqlApp.client);
 
-  const artifactQueryKey = useArtifactQuery.getKey({
-    suiObjectId: artifact.suiObjectId,
-  });
   const effectiveRootId = artifact.rootId ?? artifact.suiObjectId;
 
   useMount(() => {
     incrementView.mutate(
-      { rootId: effectiveRootId, viewerAddress: currentAccount!.address },
       {
-        onSuccess: () =>
-          queryClient.invalidateQueries({ queryKey: artifactQueryKey }),
+        rootId: effectiveRootId,
+        viewerAddress: currentAccount!.address,
+      },
+      {
+        onSuccess: onRefetch,
       },
     );
   }, [effectiveRootId, currentAccount?.address]);
@@ -100,12 +97,11 @@ export default ({ artifact }: ArtifactStatisticProps) => {
               );
 
               incrementDownload.mutate(
-                { rootId: effectiveRootId },
                 {
-                  onSuccess: () =>
-                    queryClient.invalidateQueries({
-                      queryKey: artifactQueryKey,
-                    }),
+                  rootId: effectiveRootId,
+                },
+                {
+                  onSuccess: onRefetch,
                 },
               );
             } finally {
