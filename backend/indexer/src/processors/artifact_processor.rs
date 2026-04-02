@@ -174,6 +174,7 @@ impl Handler for ArtifactPipeline {
                 mime_type: f.mime_type.clone(),
                 size_bytes: f.size_bytes as i64,
                 name: f.name.clone(),
+                hash: f.hash.clone(),
             }));
         }
 
@@ -665,6 +666,7 @@ mod tests {
             mime_type: "text/plain".to_string(),
             size_bytes: 512,
             name: "file.txt".to_string(),
+            hash: "abc123".to_string(),
         };
 
         diesel::insert_into(artifact_file::table)
