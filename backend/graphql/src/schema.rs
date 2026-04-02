@@ -100,6 +100,7 @@ pub struct StoredArtifactFile {
     pub mime_type: String,
     pub size_bytes: i64,
     pub name: String,
+    pub hash: String,
 }
 
 #[derive(SimpleObject)]
@@ -257,6 +258,7 @@ impl QueryRoot {
                     artifact_file::mime_type,
                     artifact_file::size_bytes,
                     artifact_file::name,
+                    artifact_file::hash,
                 )),
             &mut conn,
         )

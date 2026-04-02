@@ -50,6 +50,7 @@ pub struct FileInfo {
     pub mime_type: String,
     pub size_bytes: u64,
     pub name: String,
+    pub hash: String,
 }
 
 #[cfg(test)]
@@ -90,6 +91,7 @@ mod tests {
         mime_type: String,
         size_bytes: u64,
         name: String,
+        hash: String,
     }
 
     #[derive(Serialize)]
@@ -185,6 +187,7 @@ mod tests {
                     mime_type: "text/plain".to_string(),
                     size_bytes: 4096,
                     name: "policy.txt".to_string(),
+                    hash: "abc123hash".to_string(),
                 }],
             },
         };
@@ -206,8 +209,8 @@ mod tests {
             name: 0u8,
             value: SFileRef {
                 files: vec![
-                    SFileInfo { patch_id: "p1".to_string(), mime_type: "text/plain".to_string(), size_bytes: 100, name: "a.txt".to_string() },
-                    SFileInfo { patch_id: "p2".to_string(), mime_type: "application/json".to_string(), size_bytes: 200, name: "b.json".to_string() },
+                    SFileInfo { patch_id: "p1".to_string(), mime_type: "text/plain".to_string(), size_bytes: 100, name: "a.txt".to_string(), hash: "h1".to_string() },
+                    SFileInfo { patch_id: "p2".to_string(), mime_type: "application/json".to_string(), size_bytes: 200, name: "b.json".to_string(), hash: "h2".to_string() },
                 ],
             },
         };
@@ -264,6 +267,7 @@ mod tests {
                     mime_type: "text/plain".to_string(),
                     size_bytes: 100,
                     name: "a.txt".to_string(),
+                    hash: "h".to_string(),
                 }],
             },
         };

@@ -21,6 +21,7 @@ diesel::table! {
         mime_type   -> Text,
         size_bytes  -> BigInt,
         name        -> Text,
+        hash        -> Text,
     }
 }
 

@@ -27,6 +27,7 @@ pub struct NewArtifactFile {
     pub mime_type: String,
     pub size_bytes: i64,
     pub name: String,
+    pub hash: String,
 }
 
 #[derive(Insertable, Debug, Clone)]
