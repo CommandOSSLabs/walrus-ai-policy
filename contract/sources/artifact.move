@@ -184,8 +184,9 @@ fun make_file_ref(): file::FileRef {
     let mut mime_type = vector[string::utf8(b"text/plain")];
     let mut size_bytes = vector[42];
     let mut name = vector[string::utf8(b"file.txt")];
+    let mut hash = vector[string::utf8(b"e3b0c44298fc1c149afbf4c899")];
 
-    file::new_file(&mut patch_id, &mut mime_type, &mut size_bytes, &mut name)
+    file::new_file(&mut patch_id, &mut mime_type, &mut size_bytes, &mut name, &mut hash)
 }
 
 #[test_only]
