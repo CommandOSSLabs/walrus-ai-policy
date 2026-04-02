@@ -12,8 +12,11 @@ export default {
         const { artifacts } = await useArtifactsQuery.fetcher(
           graphqlApp.client,
           {
-            limit: 100,
+            limit: 1000,
             offset: 0,
+            filter: {
+              onlyRoots: true,
+            },
           },
         )();
 
