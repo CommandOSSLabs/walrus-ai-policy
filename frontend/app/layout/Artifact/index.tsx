@@ -14,10 +14,18 @@ import ArtifactFileSVG from "./ArtifactFile/ArtifactFileSVG";
 import ArtifactFilePDF from "./ArtifactFile/ArtifactFilePDF";
 import { useArtifactQuery } from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
+import useGetConfig, { contributorConfigEnum } from "app/hook/useGetConfig";
+import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { useSearchParams } from "react-router";
+import ArtifactRelease from "./ArtifactRelease";
 
 const ArtifactFileCSV = lazy(() => import("./ArtifactFile/ArtifactFileCSV"));
 
 export default ({ loaderData, params }: Route.ComponentProps) => {
+  const [searchParams] = useSearchParams();
+
+  const currentAccount = useCurrentAccount();
+  const { contributorConfig } = useGetConfig();
   const { data } = useArtifactQuery(
     graphqlApp.client,
     {
@@ -28,11 +36,29 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
     },
   );
 
-  const artifact = data?.artifact;
+  const getSingleFile = data?.artifact?.files[0];
 
-  if (!artifact) return null;
+  const getREADME = data?.artifact?.files?.find?.(
+    (file) => file.name === "README.md",
+  );
 
-  const getREADME = artifact.files.find((file) => file.name === "README.md");
+  const isAdmin = !!data?.artifact?.contributors?.some(
+    (meta) =>
+      meta?.creator === currentAccount?.address &&
+      contributorConfig.data?.[meta.role] === contributorConfigEnum.admin,
+  );
+
+  if (!data?.artifact) return null;
+
+  if (searchParams?.get?.("release")) {
+    return (
+      <ArtifactRelease
+        artifact={data.artifact}
+        isAdmin={isAdmin}
+        isLoading={contributorConfig.isLoading}
+      />
+    );
+  }
 
   return (
     <Flex
@@ -45,52 +71,52 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
       })()}
     >
       <Vstack className="flex-1 items-start gap-4 md:gap-8">
-        <ArtifactHeader artifact={artifact} />
+        <ArtifactHeader artifact={data.artifact} />
 
         {(function () {
-          if (!artifact?.files?.length) return null;
+          if (!data.artifact?.files?.length) return null;
 
-          if (artifact.files.length) {
-            if (artifact.files[0].mimeType === "text/csv") {
-              return <ArtifactFileCSV file={artifact.files[0]} />;
+          if (data.artifact.files.length === 1) {
+            if (getSingleFile?.mimeType === "text/csv") {
+              return <ArtifactFileCSV file={getSingleFile} />;
             }
 
-            if (artifact.files[0].mimeType === "image/svg+xml") {
-              return <ArtifactFileSVG file={artifact.files[0]} />;
+            if (getSingleFile?.mimeType === "image/svg+xml") {
+              return <ArtifactFileSVG file={getSingleFile} />;
             }
 
-            if (artifact.files[0].mimeType.startsWith("image")) {
+            if (getSingleFile?.mimeType?.startsWith?.("image")) {
               return (
                 <img
-                  src={utilsWalrus.getQuiltPatchId(artifact.files[0].patchId)}
-                  alt={artifact.files[0].name}
+                  src={utilsWalrus.getQuiltPatchId(getSingleFile.patchId)}
+                  alt={getSingleFile.name}
                   className="aspect-video object-cover"
                 />
               );
             }
 
-            if (artifact.files[0].mimeType.startsWith("video")) {
+            if (getSingleFile?.mimeType?.startsWith?.("video")) {
               return (
                 <video
-                  src={utilsWalrus.getQuiltPatchId(artifact.files[0].patchId)}
+                  src={utilsWalrus.getQuiltPatchId(getSingleFile.patchId)}
                   controls={true}
                   className="aspect-video object-cover"
                 />
               );
             }
 
-            if (artifact.files[0].mimeType === "text/markdown") {
-              return <ArtifactFileMarkdown file={artifact.files[0]} />;
+            if (getSingleFile?.mimeType === "text/markdown") {
+              return <ArtifactFileMarkdown file={getSingleFile} />;
             }
 
-            if (artifact.files[0].mimeType === "application/pdf") {
-              return <ArtifactFilePDF file={artifact.files[0]} />;
+            if (getSingleFile?.mimeType === "application/pdf") {
+              return <ArtifactFilePDF file={getSingleFile} />;
             }
           }
 
           return (
             <>
-              <ArtifactFileList files={artifact.files} />
+              <ArtifactFileList files={data.artifact.files} />
 
               {getREADME && <ArtifactFileMarkdown file={getREADME} />}
             </>
@@ -99,16 +125,19 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
       </Vstack>
 
       <Vstack className="gap-4 md:gap-6 md:w-70">
-        <ArtifactStatistic artifact={artifact} />
+        <ArtifactStatistic artifact={data.artifact} />
 
         <ArtifactVersions
-          suiObjectId={artifact.suiObjectId}
-          versions={artifact.versions}
+          suiObjectId={data.artifact.suiObjectId}
+          versions={data.artifact.versions}
+          isAdmin={isAdmin}
         />
 
         <ArtifactContributors
-          contributors={artifact.contributors}
-          suiObjectId={artifact.suiObjectId}
+          contributorConfig={contributorConfig}
+          contributors={data.artifact.contributors}
+          suiObjectId={data.artifact.suiObjectId}
+          isAdmin={isAdmin}
         />
       </Vstack>
     </Flex>

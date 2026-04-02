@@ -34,6 +34,7 @@ const artifact = gql`
     artifact(suiObjectId: $suiObjectId) {
       suiObjectId
       rootId
+      parentId
       title
       description
       creator

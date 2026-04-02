@@ -1,7 +1,11 @@
 import Typography from "app/components/Typography";
 import Vstack from "app/components/Vstack";
 
-export default () => {
+interface CreateArtifactHeaderProps {
+  type: "create" | "release";
+}
+
+export default ({ type }: CreateArtifactHeaderProps) => {
   return (
     <Vstack className="gap-5 w-full">
       <Vstack>
@@ -17,12 +21,12 @@ export default () => {
         variant="h1"
         className="text-[#DDE2F5] text-5xl font-bold tracking-[-0.225rem]"
       >
-        CREATE ARTIFACT
+        {type === "create" ? "CREATE ARTIFACT" : "RELEASE ARTIFACT"}
       </Typography>
 
       <Typography className="text-[#BACAC4] text-lg font-light">
-        Permanently seal your research, data, or media into the Walrus
-        Protocol&nbsp;
+        Permanently seal your research, data, or media on the Walrus
+        Protocol.&nbsp;
         <Typography variant="span" className="text-[#46F1CF] font-medium">
           Immutable. Citable. On-chain.
         </Typography>

@@ -80,6 +80,7 @@ export default (params: TransactionDetailStateType[]) => {
     })(),
 
     // callbacks
+    setSteps,
     updateFee,
     updateStatus,
   };

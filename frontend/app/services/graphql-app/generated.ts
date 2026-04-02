@@ -54,6 +54,7 @@ export type Artifact = {
   description: Scalars["String"]["output"];
   parentId?: Maybe<Scalars["String"]["output"]>;
   rootId?: Maybe<Scalars["String"]["output"]>;
+  stats: ArtifactStats;
   suiObjectId: Scalars["String"]["output"];
   title: Scalars["String"]["output"];
   totalSizeBytes: Scalars["Int"]["output"];
@@ -75,6 +76,7 @@ export type ArtifactDetail = {
   files: Array<ArtifactFile>;
   parentId?: Maybe<Scalars["String"]["output"]>;
   rootId?: Maybe<Scalars["String"]["output"]>;
+  stats: ArtifactStats;
   suiObjectId: Scalars["String"]["output"];
   title: Scalars["String"]["output"];
   totalSizeBytes: Scalars["Int"]["output"];
@@ -97,9 +99,27 @@ export type ArtifactFilter = {
   search?: InputMaybe<Scalars["String"]["input"]>;
 };
 
+export type ArtifactStats = {
+  downloadCount: Scalars["Int"]["output"];
+  viewCount: Scalars["Int"]["output"];
+};
+
 export type Contributor = {
   creator: Scalars["String"]["output"];
   role: Scalars["Int"]["output"];
+};
+
+export type MutationRoot = {
+  incrementDownload: Scalars["Boolean"]["output"];
+  incrementView: Scalars["Boolean"]["output"];
+};
+
+export type MutationRootIncrementDownloadArgs = {
+  rootId: Scalars["String"]["input"];
+};
+
+export type MutationRootIncrementViewArgs = {
+  rootId: Scalars["String"]["input"];
 };
 
 export type PlatformStats = {
@@ -136,6 +156,8 @@ export type QueryRootArtifactsArgs = {
 export enum SortField {
   CreatedAtAsc = "CREATED_AT_ASC",
   CreatedAtDesc = "CREATED_AT_DESC",
+  DownloadCountDesc = "DOWNLOAD_COUNT_DESC",
+  ViewCountDesc = "VIEW_COUNT_DESC",
 }
 
 export type ArtifactsQueryVariables = Exact<{
@@ -171,6 +193,7 @@ export type ArtifactQuery = {
   artifact?: {
     suiObjectId: string;
     rootId?: string;
+    parentId?: string;
     title: string;
     description: string;
     creator: string;
@@ -304,6 +327,7 @@ export const ArtifactDocument = `
   artifact(suiObjectId: $suiObjectId) {
     suiObjectId
     rootId
+    parentId
     title
     description
     creator

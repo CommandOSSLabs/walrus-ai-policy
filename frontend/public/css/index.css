@@ -70,6 +70,10 @@
     @apply border border-[#352F2F] rounded-lg;
     @apply w-full p-4 placeholder-[#BACAC4]/45;
   }
+
+  .input-max {
+    @apply text-[#BACAC4]/65 text-sm;
+  }
 }
 
 @layer utilities {

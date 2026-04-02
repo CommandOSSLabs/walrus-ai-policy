@@ -1,15 +1,14 @@
 import Vstack from "app/components/Vstack";
 import Stack from "app/components/Stack";
-import { Controller, useForm } from "react-hook-form";
-
-import Typography from "app/components/Typography";
+import { useForm } from "react-hook-form";
 
 import CreateArtifactHeader from "./CreateArtifactHeader";
 import CreateArtifactResource from "./CreateArtifactResource";
 import CreateArtifactDocument from "./CreateArtifactDocument";
 import CreateArtifactSubmit from "./CreateArtifactSubmit";
-import useGetConfig from "app/hook/useGetConfig";
-import { forceToNumber } from "app/utils";
+import CreateArtifactTitle from "./CreateArtifactTitle";
+import CreateArtifactDescription from "./CreateArtifactDescription";
+import { RANDOM_CHARACTER } from "app/utils";
 
 export interface CreateArtifactFieldProps {
   title: string;
@@ -18,12 +17,15 @@ export interface CreateArtifactFieldProps {
   files: {
     id: string;
     file: File;
+
+    // state
+    isOld?: boolean;
+    isCompared?: boolean;
+    isRemoved?: boolean;
   }[];
 }
 
 export default () => {
-  const { metadataConfig } = useGetConfig();
-
   const {
     setValue,
     handleSubmit,
@@ -33,90 +35,47 @@ export default () => {
 
   return (
     <Stack className="gap-8 pt-8 pb-14 px-4 sm:px-0 mx-auto max-w-xl">
-      <CreateArtifactHeader />
+      <CreateArtifactHeader type="create" />
 
       <Vstack className="gap-6 w-full">
-        <Vstack>
-          <Typography className="input-heading">TITLE</Typography>
+        <CreateArtifactTitle control={control} />
 
-          <Controller
-            name="title"
-            control={control}
-            rules={{
-              required: true,
-            }}
-            render={({ field, formState }) => {
-              const MAX = forceToNumber(metadataConfig.data?.title);
-
-              return (
-                <Vstack>
-                  <input
-                    placeholder="Enter the title of the artifact."
-                    className="input-bold h-14"
-                    disabled={formState.isSubmitting}
-                    name={field.name}
-                    ref={field.ref}
-                    value={field?.value || ""}
-                    onChange={({ currentTarget }) => {
-                      if (currentTarget.value.length > MAX) {
-                        currentTarget.value = currentTarget.value.slice(0, MAX);
-                      }
-
-                      field.onChange(currentTarget.value);
-                    }}
-                  />
-
-                  <Typography className="text-[#BACAC4]/65 text-sm text-right">
-                    {`${forceToNumber(field.value?.length)}/${MAX}`}
-                  </Typography>
-                </Vstack>
-              );
-            }}
-          />
-        </Vstack>
-
-        <Vstack>
-          <Typography className="input-heading">DESCRIPTION</Typography>
-
-          <Controller
-            name="description"
-            control={control}
-            rules={{
-              required: true,
-            }}
-            render={({ field, formState }) => {
-              const MAX = forceToNumber(metadataConfig.data?.description);
-
-              return (
-                <Vstack>
-                  <textarea
-                    placeholder="Enter the description of the artifact."
-                    className="input-bold min-h-32 resize-none"
-                    disabled={formState.isSubmitting}
-                    name={field.name}
-                    ref={field.ref}
-                    value={field?.value || ""}
-                    onChange={({ currentTarget }) => {
-                      if (currentTarget.value.length > MAX) {
-                        currentTarget.value = currentTarget.value.slice(0, MAX);
-                      }
-
-                      field.onChange(currentTarget.value);
-                    }}
-                  />
-
-                  <Typography className="text-[#BACAC4]/65 text-sm text-right">
-                    {`${forceToNumber(field.value?.length)}/${MAX}`}
-                  </Typography>
-                </Vstack>
-              );
-            }}
-          />
-        </Vstack>
+        <CreateArtifactDescription control={control} />
 
         <CreateArtifactResource control={control} setValue={setValue} />
 
-        <CreateArtifactDocument control={control} />
+        <CreateArtifactDocument
+          control={control}
+          upload={async ({ files, fields, append, update }) => {
+            // handle duplicate
+            for (const [index, field] of fields.entries()) {
+              const newFileIndex = files?.findIndex(
+                (file) => file?.name === field?.file?.name,
+              );
+
+              if (newFileIndex !== -1) {
+                update(index, {
+                  ...field,
+                  file: files[newFileIndex],
+                });
+
+                // don't need append this file anymore
+                delete files[newFileIndex];
+                files = files.filter((file) => !!file);
+              }
+            }
+
+            // after filter duplicate, if files exists we'll append
+            if (files?.length) {
+              append(
+                files.map((file) => ({
+                  id: RANDOM_CHARACTER(),
+                  file,
+                })),
+              );
+            }
+          }}
+        />
 
         <CreateArtifactSubmit
           isSubmitting={isSubmitting}
