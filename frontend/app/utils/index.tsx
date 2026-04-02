@@ -177,6 +177,12 @@ export const downloadFileWithBlob = (
   URL.revokeObjectURL(blobUrl);
 };
 
+export const formatCount = (n: number): string =>
+  Intl.NumberFormat("en", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(n);
+
 export const forceToNumber = (argument: number | string | null | undefined) => {
   if (typeof argument === "string") {
     argument = Number(argument);

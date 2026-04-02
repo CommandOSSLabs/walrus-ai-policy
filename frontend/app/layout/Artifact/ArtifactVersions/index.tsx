@@ -7,13 +7,13 @@ import { tv } from "tailwind-variants";
 import Stack from "app/components/Stack";
 import { formatCalendar, shorten } from "app/utils";
 import Hstack from "app/components/Hstack";
-import { type ArtifactVersionsQuery } from "app/services/graphql-app/generated";
+import { type ArtifactQuery } from "app/services/graphql-app/generated";
 import { Link, useSearchParams } from "react-router";
 import { Skeleton } from "app/components/ui/skeleton";
 
 interface ArtifactVersionsProps {
   suiObjectId: string;
-  versions: ArtifactVersionsQuery["artifactVersions"] | undefined;
+  versions: NonNullable<ArtifactQuery["artifact"]>["versions"];
   isAdmin: boolean;
   isLoading: boolean;
 }

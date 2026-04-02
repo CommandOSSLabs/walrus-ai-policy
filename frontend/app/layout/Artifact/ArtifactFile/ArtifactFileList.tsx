@@ -6,6 +6,8 @@ import Typography from "app/components/Typography";
 import Center from "app/components/Center";
 import { tv } from "tailwind-variants";
 import { type ArtifactFile } from "app/services/graphql-app/generated";
+import { useIncrementDownloadMutation } from "app/services/graphql-app/generated";
+import graphqlApp from "app/services/graphql-app";
 import { downloadFileWithBlob, formatBytesSizes } from "app/utils";
 import utilsWalrus from "app/utils/utils.walrus";
 import { useRef, useState } from "react";
@@ -15,10 +17,12 @@ import { extension } from "mime-types";
 
 interface ArtifactFileListProps {
   files: ArtifactFile[];
+  rootId?: string;
 }
 
-export default ({ files }: ArtifactFileListProps) => {
+export default ({ files, rootId }: ArtifactFileListProps) => {
   const [loading, setLoading] = useState<string>();
+  const incrementDownload = useIncrementDownloadMutation(graphqlApp.client);
 
   const fileRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -128,6 +132,10 @@ export default ({ files }: ArtifactFileListProps) => {
                       const blob = await request.blob();
 
                       downloadFileWithBlob(blob, meta.mimeType, meta.name);
+
+                      if (rootId) {
+                        incrementDownload.mutate({ rootId });
+                      }
                     } finally {
                       setLoading(undefined);
                     }

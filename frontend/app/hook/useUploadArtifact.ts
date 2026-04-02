@@ -90,7 +90,7 @@ export default () => {
             name: file.name,
             patchId: quilt.quiltIds[index],
             sizeBytes: file.size,
-            hash: quilt.hash[index],
+            hash: quilt.hashes[index],
           })),
         );
 

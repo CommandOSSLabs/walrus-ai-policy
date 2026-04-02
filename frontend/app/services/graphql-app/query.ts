@@ -15,6 +15,11 @@ const artifacts = gql`
         createdAt
         category
         version
+
+        stats {
+          viewCount
+          downloadCount
+        }
       }
     }
   }
@@ -54,17 +59,30 @@ const artifact = gql`
         name
         hash
       }
+
+      stats {
+        viewCount
+        downloadCount
+      }
+
+      versions {
+        suiObjectId
+        version
+        createdAt
+        creator
+      }
     }
   }
 `;
 
-const artifactVersions = gql`
-  query ArtifactVersions($rootId: String!) {
-    artifactVersions(rootId: $rootId) {
-      suiObjectId
-      version
-      createdAt
-      creator
-    }
+const incrementView = gql`
+  mutation IncrementView($rootId: String!, $viewerAddress: String!) {
+    incrementView(rootId: $rootId, viewerAddress: $viewerAddress)
+  }
+`;
+
+const incrementDownload = gql`
+  mutation IncrementDownload($rootId: String!) {
+    incrementDownload(rootId: $rootId)
   }
 `;
