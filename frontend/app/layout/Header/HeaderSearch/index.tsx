@@ -40,7 +40,7 @@ export default () => {
         onChange={({ currentTarget }) => setSearch(currentTarget.value)}
         className={tv({
           base: [
-            "w-80 lg:w-100 h-8 pl-4 pr-10 bg-[#191F2D]",
+            "min-w-80 lg:min-w-100 h-8 pl-4 pr-10 bg-[#191F2D]",
             "text-xs placeholder-inherit",
             "border border-[#3B4A45] rounded-xs outline-none",
           ],
