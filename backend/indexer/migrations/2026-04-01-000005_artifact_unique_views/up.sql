@@ -11,15 +11,14 @@ CREATE TABLE artifact_viewer (
 -- This acquires ACCESS EXCLUSIVE briefly; acceptable for this rebuildable cache.
 CREATE INDEX artifact_root_id_version_idx ON artifact(root_id, version);
 
--- FK: indexer controls artifact_contributor inserts, so root_id always refers to a real artifact.
+-- FK: NOT VALID skips checking existing rows (some contributor events arrive before
+-- their artifact event, leaving orphaned rows in the derived cache). Future inserts
+-- from the indexer will still be validated.
 ALTER TABLE artifact_contributor
     ADD CONSTRAINT fk_artifact_contributor_root
-    FOREIGN KEY (root_id) REFERENCES artifact(sui_object_id);
+    FOREIGN KEY (root_id) REFERENCES artifact(sui_object_id) NOT VALID;
 
--- FK: artifact_viewer root_id must refer to an existing artifact. The GraphQL
--- increment_view mutation only fires after the frontend loads an artifact (which
--- requires it to already be in the DB), so this constraint holds in practice.
--- Risk: a race between GraphQL write and indexer lag would cause a FK violation.
+-- FK: NOT VALID for the same reason — increment_view could race indexer lag.
 ALTER TABLE artifact_viewer
     ADD CONSTRAINT fk_artifact_viewer_root
-    FOREIGN KEY (root_id) REFERENCES artifact(sui_object_id);
+    FOREIGN KEY (root_id) REFERENCES artifact(sui_object_id) NOT VALID;
