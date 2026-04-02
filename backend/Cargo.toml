@@ -25,5 +25,5 @@ bcs = "0.1"
 hex = "0.4"
 dotenvy = "0.15"
 
-async-graphql = { version = "7", features = ["tracing", "chrono"] }
+async-graphql = { version = "7", features = ["tracing", "chrono", "dataloader"] }
 axum = "0.8"

@@ -657,10 +657,12 @@ dependencies = [
  "chrono",
  "fast_chemail",
  "fnv",
+ "futures-channel",
  "futures-util",
  "handlebars",
  "http",
  "indexmap 2.13.0",
+ "lru 0.16.3",
  "mime",
  "multer",
  "num-traits",
@@ -3096,6 +3098,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
+name = "foldhash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
+
+[[package]]
 name = "form_urlencoded"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3425,7 +3433,7 @@ version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
 dependencies = [
- "foldhash",
+ "foldhash 0.1.5",
 ]
 
 [[package]]
@@ -3433,6 +3441,11 @@ name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash 0.2.0",
+]
 
 [[package]]
 name = "hdrhistogram"
@@ -4320,6 +4333,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "718e8fae447df0c7e1ba7f5189829e63fd536945c8988d61444c19039f16b670"
 dependencies = [
  "hashbrown 0.13.2",
+]
+
+[[package]]
+name = "lru"
+version = "0.16.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1dc47f592c06f33f8e3aea9591776ec7c9f9e4124778ff8a3c3b87159f7e593"
+dependencies = [
+ "hashbrown 0.16.1",
 ]
 
 [[package]]
@@ -8279,7 +8301,7 @@ dependencies = [
  "async-trait",
  "bcs",
  "eyre",
- "lru",
+ "lru 0.10.1",
  "move-binary-format",
  "move-command-line-common",
  "move-core-types",
@@ -8490,7 +8512,7 @@ dependencies = [
  "indicatif",
  "integer-encoding",
  "itertools 0.13.0",
- "lru",
+ "lru 0.10.1",
  "moka",
  "move-binary-format",
  "move-bytecode-utils",
@@ -8562,7 +8584,7 @@ dependencies = [
  "im",
  "indexmap 2.13.0",
  "itertools 0.13.0",
- "lru",
+ "lru 0.10.1",
  "move-binary-format",
  "move-bytecode-utils",
  "move-core-types",
