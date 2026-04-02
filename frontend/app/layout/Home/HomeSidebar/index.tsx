@@ -10,7 +10,8 @@ import {
 import { useSearchParams } from "react-router";
 import { tv } from "tailwind-variants";
 import utilsConstants from "app/utils/utils.constants";
-import type { ArtifactFilter } from "app/services/graphql-app/generated";
+import { SortField, type ArtifactFilter } from "app/services/graphql-app/generated";
+import { useCurrentAccount } from "@mysten/dapp-kit-react";
 
 interface ListFilterProps {
   key: string;
@@ -21,19 +22,21 @@ interface ListFilterProps {
   }[];
 }
 
+const SORT_OPTIONS: { label: string; value: SortField }[] = [
+  { label: "Newest First", value: SortField.CreatedAtDesc },
+  { label: "Oldest First", value: SortField.CreatedAtAsc },
+  { label: "Most Viewed", value: SortField.ViewCountDesc },
+  { label: "Most Downloaded", value: SortField.DownloadCountDesc },
+];
+
 export default () => {
   const [params, setSearchParams] = useSearchParams();
+  const currentAccount = useCurrentAccount();
+
+  const currentSort = params.get("sort") as SortField | null;
+  const isCreatedByMe = !!currentAccount?.address && params.get("creator") === currentAccount.address;
 
   const ListFilter: ListFilterProps[] = [
-    // {
-    //   key: "File Type",
-    //   children: [
-    //     ".pdf / Documentation",
-    //     ".json / Metadata",
-    //     ".mp4 / Multimedia",
-    //     ".wasm / Executable",
-    //   ],
-    // },
     {
       key: "Resource Type",
       field: "category",
@@ -57,6 +60,81 @@ export default () => {
         ],
       })()}
     >
+      <label
+        className={tv({
+          base: [
+            "flex items-center gap-3 p-4 border-b border-[#3B4A45]",
+            currentAccount?.address ? "cursor-pointer" : "opacity-40 cursor-not-allowed",
+          ],
+        })()}
+      >
+        <Checkbox
+          checked={isCreatedByMe}
+          disabled={!currentAccount?.address}
+          onCheckedChange={(isChecked) => {
+            if (isChecked) {
+              params.set("creator", currentAccount!.address);
+            } else {
+              params.delete("creator");
+            }
+            setSearchParams(params);
+          }}
+        />
+
+        <div className="flex flex-col gap-0.5">
+          <Typography font="grotesk" className="font-bold">
+            Created by me
+          </Typography>
+
+          {!currentAccount?.address && (
+            <Typography font="jetbrains" className="text-[#BACAC4] text-2xs">
+              Connect wallet to use
+            </Typography>
+          )}
+        </div>
+      </label>
+
+      <Collapsible defaultOpen={true} className="p-4 border-b border-[#3B4A45]">
+        <CollapsibleTrigger className="group flex w-full justify-between">
+          <Typography font="grotesk" className="font-bold">
+            Sort By
+          </Typography>
+
+          <ArrowLine className="text-white transition-transform -rotate-90 group-data-[state=open]:rotate-90" />
+        </CollapsibleTrigger>
+
+        <CollapsibleContent className="mt-3">
+          {SORT_OPTIONS.map((option) => {
+            const isActive =
+              (currentSort === null && option.value === SortField.CreatedAtDesc) ||
+              currentSort === option.value;
+
+            return (
+              <label
+                key={option.value}
+                className="flex gap-2 not-first:mt-2 cursor-pointer"
+              >
+                <Checkbox
+                  checked={isActive}
+                  onCheckedChange={() => {
+                    if (option.value === SortField.CreatedAtDesc) {
+                      params.delete("sort");
+                    } else {
+                      params.set("sort", option.value);
+                    }
+                    setSearchParams(params);
+                  }}
+                />
+
+                <Typography font="jetbrains" className="text-[#BACAC4]">
+                  {option.label}
+                </Typography>
+              </label>
+            );
+          })}
+        </CollapsibleContent>
+      </Collapsible>
+
       {ListFilter.map((meta) => (
         <Collapsible
           key={meta.key}

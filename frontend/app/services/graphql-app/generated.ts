@@ -171,6 +171,7 @@ export type ArtifactsQueryVariables = Exact<{
   filter?: InputMaybe<ArtifactFilter>;
   limit: Scalars["Int"]["input"];
   offset: Scalars["Int"]["input"];
+  sort: SortField;
 }>;
 
 export type ArtifactsQuery = {
@@ -240,8 +241,8 @@ export type IncrementDownloadMutationVariables = Exact<{
 export type IncrementDownloadMutation = { incrementDownload: boolean };
 
 export const ArtifactsDocument = `
-    query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!) {
-  artifacts(filter: $filter, limit: $limit, offset: $offset) {
+    query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!, $sort: SortField!) {
+  artifacts(filter: $filter, limit: $limit, offset: $offset, sort: $sort) {
     totalCount
     items {
       suiObjectId

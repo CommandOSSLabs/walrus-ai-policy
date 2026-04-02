@@ -3,8 +3,8 @@ import { gql } from "graphql-request";
 
 // home page
 const artifacts = gql`
-  query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!) {
-    artifacts(filter: $filter, limit: $limit, offset: $offset) {
+  query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!, $sort: SortField!) {
+    artifacts(filter: $filter, limit: $limit, offset: $offset, sort: $sort) {
       totalCount
 
       items {
