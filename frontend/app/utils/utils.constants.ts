@@ -25,23 +25,23 @@ const FORMAT_BYTES = [
 
 const FORMAT_RESOURCE = [
   {
-    key: "LAW Crimson",
+    key: "AI Safety",
     type: "red" as const,
   },
   {
-    key: "Software Cyan",
+    key: "Technical Standards",
     type: "cyan" as const,
   },
   {
-    key: "Economy Gold",
+    key: "Policy & Regulation",
     type: "gold" as const,
   },
   {
-    key: "Cybersecurity",
+    key: "Governance & Ethics",
     type: "orange" as const,
   },
   {
-    key: "Research & Analytics",
+    key: "Research & Data",
     type: "green" as const,
   },
 ];

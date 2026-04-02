@@ -5,9 +5,9 @@ import HomeArticlePagination from "./HomeArticlePagination";
 import { Skeleton } from "app/components/ui/skeleton";
 import EmptyClipboardLine from "public/assets/line/empty-clipboard.svg";
 import utilsConstants from "app/utils/utils.constants";
-import { useArtifactsQuery } from "app/services/graphql-app/generated";
+import { SortField, useArtifactsQuery } from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { keepPreviousData } from "@tanstack/react-query";
 import HomeArticleGrid from "./HomeArticleGrid";
 import HomeArticleCard from "./HomeArticleCard";
@@ -16,6 +16,13 @@ export default () => {
   const [currentPage, setCurrentPage] = useState(0);
 
   const [params] = useSearchParams();
+
+  const sort = (params.get("sort") as SortField) || SortField.CreatedAtDesc;
+
+  // reset to first page whenever sort or filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [sort, params.get("category"), params.get("search")]);
 
   const { data, isLoading } = useArtifactsQuery(
     graphqlApp.client,
@@ -28,6 +35,7 @@ export default () => {
         search: params.get("search") || undefined,
         onlyRoots: true,
       },
+      sort,
     },
     {
       placeholderData: keepPreviousData,
