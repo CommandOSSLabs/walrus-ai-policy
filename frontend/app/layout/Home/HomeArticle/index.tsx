@@ -26,6 +26,7 @@ export default () => {
         category: params.getAll("category") || undefined,
         creator: params.get("creator") || undefined,
         search: params.get("search") || undefined,
+        onlyRoots: true
       },
     },
     {
