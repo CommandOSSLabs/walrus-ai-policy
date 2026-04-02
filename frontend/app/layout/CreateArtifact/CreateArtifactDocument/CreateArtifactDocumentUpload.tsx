@@ -7,6 +7,8 @@ import { tv } from "tailwind-variants";
 
 import useGetConfig from "app/hook/useGetConfig";
 import { toast } from "sonner";
+import { useState } from "react";
+import Spinner from "app/components/Spinner";
 
 export interface CreateArtifactDocumentUploadProps {
   upload: (files: File[]) => Promise<void>;
@@ -15,14 +17,24 @@ export interface CreateArtifactDocumentUploadProps {
 export default ({ upload }: CreateArtifactDocumentUploadProps) => {
   const { fileConfig } = useGetConfig();
 
-  const handleUpload = async (files: File[]) => {
-    if (files.length > forceToNumber(fileConfig.data)) {
-      return toast.error(
-        `File upload limit exceeded. Maximum is ${fileConfig.data}.`,
-      );
-    }
+  const [loading, setLoading] = useState<string>();
 
-    await upload(files);
+  const handleUpload = async (files: File[]) => {
+    try {
+      console.log("files", files);
+
+      setLoading("uploading");
+
+      if (files.length > forceToNumber(fileConfig.data)) {
+        throw `File upload limit exceeded. Maximum is ${fileConfig.data}.`;
+      }
+
+      await upload(files);
+    } catch (error) {
+      toast.error(JSON.stringify(error, null, 4));
+    } finally {
+      setLoading(undefined);
+    }
   };
 
   return (
@@ -42,6 +54,8 @@ export default ({ upload }: CreateArtifactDocumentUploadProps) => {
       }}
       className={tv({
         base: [
+          loading?.length && "pointer-events-none",
+
           "gap-4 flex-col h-45 cursor-pointer",
           "bg-[#46F1CF]/5 text-[#46F1CF]",
           "border-2 border-dashed border-[#46F1CF]/30 rounded-lg",
@@ -58,7 +72,11 @@ export default ({ upload }: CreateArtifactDocumentUploadProps) => {
         });
       }}
     >
-      <UploadLine className="size-6 pointer-events-none" />
+      {loading?.length ? (
+        <Spinner className="size-6" />
+      ) : (
+        <UploadLine className="size-6 pointer-events-none" />
+      )}
 
       <Vstack className="gap-1 text-center pointer-events-none">
         <Typography font="grotesk" className="text-sm font-bold">
