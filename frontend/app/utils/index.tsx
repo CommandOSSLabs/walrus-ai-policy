@@ -152,10 +152,6 @@ export const formatCalendar = (createdAt: number) => {
   return `${forkDate.getFullYear()}.${forkDate.getMonth()}.${forkDate.getDate()}`;
 };
 
-export const formatIdentify = (name: string) => {
-  return name.replaceAll(" ", "-");
-};
-
 export const downloadFileWithBlob = (
   blob: Blob,
   mimeType: string,
@@ -191,4 +187,13 @@ export const forceToNumber = (argument: number | string | null | undefined) => {
   }
 
   return argument;
+};
+
+// Helper: compute SHA-256 hash from a File
+export const computeSHA256 = async (file: File): Promise<string> => {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 };

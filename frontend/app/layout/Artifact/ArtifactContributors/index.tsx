@@ -5,7 +5,7 @@ import Center from "app/components/Center";
 import { tv } from "tailwind-variants";
 import Stack from "app/components/Stack";
 import Jazzicon from "app/components/Jazzicon";
-import useGetConfig, { contributorConfigEnum } from "app/hook/useGetConfig";
+import useGetConfig from "app/hook/useGetConfig";
 import { type Contributor } from "app/services/graphql-app/generated";
 import { Skeleton } from "app/components/ui/skeleton";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
@@ -16,22 +16,21 @@ import ArtifactContributorsAddRole from "./ArtifactContributorsAddRole";
 import ArtifactContributorsRemoveRole from "./ArtifactContributorsRemoveRole";
 
 interface ArtifactContributorsProps {
+  contributorConfig: ReturnType<typeof useGetConfig>["contributorConfig"];
   contributors: Contributor[] | undefined;
   suiObjectId: string;
+  isAdmin: boolean;
 }
 
-export default ({ contributors, suiObjectId }: ArtifactContributorsProps) => {
+export default ({
+  contributorConfig,
+  contributors,
+  suiObjectId,
+  isAdmin,
+}: ArtifactContributorsProps) => {
   const currentAccount = useCurrentAccount();
 
-  const { contributorConfig } = useGetConfig();
-
   const [isAddRole, setIsAddRole] = useState(false);
-
-  const isAdmin = contributors?.some(
-    (meta) =>
-      meta?.creator === currentAccount?.address &&
-      contributorConfig.data?.[meta.role] === contributorConfigEnum.admin,
-  );
 
   if (contributorConfig.isLoading) return <Skeleton className="min-h-68.5" />;
 

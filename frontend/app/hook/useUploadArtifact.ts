@@ -3,7 +3,7 @@ import utilsSui from "app/utils/utils.sui";
 import useSignAndExecuteTransaction from "./useSignAndExecuteTransaction";
 import type useUploadQuilt from "./useUploadQuilt";
 import type useSteps from "./useSteps";
-import { formatIdentify } from "app/utils";
+import type { ArtifactFile } from "app/services/graphql-app/generated";
 
 type MetadataType = {
   title: string;
@@ -25,9 +25,7 @@ export default () => {
   const createNewStruct = (
     tx: Transaction,
     metadata: MetadataType,
-    quilt: Awaited<
-      ReturnType<ReturnType<typeof useUploadQuilt>["uploadQuilt"]>
-    >,
+    files: ArtifactFile[],
   ) => {
     return {
       metadata: tx.moveCall({
@@ -45,19 +43,19 @@ export default () => {
         arguments: [
           tx.pure.vector(
             "string",
-            quilt.quiltIds.map((quilt) => quilt),
+            files.map(({ patchId }) => patchId),
           ),
           tx.pure.vector(
             "string",
-            quilt.files.map((file) => file.type),
+            files.map(({ mimeType }) => mimeType),
           ),
           tx.pure.vector(
             "u64",
-            quilt.files.map((file) => file.size),
+            files.map(({ sizeBytes }) => sizeBytes),
           ),
           tx.pure.vector(
             "string",
-            quilt.files.map((file) => formatIdentify(file.name)),
+            files.map(({ name }) => name),
           ),
         ],
       }),
@@ -79,7 +77,16 @@ export default () => {
 
       // handle moveCall
       {
-        const struct = createNewStruct(tx, metadata, quilt);
+        const struct = createNewStruct(
+          tx,
+          metadata,
+          quilt.files.map((file, index) => ({
+            mimeType: file.type,
+            name: file.name,
+            patchId: quilt.quiltIds[index],
+            sizeBytes: file.size,
+          })),
+        );
 
         tx.moveCall({
           target: `${utilsSui.programs.package}::artifact::init_artifact`,
@@ -102,7 +109,58 @@ export default () => {
     });
   };
 
+  const releaseArtifact = async (
+    metadata: MetadataType,
+    files: ArtifactFile[],
+    rootId: string,
+    parentId: string | undefined,
+    updateFee: ReturnType<typeof useSteps>["updateFee"],
+    updateStatus: ReturnType<typeof useSteps>["updateStatus"],
+  ) => {
+    return new Promise<ArtifactObjectType>(async (resolve) => {
+      updateStatus("loading");
+
+      const tx = new Transaction();
+
+      // handle moveCall
+      {
+        const struct = createNewStruct(tx, metadata, files);
+
+        if (parentId?.length) {
+          tx.moveCall({
+            target: `${utilsSui.programs.package}::artifact::commit_artifact_with_parent`,
+            arguments: [
+              tx.object(rootId),
+              tx.object(parentId),
+              struct.metadata,
+              struct.file,
+            ],
+          });
+        } else {
+          tx.moveCall({
+            target: `${utilsSui.programs.package}::artifact::commit_artifact_without_parent`,
+            arguments: [tx.object(rootId), struct.metadata, struct.file],
+          });
+        }
+
+        await updateFee(tx);
+      }
+
+      await signAndExecuteTransaction({
+        transaction: tx,
+        onSuccess: ({ event }) => {
+          if (event?.json) {
+            resolve(event.json as ArtifactObjectType);
+          }
+        },
+      });
+
+      updateStatus("success");
+    });
+  };
+
   return {
     initArtifact,
+    releaseArtifact,
   };
 };

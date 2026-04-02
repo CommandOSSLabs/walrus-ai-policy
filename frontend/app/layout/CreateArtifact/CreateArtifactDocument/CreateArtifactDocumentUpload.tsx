@@ -2,33 +2,27 @@ import UploadLine from "public/assets/line/upload.svg";
 import Center from "app/components/Center";
 import Typography from "app/components/Typography";
 import Vstack from "app/components/Vstack";
-import { createInputFile, forceToNumber, RANDOM_CHARACTER } from "app/utils";
+import { createInputFile, forceToNumber } from "app/utils";
 import { tv } from "tailwind-variants";
-import { type UseFieldArrayAppend } from "react-hook-form";
-import type { CreateArtifactFieldProps } from "..";
+
 import useGetConfig from "app/hook/useGetConfig";
 import { toast } from "sonner";
 
-interface CreateArtifactDocumentUploadProps {
-  append: UseFieldArrayAppend<CreateArtifactFieldProps>;
+export interface CreateArtifactDocumentUploadProps {
+  upload: (files: File[]) => Promise<void>;
 }
 
-export default ({ append }: CreateArtifactDocumentUploadProps) => {
+export default ({ upload }: CreateArtifactDocumentUploadProps) => {
   const { fileConfig } = useGetConfig();
 
-  const handleUpload = (files: File[]) => {
+  const handleUpload = async (files: File[]) => {
     if (files.length > forceToNumber(fileConfig.data)) {
       return toast.error(
         `File upload limit exceeded. Maximum is ${fileConfig.data}.`,
       );
     }
 
-    append(
-      files.map((file) => ({
-        file,
-        id: RANDOM_CHARACTER(),
-      })),
-    );
+    await upload(files);
   };
 
   return (
