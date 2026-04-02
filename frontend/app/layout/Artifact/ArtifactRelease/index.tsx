@@ -2,7 +2,6 @@ import Vstack from "app/components/Vstack";
 import Stack from "app/components/Stack";
 import { useForm } from "react-hook-form";
 
-import { useSearchParams } from "react-router";
 import type { CreateArtifactFieldProps } from "app/layout/CreateArtifact";
 import type { ArtifactQuery } from "app/services/graphql-app/generated";
 import CreateArtifactHeader from "app/layout/CreateArtifact/CreateArtifactHeader";
@@ -11,19 +10,24 @@ import { Skeleton } from "app/components/ui/skeleton";
 import ArtifactReleaseGoBack from "./ArtifactReleaseGoBack";
 import CreateArtifactTitle from "app/layout/CreateArtifact/CreateArtifactTitle";
 import CreateArtifactDescription from "app/layout/CreateArtifact/CreateArtifactDescription";
-import { useEffect } from "react";
 import ArtifactReleaseSubmit from "./ArtifactReleaseSubmit";
 import ArtifactReleaseDocument from "./ArtifactReleaseDocument";
+
+import ArtifactReleaseAuthorization from "./ArtifactReleaseAuthorization";
 
 interface ArtifactReleaseProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
   isAdmin: boolean;
   isLoading: boolean;
+  onRefetch: () => void;
 }
 
-export default ({ artifact, isAdmin, isLoading }: ArtifactReleaseProps) => {
-  const [searchParams, setSearchParams] = useSearchParams();
-
+export default ({
+  artifact,
+  isAdmin,
+  isLoading,
+  onRefetch,
+}: ArtifactReleaseProps) => {
   const {
     setValue,
     handleSubmit,
@@ -36,7 +40,7 @@ export default ({ artifact, isAdmin, isLoading }: ArtifactReleaseProps) => {
       category: artifact.category,
       files: artifact.files.map((file) => ({
         isCompared: false,
-        isOld: true,
+        hash: file.hash,
         id: file.patchId,
         file: new File([new ArrayBuffer(file.sizeBytes)], file.name, {
           type: file.mimeType,
@@ -44,16 +48,6 @@ export default ({ artifact, isAdmin, isLoading }: ArtifactReleaseProps) => {
       })),
     },
   });
-
-  // handle Authorization
-  useEffect(() => {
-    if (isLoading) return;
-    if (isAdmin) return;
-
-    searchParams.delete("release");
-
-    setSearchParams(searchParams);
-  }, [isLoading, isAdmin]);
 
   if (isLoading) {
     return (
@@ -63,6 +57,10 @@ export default ({ artifact, isAdmin, isLoading }: ArtifactReleaseProps) => {
         <Skeleton className="mx-auto max-w-xl min-h-dvh w-full" />
       </Vstack>
     );
+  }
+
+  if (!isAdmin) {
+    return <ArtifactReleaseAuthorization />;
   }
 
   return (
@@ -86,6 +84,7 @@ export default ({ artifact, isAdmin, isLoading }: ArtifactReleaseProps) => {
             parentId={artifact?.parentId ? artifact.suiObjectId : undefined}
             isSubmitting={isSubmitting}
             handleSubmit={handleSubmit}
+            onRefetch={onRefetch}
           />
         </Vstack>
       </Stack>

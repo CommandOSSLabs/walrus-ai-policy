@@ -57,6 +57,10 @@ export default () => {
             "string",
             files.map(({ name }) => name),
           ),
+          tx.pure.vector(
+            "string",
+            files.map(({ hash }) => hash),
+          ),
         ],
       }),
     };
@@ -85,6 +89,7 @@ export default () => {
             name: file.name,
             patchId: quilt.quiltIds[index],
             sizeBytes: file.size,
+            hash: quilt.hash[index],
           })),
         );
 

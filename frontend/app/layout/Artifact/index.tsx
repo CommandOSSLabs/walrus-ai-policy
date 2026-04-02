@@ -12,7 +12,10 @@ import ArtifactFileMarkdown from "./ArtifactFile/ArtifactFileMarkdown";
 import utilsWalrus from "app/utils/utils.walrus";
 import ArtifactFileSVG from "./ArtifactFile/ArtifactFileSVG";
 import ArtifactFilePDF from "./ArtifactFile/ArtifactFilePDF";
-import { useArtifactQuery } from "app/services/graphql-app/generated";
+import {
+  useArtifactQuery,
+  useArtifactVersionsQuery,
+} from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
 import useGetConfig, { contributorConfigEnum } from "app/hook/useGetConfig";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
@@ -25,8 +28,10 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
   const [searchParams] = useSearchParams();
 
   const currentAccount = useCurrentAccount();
+
   const { contributorConfig } = useGetConfig();
-  const { data } = useArtifactQuery(
+
+  const artifact = useArtifactQuery(
     graphqlApp.client,
     {
       suiObjectId: params.id,
@@ -36,26 +41,38 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
     },
   );
 
-  const getSingleFile = data?.artifact?.files[0];
+  const versions = useArtifactVersionsQuery(
+    graphqlApp.client,
+    {
+      rootId: (artifact.data?.artifact?.rootId ||
+        artifact.data?.artifact?.suiObjectId) as string,
+    },
+    {
+      enabled: !!artifact.data?.artifact,
+    },
+  );
 
-  const getREADME = data?.artifact?.files?.find?.(
+  const getSingleFile = artifact.data?.artifact?.files[0];
+
+  const getREADME = artifact.data?.artifact?.files?.find?.(
     (file) => file.name === "README.md",
   );
 
-  const isAdmin = !!data?.artifact?.contributors?.some(
+  const isAdmin = !!artifact.data?.artifact?.contributors?.some(
     (meta) =>
       meta?.creator === currentAccount?.address &&
       contributorConfig.data?.[meta.role] === contributorConfigEnum.admin,
   );
 
-  if (!data?.artifact) return null;
+  if (!artifact.data?.artifact) return null;
 
-  if (searchParams?.get?.("release")) {
+  if (searchParams?.get?.("release")?.length) {
     return (
       <ArtifactRelease
-        artifact={data.artifact}
+        artifact={artifact.data.artifact}
         isAdmin={isAdmin}
         isLoading={contributorConfig.isLoading}
+        onRefetch={versions.refetch}
       />
     );
   }
@@ -71,12 +88,12 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
       })()}
     >
       <Vstack className="flex-1 items-start gap-4 md:gap-8">
-        <ArtifactHeader artifact={data.artifact} />
+        <ArtifactHeader artifact={artifact.data.artifact} />
 
         {(function () {
-          if (!data.artifact?.files?.length) return null;
+          if (!artifact.data.artifact?.files?.length) return null;
 
-          if (data.artifact.files.length === 1) {
+          if (artifact.data.artifact.files.length === 1) {
             if (getSingleFile?.mimeType === "text/csv") {
               return <ArtifactFileCSV file={getSingleFile} />;
             }
@@ -116,7 +133,7 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
 
           return (
             <>
-              <ArtifactFileList files={data.artifact.files} />
+              <ArtifactFileList files={artifact.data.artifact.files} />
 
               {getREADME && <ArtifactFileMarkdown file={getREADME} />}
             </>
@@ -125,18 +142,19 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
       </Vstack>
 
       <Vstack className="gap-4 md:gap-6 md:w-70">
-        <ArtifactStatistic artifact={data.artifact} />
+        <ArtifactStatistic artifact={artifact.data.artifact} />
 
         <ArtifactVersions
-          suiObjectId={data.artifact.suiObjectId}
-          versions={data.artifact.versions}
+          suiObjectId={artifact.data.artifact.suiObjectId}
+          versions={versions.data?.artifactVersions}
           isAdmin={isAdmin}
+          isLoading={versions.isLoading || contributorConfig.isLoading}
         />
 
         <ArtifactContributors
           contributorConfig={contributorConfig}
-          contributors={data.artifact.contributors}
-          suiObjectId={data.artifact.suiObjectId}
+          contributors={artifact.data.artifact.contributors}
+          suiObjectId={artifact.data.artifact.suiObjectId}
           isAdmin={isAdmin}
         />
       </Vstack>

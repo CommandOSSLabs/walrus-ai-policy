@@ -4,7 +4,6 @@ import type { CreateArtifactFieldProps } from "app/layout/CreateArtifact";
 import CreateArtifactDocument from "app/layout/CreateArtifact/CreateArtifactDocument";
 import type { ArtifactFile } from "app/services/graphql-app/generated";
 import { computeSHA256, RANDOM_CHARACTER } from "app/utils";
-import utilsWalrus from "app/utils/utils.walrus";
 import { Controller, type Control } from "react-hook-form";
 import { tv } from "tailwind-variants";
 
@@ -29,18 +28,10 @@ export default ({ control, files }: ArtifactReleaseDocumentProps) => {
       (file) => file.name === newFile.name,
     );
 
-    if (!getPatchIdByNewFile) throw "not found patchId";
-
-    const response = await fetch(
-      utilsWalrus.getQuiltPatchId(getPatchIdByNewFile.patchId),
-    );
+    if (!getPatchIdByNewFile) return true;
 
     const [oldHash, newHash] = await Promise.all([
-      computeSHA256(
-        new File([await response.blob()], newFile.name, {
-          type: newFile.type,
-        }),
-      ),
+      getPatchIdByNewFile.hash,
 
       computeSHA256(newFile),
     ]);
@@ -85,11 +76,16 @@ export default ({ control, files }: ArtifactReleaseDocumentProps) => {
       <CreateArtifactDocument
         control={control}
         upload={async ({ files, fields, append, update, remove }) => {
+          console.log("files", files);
+          console.log("fields", fields);
+
           // handle duplicate
           for (const [index, field] of fields.entries()) {
             const newFileIndex = files?.findIndex(
               (file) => file?.name === field?.file?.name && !field?.isRemoved,
             );
+
+            console.log("newFileIndex", newFileIndex);
 
             if (newFileIndex !== -1) {
               const isChanged = await getContentChange(files[newFileIndex]);
@@ -97,7 +93,7 @@ export default ({ control, files }: ArtifactReleaseDocumentProps) => {
               // update new file because it's change
               if (isChanged) {
                 // you should flag oldFile is removed
-                if (field?.isOld) {
+                if (field?.hash) {
                   update(index, {
                     ...field,
                     isRemoved: true,

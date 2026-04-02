@@ -7,7 +7,8 @@ import useSteps from "app/hook/useSteps";
 import useUploadArtifact from "app/hook/useUploadArtifact";
 import useUploadQuilt from "app/hook/useUploadQuilt";
 import type { CreateArtifactFieldProps } from "app/layout/CreateArtifact";
-import type { ArtifactFile } from "app/services/graphql-app/generated";
+import { type ArtifactFile } from "app/services/graphql-app/generated";
+import { waitForSeconds } from "app/utils";
 import type { UseFormHandleSubmit } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ interface ArtifactReleaseSubmitProps {
   parentId: string | undefined;
   isSubmitting: boolean;
   handleSubmit: UseFormHandleSubmit<CreateArtifactFieldProps>;
+  onRefetch: () => void;
 }
 
 export default ({
@@ -24,6 +26,7 @@ export default ({
   parentId,
   isSubmitting,
   handleSubmit,
+  onRefetch,
 }: ArtifactReleaseSubmitProps) => {
   const currentAccount = useCurrentAccount();
   const navigate = useNavigate();
@@ -80,6 +83,7 @@ export default ({
                         name: file.name,
                         patchId: quilt.quiltIds[index],
                         sizeBytes: file.size,
+                        hash: quilt.hash[index],
                       })),
                     );
                   } else {
@@ -91,7 +95,7 @@ export default ({
                 // handle old files
                 {
                   const oldFiles = values?.files?.filter(
-                    (meta) => meta?.isOld && !meta?.isRemoved,
+                    (meta) => !!meta?.hash && !meta?.isRemoved,
                   );
 
                   if (oldFiles?.length) {
@@ -101,6 +105,7 @@ export default ({
                         name: meta.file.name,
                         patchId: meta.id,
                         sizeBytes: meta.file.size,
+                        hash: meta.id,
                       })),
                     );
                   }
@@ -116,6 +121,8 @@ export default ({
                   updateFee,
                   updateStatus,
                 );
+
+                await waitForSeconds(onRefetch);
 
                 navigate(`/artifact/${artifact.id}`);
 
@@ -142,16 +149,6 @@ export default ({
               }
             },
           )}
-          // onClick={handleSubmit((values) => {
-          //   const oldFiles = values.files.filter((file) => !file.isCompared);
-          //   const newFiles = values.files.filter((file) => file.isCompared);
-
-          //   console.log(newFiles);
-          //   console.log(oldFiles);
-
-          //   // console.log(values);
-          //   // console.log(files);
-          // })}
         >
           <Hstack>
             {isSubmitting && <Spinner />}

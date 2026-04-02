@@ -24,16 +24,7 @@ export async function loader({ params }: Route.LoaderArgs) {
   return fetchArtifact(params.id);
 }
 
-export async function clientLoader({
-  params,
-  serverLoader,
-}: Route.ClientLoaderArgs) {
-  try {
-    return await serverLoader();
-  } catch {
-    // if server not found or error, below will request (client) instead (server)
-  }
-
+export async function clientLoader({ params }: Route.ClientLoaderArgs) {
   return fetchArtifact(params.id);
 }
 

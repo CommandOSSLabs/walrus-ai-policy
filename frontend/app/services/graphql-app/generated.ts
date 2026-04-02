@@ -85,6 +85,7 @@ export type ArtifactDetail = {
 };
 
 export type ArtifactFile = {
+  hash: Scalars["String"]["output"];
   mimeType: Scalars["String"]["output"];
   name: Scalars["String"]["output"];
   patchId: Scalars["String"]["output"];
@@ -120,6 +121,7 @@ export type MutationRootIncrementDownloadArgs = {
 
 export type MutationRootIncrementViewArgs = {
   rootId: Scalars["String"]["input"];
+  viewerAddress: Scalars["String"]["input"];
 };
 
 export type PlatformStats = {
@@ -200,20 +202,28 @@ export type ArtifactQuery = {
     createdAt: number;
     category: string;
     version: number;
-    versions: Array<{
-      suiObjectId: string;
-      version: number;
-      createdAt: number;
-      creator: string;
-    }>;
     contributors: Array<{ creator: string; role: number }>;
     files: Array<{
       patchId: string;
       mimeType: string;
       sizeBytes: number;
       name: string;
+      hash: string;
     }>;
   };
+};
+
+export type ArtifactVersionsQueryVariables = Exact<{
+  rootId: Scalars["String"]["input"];
+}>;
+
+export type ArtifactVersionsQuery = {
+  artifactVersions: Array<{
+    suiObjectId: string;
+    version: number;
+    createdAt: number;
+    creator: string;
+  }>;
 };
 
 export const ArtifactsDocument = `
@@ -334,12 +344,6 @@ export const ArtifactDocument = `
     createdAt
     category
     version
-    versions {
-      suiObjectId
-      version
-      createdAt
-      creator
-    }
     contributors {
       creator
       role
@@ -349,6 +353,7 @@ export const ArtifactDocument = `
       mimeType
       sizeBytes
       name
+      hash
     }
   }
 }
@@ -387,6 +392,63 @@ useArtifactQuery.fetcher = (
   fetcher<ArtifactQuery, ArtifactQueryVariables>(
     client,
     ArtifactDocument,
+    variables,
+    headers,
+  );
+
+export const ArtifactVersionsDocument = `
+    query ArtifactVersions($rootId: String!) {
+  artifactVersions(rootId: $rootId) {
+    suiObjectId
+    version
+    createdAt
+    creator
+  }
+}
+    `;
+
+export const useArtifactVersionsQuery = <
+  TData = ArtifactVersionsQuery,
+  TError = unknown,
+>(
+  client: GraphQLClient,
+  variables: ArtifactVersionsQueryVariables,
+  options?: Omit<
+    UseQueryOptions<ArtifactVersionsQuery, TError, TData>,
+    "queryKey"
+  > & {
+    queryKey?: UseQueryOptions<
+      ArtifactVersionsQuery,
+      TError,
+      TData
+    >["queryKey"];
+  },
+  headers?: RequestInit["headers"],
+) => {
+  return useQuery<ArtifactVersionsQuery, TError, TData>({
+    queryKey: ["ArtifactVersions", variables],
+    queryFn: fetcher<ArtifactVersionsQuery, ArtifactVersionsQueryVariables>(
+      client,
+      ArtifactVersionsDocument,
+      variables,
+      headers,
+    ),
+    ...options,
+  });
+};
+
+useArtifactVersionsQuery.getKey = (
+  variables: ArtifactVersionsQueryVariables,
+) => ["ArtifactVersions", variables];
+
+useArtifactVersionsQuery.fetcher = (
+  client: GraphQLClient,
+  variables: ArtifactVersionsQueryVariables,
+  headers?: RequestInit["headers"],
+) =>
+  fetcher<ArtifactVersionsQuery, ArtifactVersionsQueryVariables>(
+    client,
+    ArtifactVersionsDocument,
     variables,
     headers,
   );
