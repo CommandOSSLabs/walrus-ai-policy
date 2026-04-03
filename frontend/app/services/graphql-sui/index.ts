@@ -1,6 +1,6 @@
 import { GraphQLClient } from "graphql-request";
 
-const client = new GraphQLClient("https://graphql.testnet.sui.io/graphql", {
+const client = new GraphQLClient(import.meta.env.VITE_SUI_GRAPHQL, {
   mode: "cors",
 });
 

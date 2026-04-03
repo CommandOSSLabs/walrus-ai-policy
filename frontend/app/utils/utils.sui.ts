@@ -16,9 +16,11 @@ const networkConfig = {
   },
 };
 
+const isTestNet = import.meta.env.VITE_SUI_NETWORK === "testnet";
+
 const getSuiClient = new SuiGrpcClient({
-  network: "testnet",
-  baseUrl: networkConfig.testnet.url,
+  network: isTestNet ? "testnet" : "mainnet",
+  baseUrl: isTestNet ? networkConfig.testnet.url : networkConfig.mainnet.url,
 });
 
 const programs = {

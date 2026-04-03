@@ -28,5 +28,7 @@ interface ImportMeta {
   readonly env: {
     readonly VITE_GRAPHQL_URL: string;
     readonly VITE_ARCHIVE_PACKAGE_ID: string;
+    readonly VITE_SUI_NETWORK: string;
+    readonly VITE_SUI_GRAPHQL: string;
   };
 }
