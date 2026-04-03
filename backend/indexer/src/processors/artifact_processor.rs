@@ -208,40 +208,61 @@ impl Handler for ArtifactPipeline {
                 async move {
                     // RETURNING ensures only newly-inserted rows count toward size/version increments.
                     // ON CONFLICT DO NOTHING makes the whole transaction idempotent on checkpoint replay.
-                    let inserted_data: Vec<(Option<String>, i64)> =
+                    let inserted_data: Vec<(Option<String>, i64, String, i64)> =
                         diesel::insert_into(artifact::table)
                             .values(artifact_rows)
                             .on_conflict(artifact::sui_object_id)
                             .do_nothing()
-                            .returning((artifact::root_id, artifact::total_size_bytes))
-                            .load::<(Option<String>, i64)>(conn)
+                            .returning((
+                                artifact::root_id,
+                                artifact::total_size_bytes,
+                                artifact::sui_object_id,
+                                artifact::version,
+                            ))
+                            .load::<(Option<String>, i64, String, i64)>(conn)
                             .await?;
 
                     let inserted_count = inserted_data.len();
-                    let inserted_size: i64 = inserted_data.iter().map(|(_, s)| s).sum();
+                    let inserted_size: i64 = inserted_data.iter().map(|(_, s, _, _)| s).sum();
 
-                    let mut version_increments: HashMap<&str, i64> = HashMap::new();
-                    for (root_id, _) in inserted_data.iter() {
+                    // (count, latest_artifact_id, latest_version) per root, for the upsert below.
+                    let mut per_root: HashMap<&str, (i64, &str, i64)> = HashMap::new();
+                    for (root_id, _, artifact_id, version) in inserted_data.iter() {
                         if let Some(root_id) = root_id {
-                            *version_increments.entry(root_id.as_str()).or_insert(0) += 1;
+                            let entry = per_root
+                                .entry(root_id.as_str())
+                                .or_insert((0, artifact_id.as_str(), *version));
+                            entry.0 += 1;
+                            if *version > entry.2 {
+                                entry.1 = artifact_id.as_str();
+                                entry.2 = *version;
+                            }
                         }
                     }
-                    if !version_increments.is_empty() {
+                    if !per_root.is_empty() {
                         use diesel::upsert::excluded;
-                        let rows: Vec<_> = version_increments
+                        let rows: Vec<_> = per_root
                             .iter()
-                            .map(|(root_id, batch_increment)| (
-                                artifact_version_counts::root_id.eq(*root_id),
-                                artifact_version_counts::version_count.eq(batch_increment),
-                            ))
+                            .map(|(root_id, (count, latest_id, _))| {
+                                (
+                                    artifact_version_counts::root_id.eq(*root_id),
+                                    artifact_version_counts::version_count.eq(count),
+                                    artifact_version_counts::latest_artifact_id.eq(*latest_id),
+                                )
+                            })
                             .collect();
                         diesel::insert_into(artifact_version_counts::table)
                             .values(&rows)
                             .on_conflict(artifact_version_counts::root_id)
                             .do_update()
-                            .set(artifact_version_counts::version_count.eq(
-                                artifact_version_counts::version_count
-                                    + excluded(artifact_version_counts::version_count)
+                            .set((
+                                artifact_version_counts::version_count.eq(
+                                    artifact_version_counts::version_count
+                                        + excluded(artifact_version_counts::version_count),
+                                ),
+                                // Always advance to the newest artifact seen in this batch.
+                                artifact_version_counts::latest_artifact_id
+                                    .eq(excluded(artifact_version_counts::latest_artifact_id)),
                             ))
                             .execute(conn)
                             .await?;

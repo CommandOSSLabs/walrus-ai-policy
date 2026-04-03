@@ -27,8 +27,9 @@ diesel::table! {
 
 diesel::table! {
     artifact_version_counts (root_id) {
-        root_id       -> Text,
-        version_count -> BigInt,
+        root_id            -> Text,
+        version_count      -> BigInt,
+        latest_artifact_id -> Nullable<Text>,
     }
 }
 

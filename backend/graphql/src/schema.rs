@@ -193,7 +193,19 @@ impl QueryRoot {
                         );
                     }
                     if f.only_roots.unwrap_or(false) {
-                        $q = $q.filter(artifact::root_id.is_null());
+                        // Return the latest version per tree:
+                        //   • Trees with children → their latest_artifact_id from artifact_version_counts.
+                        //   • Root-only artifacts (no children) → the root row itself.
+                        $q = $q.filter(diesel::dsl::sql::<diesel::sql_types::Bool>(
+                            "artifact.sui_object_id IN (\
+                                SELECT latest_artifact_id FROM artifact_version_counts \
+                                WHERE latest_artifact_id IS NOT NULL \
+                                UNION ALL \
+                                SELECT sui_object_id FROM artifact \
+                                WHERE root_id IS NULL \
+                                AND sui_object_id NOT IN (SELECT root_id FROM artifact_version_counts)\
+                            )"
+                        ));
                     }
                 }
             };
