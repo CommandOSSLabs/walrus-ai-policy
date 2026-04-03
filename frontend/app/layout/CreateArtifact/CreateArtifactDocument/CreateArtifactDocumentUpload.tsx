@@ -21,15 +21,21 @@ export default ({ upload }: CreateArtifactDocumentUploadProps) => {
 
   const handleUpload = async (files: File[]) => {
     try {
-      console.log("files", files);
-
       setLoading("uploading");
 
       if (files.length > forceToNumber(fileConfig.data)) {
         throw `File upload limit exceeded. Maximum is ${fileConfig.data}.`;
       }
 
-      await upload(files);
+      await upload(
+        files.map(
+          (file) =>
+            new File([file], file.name.replaceAll(" ", "-"), {
+              lastModified: file.lastModified,
+              type: file.type,
+            }),
+        ),
+      );
     } catch (error) {
       toast.error(JSON.stringify(error, null, 4));
     } finally {

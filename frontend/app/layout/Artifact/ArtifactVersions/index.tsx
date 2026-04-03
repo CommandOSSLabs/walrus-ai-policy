@@ -50,19 +50,14 @@ export default ({
       </Center>
 
       <Vstack className="w-full gap-3">
-        {versions
-          .sort((a, b) => b.version - a.version)
-          .map((version) => (
-            <Link
-              key={version.suiObjectId}
-              to={`/artifact/${version.suiObjectId}`}
-            >
-              <ArtifactVersionsCard
-                version={version}
-                suiObjectId={suiObjectId}
-              />
-            </Link>
-          ))}
+        {versions.map((version) => (
+          <Link
+            key={version.suiObjectId}
+            to={`/artifact/${version.suiObjectId}`}
+          >
+            <ArtifactVersionsCard version={version} suiObjectId={suiObjectId} />
+          </Link>
+        ))}
       </Vstack>
 
       {isAdmin && <ArtifactVersionsReleaseNew />}

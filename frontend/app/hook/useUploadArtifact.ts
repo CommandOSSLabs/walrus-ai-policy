@@ -4,7 +4,6 @@ import useSignAndExecuteTransaction from "./useSignAndExecuteTransaction";
 import type useUploadQuilt from "./useUploadQuilt";
 import type useSteps from "./useSteps";
 import type { ArtifactFile } from "app/services/graphql-app/generated";
-import { formatIdentify } from "app/utils";
 
 type MetadataType = {
   title: string;
@@ -56,7 +55,7 @@ export default () => {
           ),
           tx.pure.vector(
             "string",
-            files.map(({ name }) => formatIdentify(name)),
+            files.map(({ name }) => name),
           ),
           tx.pure.vector(
             "string",

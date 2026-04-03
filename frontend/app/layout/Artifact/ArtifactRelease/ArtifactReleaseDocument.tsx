@@ -76,16 +76,11 @@ export default ({ control, files }: ArtifactReleaseDocumentProps) => {
       <CreateArtifactDocument
         control={control}
         upload={async ({ files, fields, append, update, remove }) => {
-          console.log("files", files);
-          console.log("fields", fields);
-
           // handle duplicate
           for (const [index, field] of fields.entries()) {
             const newFileIndex = files?.findIndex(
               (file) => file?.name === field?.file?.name && !field?.isRemoved,
             );
-
-            console.log("newFileIndex", newFileIndex);
 
             if (newFileIndex !== -1) {
               const isChanged = await getContentChange(files[newFileIndex]);

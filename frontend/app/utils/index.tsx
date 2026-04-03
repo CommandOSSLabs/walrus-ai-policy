@@ -80,10 +80,6 @@ export const formatBytesSizes = (bytes: number): string => {
   );
 };
 
-export const formatIdentify = (name: string) => {
-  return name.replaceAll(" ", "-");
-};
-
 export const sumNumber = (numbers: number[]) => {
   const NOT_NaN = 0;
 
