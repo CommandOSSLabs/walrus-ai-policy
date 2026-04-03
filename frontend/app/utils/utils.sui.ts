@@ -50,6 +50,7 @@ const commandResults = async (target: string, type: BcsType<any>) => {
 
 export default {
   networkConfig,
+  isTestNet,
   getSuiClient,
   programs,
   commandResults,
