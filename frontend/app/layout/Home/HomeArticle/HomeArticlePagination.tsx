@@ -6,26 +6,24 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "app/components/ui/pagination";
-import type { ArtifactsQuery } from "app/services/graphql-app/generated";
 import utilsConstants from "app/utils/utils.constants";
 import { useEffect } from "react";
+import { useLocation } from "react-router";
 
 interface HomeArticlePaginationProps {
-  artifacts: ArtifactsQuery["artifacts"];
+  totalCount: number;
   currentPage: number;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
 }
 
 export default ({
-  artifacts,
+  totalCount,
   currentPage,
   setCurrentPage,
 }: HomeArticlePaginationProps) => {
-  const pageCount = Math.ceil(
-    artifacts.totalCount / utilsConstants.MAX_ARTIFACT_CARD,
-  );
+  const location = useLocation();
 
-  if (pageCount <= 1) return null;
+  const pageCount = Math.ceil(totalCount / utilsConstants.MAX_ARTIFACT_CARD);
 
   // handle scroll to top
   useEffect(() => {
@@ -37,10 +35,10 @@ export default ({
 
   // reset to first page whenever data change
   useEffect(() => {
-    if (currentPage) {
-      setCurrentPage(0);
-    }
-  }, [artifacts.items]);
+    setCurrentPage(0);
+  }, [location?.search]);
+
+  if (pageCount <= 1) return null;
 
   return (
     <Pagination className="mt-8">

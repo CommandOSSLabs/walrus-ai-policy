@@ -27,8 +27,6 @@ export default () => {
       offset: currentPage * utilsConstants.MAX_ARTIFACT_CARD,
       filter: {
         category: params.getAll("category") || undefined,
-        creator: params.get("creator") || undefined,
-        search: params.get("search") || undefined,
         onlyRoots: true,
       },
       sort: (params.get("sort") as SortField) || SortField.CreatedAtDesc,
@@ -62,7 +60,7 @@ export default () => {
               </HomeArticleGrid>
 
               <HomeArticlePagination
-                artifacts={data.artifacts}
+                totalCount={data.artifacts.totalCount}
                 currentPage={currentPage}
                 setCurrentPage={setCurrentPage}
               />
