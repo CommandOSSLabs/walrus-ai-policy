@@ -67,7 +67,7 @@ export const createInputFile = (params: {
 };
 
 export const formatBytesSizes = (bytes: number): string => {
-  if (!bytes) return "0 B";
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
 
   const k = 1024;
 
@@ -206,4 +206,29 @@ export const computeSHA256 = async (file: File): Promise<string> => {
   return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+};
+
+export const fromUnixTimestamp = (seconds: number, nanos: number) => {
+  const milliseconds = seconds * 1000 + nanos / 1e6;
+  return new Date(milliseconds);
+};
+
+export const formatSuiNS = (
+  address: string,
+  name?: string,
+  currentAccount?: string,
+) => {
+  if (currentAccount === address) return "You";
+
+  if (name?.length) return name;
+
+  return shorten(address);
+};
+
+export const formatGrammarCount = (text: string, length: number) => {
+  if (length > 1) {
+    text += "s";
+  }
+
+  return text;
 };

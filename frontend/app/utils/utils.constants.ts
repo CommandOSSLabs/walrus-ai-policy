@@ -1,26 +1,14 @@
+import BigNumber from "bignumber.js";
 import BannerPNG from "public/banner.png";
 
 const FORMAT_BYTES = [
-  {
-    key: "B",
-    times: 1024 ** 0,
-  },
-  {
-    key: "KB",
-    times: 1024 ** 1,
-  },
-  {
-    key: "MB",
-    times: 1024 ** 2,
-  },
-  {
-    key: "GB",
-    times: 1024 ** 3,
-  },
-  {
-    key: "TB",
-    times: 1024 ** 4,
-  },
+  { key: "B", times: new BigNumber(1024).pow(0) },
+  { key: "KB", times: new BigNumber(1024).pow(1) },
+  { key: "MB", times: new BigNumber(1024).pow(2) },
+  { key: "GB", times: new BigNumber(1024).pow(3) },
+  { key: "TB", times: new BigNumber(1024).pow(4) },
+  { key: "PB", times: new BigNumber(1024).pow(5) },
+  { key: "EB", times: new BigNumber(1024).pow(6) },
 ];
 
 const FORMAT_RESOURCE = [

@@ -42,15 +42,11 @@ export default () => {
                 />
               </div>
 
-              <Typography font="jetbrains" className="text-[#00D4B4] font-bold">
-                {(function () {
-                  if (percentage.toString().length > 3) {
-                    return parseFloat(percentage.toPrecision(2));
-                  }
-
-                  return percentage;
-                })()}
-                %
+              <Typography
+                font="jetbrains"
+                className="text-[#00D4B4] font-bold whitespace-pre"
+              >
+                {`${percentage > 0 && percentage < 0.01 ? `< 0.01` : percentage.toFixed(2)}%`}
               </Typography>
             </Hstack>
 
