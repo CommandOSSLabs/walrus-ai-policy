@@ -11,7 +11,10 @@ export default ({
   description = utilsConstants.FORMAT_SEO.description,
   url = utilsConstants.FORMAT_SEO.url,
   image = utilsConstants.FORMAT_SEO.image,
-}: Partial<typeof utilsConstants.FORMAT_SEO> & { pageTitle?: string; brandFirst?: boolean }) => {
+}: Partial<typeof utilsConstants.FORMAT_SEO> & {
+  pageTitle?: string;
+  brandFirst?: boolean;
+}) => {
   return (
     <>
       {/* X */}

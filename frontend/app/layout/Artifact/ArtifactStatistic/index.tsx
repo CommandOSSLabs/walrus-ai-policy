@@ -15,7 +15,11 @@ import {
 } from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
 import utilsWalrus from "app/utils/utils.walrus";
-import { downloadFileWithBlob, formatCount } from "app/utils";
+import {
+  downloadFileWithBlob,
+  formatCount,
+  formatGrammarCount,
+} from "app/utils";
 import { useState } from "react";
 import useMount from "app/hook/useMount";
 import Spinner from "app/components/Spinner";
@@ -132,7 +136,10 @@ export default ({ artifact, onRefetch }: ArtifactStatisticProps) => {
           <EyesLine />
 
           <Typography font="jetbrains">
-            {formatCount(artifact.stats.viewCount)} views
+            {formatGrammarCount(
+              `${formatCount(artifact.stats.viewCount)} view`,
+              artifact.stats.viewCount,
+            )}
           </Typography>
         </Hstack>
 
@@ -140,7 +147,10 @@ export default ({ artifact, onRefetch }: ArtifactStatisticProps) => {
           <DownloadLine />
 
           <Typography font="jetbrains">
-            {formatCount(artifact.stats.downloadCount)} downloads
+            {formatGrammarCount(
+              `${formatCount(artifact.stats.downloadCount)} download`,
+              artifact.stats.downloadCount,
+            )}
           </Typography>
         </Hstack>
       </Hstack>

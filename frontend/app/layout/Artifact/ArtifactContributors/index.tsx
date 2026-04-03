@@ -1,19 +1,15 @@
-import Flex from "app/components/Flex";
 import Typography from "app/components/Typography";
 import Vstack from "app/components/Vstack";
 import Center from "app/components/Center";
 import { tv } from "tailwind-variants";
 import Stack from "app/components/Stack";
-import Jazzicon from "app/components/Jazzicon";
 import useGetConfig from "app/hook/useGetConfig";
 import { type Contributor } from "app/services/graphql-app/generated";
 import { Skeleton } from "app/components/ui/skeleton";
-import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import { shorten } from "app/utils";
 import { useState } from "react";
 
 import ArtifactContributorsAddRole from "./ArtifactContributorsAddRole";
-import ArtifactContributorsRemoveRole from "./ArtifactContributorsRemoveRole";
+import ArtifactContributorsCard from "./ArtifactContributorsCard";
 
 interface ArtifactContributorsProps {
   contributorConfig: ReturnType<typeof useGetConfig>["contributorConfig"];
@@ -28,8 +24,6 @@ export default ({
   suiObjectId,
   isAdmin,
 }: ArtifactContributorsProps) => {
-  const currentAccount = useCurrentAccount();
-
   const [isAddRole, setIsAddRole] = useState(false);
 
   if (contributorConfig.isLoading) return <Skeleton className="min-h-68.5" />;
@@ -75,41 +69,15 @@ export default ({
       )}
 
       <Vstack className="w-full gap-3">
-        {contributors.map((meta) => {
-          const isYou = currentAccount?.address === meta.creator;
-
-          return (
-            <Flex
-              key={meta.creator}
-              className="bg-[#191F2D] border border-[#3B4A45] rounded-lg px-3 py-2 gap-3 group"
-            >
-              <Jazzicon address={meta.creator} className="size-9" />
-
-              <Vstack className="gap-0.5 flex-1">
-                <Typography
-                  font="grotesk"
-                  className="text-[#DDE2F5] text-xs font-bold"
-                >
-                  {isYou ? "You" : shorten(meta.creator)}
-                </Typography>
-
-                <Typography
-                  font="jetbrains"
-                  className="text-[#84948F] text-2xs capitalize"
-                >
-                  {contributorConfig.data?.[meta.role] || "Unknown"}
-                </Typography>
-              </Vstack>
-
-              {!isYou && isAdmin && (
-                <ArtifactContributorsRemoveRole
-                  suiObjectId={suiObjectId}
-                  creator={meta.creator}
-                />
-              )}
-            </Flex>
-          );
-        })}
+        {contributors.map((contributor) => (
+          <ArtifactContributorsCard
+            key={contributor.creator}
+            contributor={contributor}
+            roles={contributorConfig.data}
+            suiObjectId={suiObjectId}
+            isAdmin={isAdmin}
+          />
+        ))}
       </Vstack>
     </Stack>
   );

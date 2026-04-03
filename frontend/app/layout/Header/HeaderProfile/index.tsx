@@ -18,6 +18,8 @@ import CheckedLine from "public/assets/line/checked.svg";
 import CopyLine from "public/assets/line/copy.svg";
 import utilsSui from "app/utils/utils.sui";
 import Typography from "app/components/Typography";
+import useSuiNs from "app/hook/useSuiNs";
+import { Skeleton } from "app/components/ui/skeleton";
 
 interface HeaderProfileProps {
   address: string;
@@ -26,7 +28,8 @@ interface HeaderProfileProps {
 export default ({ address }: HeaderProfileProps) => {
   const [copied, setCopied] = useState(false);
 
-  const { data, isLoading } = useWalBalance(address);
+  const suiNS = useSuiNs(address);
+  const walBalance = useWalBalance(address);
 
   const { disconnectWallet } = useDAppKit();
 
@@ -37,16 +40,23 @@ export default ({ address }: HeaderProfileProps) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  if (suiNS.isLoading || walBalance.isLoading) {
+    return <Skeleton className="size-8 rounded-full" />;
+  }
+
   return (
     <>
       <HeaderNotification />
 
       <Popover>
         <PopoverTrigger>
-          <Jazzicon
-            address={address}
-            className="size-8 min-w-8 cursor-pointer rounded-full ring-2 ring-transparent hover:ring-[#46F1CF]/40 transition-all duration-200"
-          />
+          <div className="size-8 min-w-8 rounded-full overflow-hidden">
+            {suiNS.data?.avatar ? (
+              <img src={suiNS.data.avatar} className="size-full" />
+            ) : (
+              <Jazzicon address={address} className="size-full" />
+            )}
+          </div>
         </PopoverTrigger>
 
         <PopoverContent
@@ -66,17 +76,20 @@ export default ({ address }: HeaderProfileProps) => {
           <div className="px-4 pt-4 pb-3 flex flex-col gap-3">
             {/* Avatar + address row */}
             <Hstack className="gap-3 items-center">
-              <Jazzicon
-                address={address}
-                className="size-9 shrink-0 rounded-full"
-              />
+              <div className="size-9 rounded-full overflow-hidden">
+                {suiNS.data?.avatar ? (
+                  <img src={suiNS.data.avatar} className="size-full" />
+                ) : (
+                  <Jazzicon address={address} className="size-full" />
+                )}
+              </div>
 
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] text-neutral-500 font-medium tracking-widest uppercase mb-0.5">
                   Address
                 </p>
                 <p className="text-sm font-mono text-white/90 truncate">
-                  {shorten(address)}
+                  {suiNS.data?.name || shorten(address)}
                 </p>
               </div>
 
@@ -114,13 +127,10 @@ export default ({ address }: HeaderProfileProps) => {
               </div>
 
               <div className="flex items-center gap-1.5">
-                {isLoading ? (
-                  <span className="h-2.5 w-10 rounded bg-white/10 animate-pulse" />
-                ) : (
-                  <Typography className="text-[13px] font-mono font-semibold text-white/90">
-                    {data ?? "—"}
-                  </Typography>
-                )}
+                <Typography className="text-[13px] font-mono font-semibold text-white/90">
+                  {walBalance.data ?? "—"}
+                </Typography>
+
                 <Typography className="text-[11px] font-medium text-[#46F1CF]/80 tracking-wide">
                   WAL
                 </Typography>
