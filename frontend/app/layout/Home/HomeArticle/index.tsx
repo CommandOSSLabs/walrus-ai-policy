@@ -27,6 +27,7 @@ export default () => {
       offset: currentPage * utilsConstants.MAX_ARTIFACT_CARD,
       filter: {
         category: params.getAll("category") || undefined,
+        creator: params.get("creator") || undefined,
         onlyRoots: true,
       },
       sort: (params.get("sort") as SortField) || SortField.CreatedAtDesc,
