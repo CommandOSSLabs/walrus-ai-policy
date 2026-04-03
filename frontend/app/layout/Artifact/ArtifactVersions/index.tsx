@@ -54,7 +54,7 @@ export default ({
       </Center>
 
       <Vstack className="w-full gap-3">
-        {versions.map((meta) => (
+        {versions.sort((a, b) => b.version - a.version).map((meta) => (
           <Link key={meta.suiObjectId} to={`/artifact/${meta.suiObjectId}`}>
             <Flex
               className={tv({
