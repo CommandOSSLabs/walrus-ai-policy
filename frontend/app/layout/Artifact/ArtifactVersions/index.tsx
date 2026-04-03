@@ -38,9 +38,8 @@ export default ({
           "bg-[#191F2D]/40",
           "rounded-lg",
           "p-5 gap-2.5",
-          isAdmin
-            ? "border border-[#46F1CF]/25"
-            : "border border-[#3B4A45]",
+
+          isAdmin ? "border border-[#46F1CF]/25" : "border border-[#3B4A45]",
         ],
       })()}
     >

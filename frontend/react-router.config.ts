@@ -1,6 +1,9 @@
 import type { Config } from "@react-router/dev/config";
 import graphqlApp from "app/services/graphql-app";
-import { SortField, useArtifactsQuery } from "app/services/graphql-app/generated";
+import {
+  SortField,
+  useArtifactsQuery,
+} from "app/services/graphql-app/generated";
 
 export default {
   ssr: false,
@@ -15,9 +18,6 @@ export default {
             limit: 1000,
             offset: 0,
             sort: SortField.CreatedAtDesc,
-            filter: {
-              onlyRoots: true,
-            },
           },
         )();
 

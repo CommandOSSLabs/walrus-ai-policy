@@ -39,7 +39,9 @@
 
   /* colors */
   --primary: oklch(86.42% 0.145 176.17);
-  --primary-foreground: oklch(18.77% 0.028 264.85); /* dark bg — ensures contrast on bright teal */
+  --primary-foreground: oklch(
+    18.77% 0.028 264.85
+  ); /* dark bg — ensures contrast on bright teal */
   --blue: oklch(62.31% 0.188 259.81);
   --background: oklch(18.77% 0.028 264.85);
   --foreground: oklch(100% 0 0);
@@ -85,7 +87,8 @@
 }
 
 @keyframes version-glow-pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.6;
     box-shadow: 0 0 0 0 rgba(70, 241, 207, 0);
   }

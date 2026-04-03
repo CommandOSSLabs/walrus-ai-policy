@@ -16,6 +16,8 @@ import { useDAppKit } from "@mysten/dapp-kit-react";
 
 import CheckedLine from "public/assets/line/checked.svg";
 import CopyLine from "public/assets/line/copy.svg";
+import utilsSui from "app/utils/utils.sui";
+import Typography from "app/components/Typography";
 
 interface HeaderProfileProps {
   address: string;
@@ -26,9 +28,7 @@ export default ({ address }: HeaderProfileProps) => {
 
   const { data, isLoading } = useWalBalance(address);
 
-  const { disconnectWallet, networks } = useDAppKit();
-
-  console.log(networks);
+  const { disconnectWallet } = useDAppKit();
 
   const handleCopy = () => {
     navigator.clipboard.writeText(address);
@@ -104,22 +104,26 @@ export default ({ address }: HeaderProfileProps) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <span className="size-1.5 rounded-full bg-[#46F1CF] shadow-[0_0_4px_#46F1CF]" />
-                <span className="text-[11px] text-neutral-500 font-medium tracking-wide">
-                  Testnet
-                </span>
+
+                <Typography
+                  font="jetbrains"
+                  className="text-[11px] text-neutral-500 font-medium tracking-wide uppercase"
+                >
+                  {utilsSui.getSuiClient.network}
+                </Typography>
               </div>
 
               <div className="flex items-center gap-1.5">
                 {isLoading ? (
                   <span className="h-2.5 w-10 rounded bg-white/10 animate-pulse" />
                 ) : (
-                  <span className="text-[13px] font-mono font-semibold text-white/90">
+                  <Typography className="text-[13px] font-mono font-semibold text-white/90">
                     {data ?? "—"}
-                  </span>
+                  </Typography>
                 )}
-                <span className="text-[11px] font-medium text-[#46F1CF]/80 tracking-wide">
+                <Typography className="text-[11px] font-medium text-[#46F1CF]/80 tracking-wide">
                   WAL
-                </span>
+                </Typography>
               </div>
             </div>
           </div>

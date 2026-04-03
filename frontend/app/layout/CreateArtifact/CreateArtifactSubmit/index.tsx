@@ -6,12 +6,10 @@ import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { useNavigate } from "react-router";
 import useUploadQuilt from "app/hook/useUploadQuilt";
 import TransactionDetail from "app/components/TransactionDetail";
-import { waitForSeconds } from "app/utils";
 import useSteps from "app/hook/useSteps";
 import ConnectWalletWrapper from "app/components/ConnectWalletWrapper";
 import { getQueryClient } from "app/layout/Provider/ProviderReactQuery";
 import { useArtifactsQuery } from "app/services/graphql-app/generated";
-import utilsConstants from "app/utils/utils.constants";
 import useUploadArtifact from "app/hook/useUploadArtifact";
 import { toast } from "sonner";
 
@@ -69,14 +67,9 @@ export default ({ isSubmitting, handleSubmit }: CreateArtifactSubmitProps) => {
                 );
 
                 // refetch home page
-                await waitForSeconds(() => {
-                  getQueryClient.refetchQueries({
-                    queryKey: useArtifactsQuery.getKey({
-                      limit: utilsConstants.MAX_ARTIFACT_CARD,
-                      offset: 0,
-                    }),
-                  });
-                }, 1000);
+                await getQueryClient.refetchQueries({
+                  queryKey: useArtifactsQuery.getKey({} as never),
+                });
 
                 navigate(`/artifact/${artifact.id}`);
 
