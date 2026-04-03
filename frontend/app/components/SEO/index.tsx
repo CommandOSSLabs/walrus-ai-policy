@@ -1,11 +1,17 @@
 import utilsConstants from "app/utils/utils.constants";
 
 export default ({
-  title = utilsConstants.FORMAT_SEO.title,
+  pageTitle,
+  brandFirst = false,
+  title = pageTitle
+    ? brandFirst
+      ? `${utilsConstants.FORMAT_SEO.title} | ${pageTitle}`
+      : `${pageTitle} | ${utilsConstants.FORMAT_SEO.title}`
+    : utilsConstants.FORMAT_SEO.title,
   description = utilsConstants.FORMAT_SEO.description,
   url = utilsConstants.FORMAT_SEO.url,
   image = utilsConstants.FORMAT_SEO.image,
-}: Partial<typeof utilsConstants.FORMAT_SEO>) => {
+}: Partial<typeof utilsConstants.FORMAT_SEO> & { pageTitle?: string; brandFirst?: boolean }) => {
   return (
     <>
       {/* X */}

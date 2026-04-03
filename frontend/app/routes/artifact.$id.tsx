@@ -7,7 +7,6 @@ import {
 import graphqlApp from "app/services/graphql-app";
 import { getQueryClient } from "app/layout/Provider/ProviderReactQuery";
 import SEO from "app/components/SEO";
-import utilsConstants from "app/utils/utils.constants";
 
 const fetchArtifact = async (suiObjectId: string) => {
   const keys: ArtifactQueryVariables = { suiObjectId };
@@ -33,14 +32,8 @@ export default (props: Route.ComponentProps) => {
   return (
     <>
       <SEO
-        title={
-          props.loaderData.artifact?.title ||
-          `${utilsConstants.FORMAT_SEO.title} | Artifact Detail`
-        }
-        description={
-          props.loaderData.artifact?.description ||
-          utilsConstants.FORMAT_SEO.description
-        }
+        pageTitle={props.loaderData.artifact?.title ?? "Artifact"}
+        description={props.loaderData.artifact?.description}
       />
 
       <Artifact {...props} />
