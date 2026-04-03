@@ -103,7 +103,7 @@ export default () => {
             <CloseLine className="size-5 absolute right-4" />
           </Flex>
 
-          <div className="bg-[#1A2130] min-h-58">
+          <div className="bg-[#1A2130]">
             {(function () {
               if (isLoading) {
                 return (

@@ -10,7 +10,7 @@ interface HeaderSearchNoResultProps {
 
 export default ({ heading, body }: HeaderSearchNoResultProps) => {
   return (
-    <Stack className="gap-6 justify-center size-full">
+    <Stack className="gap-6 min-h-52 justify-center size-full">
       <Center className="size-12 rounded-full bg-white/5 border border-white/10">
         <SearchLine className="size-6 text-[#84948F]" />
       </Center>
