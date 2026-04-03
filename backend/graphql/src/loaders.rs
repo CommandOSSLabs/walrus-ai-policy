@@ -74,7 +74,7 @@ impl Loader<String> for VersionsLoader {
                     .or(artifact::root_id.eq_any(keys))
             )
             .select(artifact::all_columns)
-            .order(artifact::version.asc())
+            .order(artifact::version.desc())
             .load(&mut conn)
             .await
             .map_err(db_err)?;
