@@ -5,8 +5,8 @@ import utilsSui from "app/utils/utils.sui";
 import utilsWalrus from "app/utils/utils.walrus";
 
 export enum contributorConfigEnum {
-  admin = "admin",
-  moderator = "moderator",
+  moderator = 0,
+  admin = 1,
 }
 
 export default () => {
@@ -15,13 +15,15 @@ export default () => {
     queryFn: async () => {
       const roles: Record<number, string> = {};
 
-      for (const key of Object.keys(contributorConfigEnum)) {
-        const value = await utilsSui.commandResults(
-          `contributor::get_role_${key}`,
-          bcs.u8(),
-        );
+      for (const [role, key] of Object.entries(contributorConfigEnum)) {
+        if (typeof key === "number") {
+          const value = await utilsSui.commandResults(
+            `contributor::get_role_${role}`,
+            bcs.u8(),
+          );
 
-        roles[value] = key;
+          roles[value] = role;
+        }
       }
 
       return roles;

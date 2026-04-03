@@ -44,10 +44,16 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
     (file) => file.name === "README.md",
   );
 
-  const isAdmin = !!artifact.data?.artifact?.contributors?.some(
-    (meta) =>
+  const isAdmin = !!artifact.data?.artifact?.contributors?.some((meta) => {
+    return (
       meta?.creator === currentAccount?.address &&
-      contributorConfig.data?.[meta.role] === contributorConfigEnum.admin,
+      contributorConfig.data?.[meta.role] ===
+        contributorConfigEnum[contributorConfigEnum.admin]
+    );
+  });
+
+  const isContributors = !!artifact.data?.artifact?.contributors?.some(
+    (meta) => meta?.creator === currentAccount?.address,
   );
 
   if (!artifact.data?.artifact) return null;
@@ -56,7 +62,7 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
     return (
       <ArtifactRelease
         artifact={artifact.data.artifact}
-        isAdmin={isAdmin}
+        isContributors={isContributors}
         isLoading={contributorConfig.isLoading}
         onRefetch={artifact.refetch}
       />

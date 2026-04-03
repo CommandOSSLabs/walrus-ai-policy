@@ -17,14 +17,14 @@ import ArtifactReleaseAuthorization from "./ArtifactReleaseAuthorization";
 
 interface ArtifactReleaseProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
-  isAdmin: boolean;
+  isContributors: boolean;
   isLoading: boolean;
   onRefetch: () => void;
 }
 
 export default ({
   artifact,
-  isAdmin,
+  isContributors,
   isLoading,
   onRefetch,
 }: ArtifactReleaseProps) => {
@@ -59,7 +59,7 @@ export default ({
     );
   }
 
-  if (!isAdmin) {
+  if (!isContributors) {
     return <ArtifactReleaseAuthorization />;
   }
 
