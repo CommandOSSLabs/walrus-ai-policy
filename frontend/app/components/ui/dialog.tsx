@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Dialog as DialogPrimitive } from "radix-ui";
+import { Dialog as DialogPrimitive, VisuallyHidden } from "radix-ui";
 
 import CloseLine from "public/assets/line/close.svg";
 import { Button } from "app/components/ui/button";
@@ -71,6 +71,11 @@ function DialogContent({
         {...props}
       >
         {children}
+
+        <VisuallyHidden.Root>
+          <DialogTitle />
+        </VisuallyHidden.Root>
+
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button className="absolute top-2 right-2">
