@@ -11,8 +11,6 @@ import {
   DialogTrigger,
 } from "app/components/ui/dialog";
 import useSignAndExecuteTransaction from "app/hook/useSignAndExecuteTransaction";
-import { getQueryClient } from "app/layout/Provider/ProviderReactQuery";
-import { useArtifactQuery } from "app/services/graphql-app/generated";
 import { waitForSeconds } from "app/utils";
 import utilsSui from "app/utils/utils.sui";
 import CloseLine from "public/assets/line/close.svg";
@@ -21,13 +19,15 @@ import { toast } from "sonner";
 import { tv } from "tailwind-variants";
 
 interface ArtifactContributorsRemoveRoleProps {
-  suiObjectId: string;
+  rootId: string;
   creator: string;
+  onRefetch: () => void;
 }
 
 export default ({
-  suiObjectId,
+  rootId,
   creator,
+  onRefetch,
 }: ArtifactContributorsRemoveRoleProps) => {
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -87,7 +87,7 @@ export default ({
                   tx.moveCall({
                     target: `${utilsSui.programs.package}::artifact::management_role`,
                     arguments: [
-                      tx.object(suiObjectId),
+                      tx.object(rootId),
                       tx.pure.address(creator),
                       tx.pure.option("u8", null),
                     ],
@@ -99,11 +99,7 @@ export default ({
                 });
 
                 await waitForSeconds(() => {
-                  getQueryClient.refetchQueries({
-                    queryKey: useArtifactQuery.getKey({
-                      suiObjectId,
-                    }),
-                  });
+                  onRefetch();
 
                   toast.success("You removed the role successfully.");
 

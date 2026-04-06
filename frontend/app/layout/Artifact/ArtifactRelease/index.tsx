@@ -14,20 +14,21 @@ import ArtifactReleaseSubmit from "./ArtifactReleaseSubmit";
 import ArtifactReleaseDocument from "./ArtifactReleaseDocument";
 
 import ArtifactReleaseAuthorization from "./ArtifactReleaseAuthorization";
+import useGetConfig from "app/hook/useGetConfig";
 
 interface ArtifactReleaseProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
   isContributors: boolean;
-  isLoading: boolean;
   onRefetch: () => void;
 }
 
 export default ({
   artifact,
   isContributors,
-  isLoading,
   onRefetch,
 }: ArtifactReleaseProps) => {
+  const { contributorConfig } = useGetConfig();
+
   const {
     setValue,
     handleSubmit,
@@ -49,7 +50,7 @@ export default ({
     },
   });
 
-  if (isLoading) {
+  if (contributorConfig.isLoading) {
     return (
       <Vstack className="container mt-8 mb-14">
         <Skeleton className="w-21.5 h-8" />

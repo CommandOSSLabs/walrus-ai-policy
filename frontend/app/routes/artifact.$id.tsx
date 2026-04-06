@@ -13,7 +13,7 @@ const fetchArtifact = async (suiObjectId: string) => {
   return getQueryClient.fetchQuery({
     queryKey: useArtifactQuery.getKey(keys),
     queryFn: useArtifactQuery.fetcher(graphqlApp.client, keys),
-    staleTime: 0,
+    staleTime: 1000,
   });
 };
 

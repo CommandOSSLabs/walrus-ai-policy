@@ -25,18 +25,13 @@ export default (address: string | undefined | null) => {
           mainnet: using IPFS: "image_url": "ipfs://QmXRwUEoMMyQpkuoYnXpbL3yLwFRzPozc9njvoafCK1Dz6",
         */
         if (!record?.data?.avatar && record?.expirationTimestamp?.seconds) {
-          const suinsApiBase =
-            import.meta.env.VITE_SUI_NETWORK === "mainnet"
-              ? "https://api-mainnet.suins.io"
-              : "https://api-testnet.suins.io";
-
           const date = fromUnixTimestamp(
             Number(record.expirationTimestamp.seconds),
             record.expirationTimestamp.nanos,
           );
 
           return {
-            avatar: `${suinsApiBase}/nfts/${record.name}/${date.getTime()}`,
+            avatar: `https://api-${import.meta.env.VITE_SUI_NETWORK}.suins.io/nfts/${record.name}/${date.getTime()}`,
             name: record.name.replace(".sui", ""),
           };
         }
@@ -50,9 +45,17 @@ export default (address: string | undefined | null) => {
               },
             )();
 
-            return metadata?.object?.asMoveObject?.contents?.display?.output?.[
-              "image_url" as never
-            ];
+            const image_url = String(
+              metadata?.object?.asMoveObject?.contents?.display?.output?.[
+                "image_url" as never
+              ],
+            );
+
+            if (image_url === "https://www.walrus.xyz/walrus-blob") {
+              return `https://${import.meta.env.VITE_SUI_NETWORK}.suivision.xyz/images/nft-default.svg`;
+            }
+
+            return image_url;
           })(),
           name: record.name.replace(".sui", ""),
         };
@@ -60,5 +63,6 @@ export default (address: string | undefined | null) => {
 
       return null;
     },
+    retry: 0,
   });
 };

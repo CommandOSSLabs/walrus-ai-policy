@@ -34,12 +34,7 @@ export default ({ file }: ArtifactFileMarkdownProps) => {
         <Typography className="text-sm">{file.name}</Typography>
       </Hstack>
 
-      <div
-        className="p-3.5 text-[#BACAC4] whitespace-pre-line"
-        style={{
-          wordBreak: "break-word",
-        }}
-      >
+      <div className="p-3.5 text-[#BACAC4] whitespace-pre-line wrap-break-word">
         <Markdown content={data} />
       </div>
     </div>
