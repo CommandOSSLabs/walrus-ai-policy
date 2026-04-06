@@ -1,22 +1,25 @@
 import type { HTMLAttributes, PropsWithChildren } from "react";
-import React from "react";
+import React, { lazy, useEffect, useState } from "react";
 
-import {
-  useCurrentAccount,
-  useDAppKit,
-  useWallets,
-} from "@mysten/dapp-kit-react";
+const ConnectModal = lazy(() =>
+  import("@mysten/dapp-kit-react/ui").then((module) => {
+    return { default: module.ConnectModal };
+  }),
+);
+
+import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import { isEnokiWallet } from "@mysten/enoki";
 
 export default ({
   children,
   ...rest
 }: PropsWithChildren & HTMLAttributes<HTMLDivElement>) => {
-  const { connectWallet } = useDAppKit();
-
-  const wallets = useWallets();
   const currentAccount = useCurrentAccount();
 
-  if (!currentAccount?.address?.length) {
+  const [isClient, setIsClient] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  if (!currentAccount?.address?.length && typeof window !== "undefined") {
     children = React.cloneElement<HTMLAttributes<HTMLDivElement>>(
       children as never,
       {
@@ -27,17 +30,33 @@ export default ({
           event.stopPropagation();
           event.preventDefault();
 
-          const wallet = wallets.find(
-            (meta) => meta.name === "Sign in with Google",
-          );
-
-          if (wallet) {
-            connectWallet({ wallet });
-          }
+          setOpen((prev) => !prev);
         },
       },
     );
   }
 
-  return children;
+  // handle render modal in client-only
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  return (
+    <>
+      {children}
+
+      {isClient && open && (
+        <ConnectModal
+          className="wallet-modal-theme fixed"
+          open={true}
+          filterFn={(value) => {
+            return isEnokiWallet(value) || value.name === "Slush";
+          }}
+          close={async () => {
+            setOpen(false);
+          }}
+        />
+      )}
+    </>
+  );
 };
