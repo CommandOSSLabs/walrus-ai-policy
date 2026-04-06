@@ -10,43 +10,36 @@ import { useIncrementDownloadMutation } from "app/services/graphql-app/generated
 import graphqlApp from "app/services/graphql-app";
 import { downloadFileWithBlob, formatBytesSizes } from "app/utils";
 import utilsWalrus from "app/utils/utils.walrus";
-import { useRef, useState } from "react";
-import useClickOutside from "app/hook/useClickOutside";
+import { useState, type HTMLAttributes } from "react";
 import Spinner from "app/components/Spinner";
 import { extension } from "mime-types";
+import { useSearchParams } from "react-router";
 
 interface ArtifactFileListProps {
   files: ArtifactFile[];
   rootId: string;
   onRefetch: () => void;
+  variant?: HTMLAttributes<HTMLDivElement>;
 }
 
-export default ({ files, rootId, onRefetch }: ArtifactFileListProps) => {
+export default ({
+  files,
+  rootId,
+  onRefetch,
+  variant,
+}: ArtifactFileListProps) => {
   const [loading, setLoading] = useState<string>();
+  const [params, setSearchParams] = useSearchParams();
+
   const incrementDownload = useIncrementDownloadMutation(graphqlApp.client);
-
-  const fileRef = useRef<HTMLButtonElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useClickOutside(containerRef, () => {
-    removeSelectedFile();
-  });
-
-  const addSelectedFile = (currentTarget: EventTarget & HTMLButtonElement) => {
-    fileRef.current = currentTarget;
-    fileRef.current?.classList.add("isSelected");
-  };
-
-  const removeSelectedFile = () => {
-    if (fileRef.current?.classList.contains("isSelected")) {
-      fileRef.current?.classList.remove("isSelected");
-    }
-  };
 
   return (
     <div
-      ref={containerRef}
-      className="bg-[#080E1B] border border-[#352F2F] rounded-xl w-full"
+      className={tv({
+        base: ["bg-[#080E1B] border border-[#352F2F] rounded-xl w-full"],
+      })({
+        className: variant?.className,
+      })}
     >
       <Center
         className={tv({
@@ -64,90 +57,82 @@ export default ({ files, rootId, onRefetch }: ArtifactFileListProps) => {
         <Typography font="jetbrains">SIZE</Typography>
       </Center>
 
-      {files.map((meta) => {
-        return (
-          <button
-            key={meta.patchId}
-            disabled={loading === meta.patchId}
-            className={tv({
-              base: [
-                "flex gap-6 justify-between",
-                "text-[#BACAC4] text-xs",
-                "w-full h-10 px-3.5",
-                "not-last:border-b not-last:border-inherit",
-                "hover:bg-[#272B33]/65",
+      {files.map((meta) => (
+        <button
+          key={meta.patchId}
+          disabled={loading === meta.patchId}
+          onClick={() => {
+            params.set("file", meta.name);
 
-                "[&.isSelected]:bg-[#272B33]",
-              ],
-            })()}
-            onClick={({ currentTarget }) => {
-              removeSelectedFile();
-              addSelectedFile(currentTarget);
-            }}
-            onDoubleClick={() => {
-              removeSelectedFile();
+            setSearchParams(params);
+          }}
+          className={tv({
+            base: [
+              "flex gap-6 justify-between",
+              "text-[#BACAC4] text-xs",
+              "w-full h-10 px-3.5",
+              "not-last:border-b not-last:border-inherit",
+              "hover:bg-[#272B33]/65",
+            ],
+          })()}
+        >
+          <Hstack>
+            {extension(meta.mimeType) === "zip" ? (
+              <FolderLine />
+            ) : (
+              <FilesLine />
+            )}
 
-              alert(`preview ${meta.mimeType}`);
-            }}
-          >
-            <Hstack>
-              {extension(meta.mimeType) === "zip" ? (
-                <FolderLine />
-              ) : (
-                <FilesLine />
-              )}
+            <Typography
+              font="jetbrains"
+              className="text-left line-clamp-1 flex-1"
+            >
+              {meta.name}
+            </Typography>
+          </Hstack>
 
-              <Typography
-                font="jetbrains"
-                className="text-left line-clamp-1 flex-1"
-              >
-                {meta.name}
-              </Typography>
-            </Hstack>
+          <Hstack className="whitespace-pre">
+            <Typography>{formatBytesSizes(meta.sizeBytes)}</Typography>
 
-            <Hstack className="whitespace-pre">
-              <Typography>{formatBytesSizes(meta.sizeBytes)}</Typography>
+            {loading === meta.patchId ? (
+              <Spinner />
+            ) : (
+              <DownloadLine
+                onClick={async (event) => {
+                  try {
+                    event.stopPropagation();
 
-              {loading === meta.patchId ? (
-                <Spinner />
-              ) : (
-                <DownloadLine
-                  onClick={async (event) => {
-                    try {
-                      event.stopPropagation();
+                    setLoading(meta.patchId);
 
-                      setLoading(meta.patchId);
+                    const request = await fetch(
+                      utilsWalrus.getQuiltPatchId(meta.patchId),
+                    );
 
-                      const request = await fetch(
-                        utilsWalrus.getQuiltPatchId(meta.patchId),
-                      );
-
-                      if (!request.ok) {
-                        throw new Error(`Download failed for ${meta.name}`);
-                      }
-
-                      const blob = await request.blob();
-
-                      downloadFileWithBlob(blob, meta.mimeType, meta.name);
-
-                      incrementDownload.mutate(
-                        {
-                          rootId,
-                        },
-                        {
-                          onSuccess: onRefetch,
-                        },
-                      );
-                    } finally {
-                      setLoading(undefined);
+                    if (!request.ok) {
+                      throw new Error(`Download failed for ${meta.name}`);
                     }
-                  }}
-                />
-              )}
-            </Hstack>
-          </button>
-        );
-      })}
+
+                    const blob = await request.blob();
+
+                    downloadFileWithBlob(blob, meta.mimeType, meta.name);
+
+                    incrementDownload.mutate(
+                      {
+                        rootId,
+                      },
+                      {
+                        onSuccess: onRefetch,
+                      },
+                    );
+                  } finally {
+                    setLoading(undefined);
+                  }
+                }}
+              />
+            )}
+          </Hstack>
+        </button>
+      ))}
     </div>
   );
 };

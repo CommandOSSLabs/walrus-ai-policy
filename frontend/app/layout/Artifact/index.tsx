@@ -18,6 +18,9 @@ import useGetConfig, { contributorConfigEnum } from "app/hook/useGetConfig";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { useSearchParams } from "react-router";
 import ArtifactRelease from "./ArtifactRelease";
+import { renderSectionFile } from "app/utils";
+import ArtifactFileReadme from "./ArtifactFile/ArtifactFileReadme";
+import ArtifactFilePreview from "./ArtifactFile/ArtifactFilePreview";
 
 const ArtifactFileCSV = lazy(() => import("./ArtifactFile/ArtifactFileCSV"));
 
@@ -37,6 +40,8 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
       initialData: loaderData,
     },
   );
+
+  const getSelectFile = searchParams?.get?.("file");
 
   const getSingleFile = artifact.data?.artifact?.files?.[0];
 
@@ -68,6 +73,18 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
     );
   }
 
+  if (getSelectFile?.length) {
+    return (
+      <ArtifactFilePreview
+        files={artifact.data.artifact.files}
+        rootId={artifact.data.artifact?.rootId}
+        suiObjectId={artifact.data.artifact.suiObjectId}
+        select={getSelectFile}
+        onRefetch={artifact.refetch}
+      />
+    );
+  }
+
   return (
     <Flex
       className={tv({
@@ -84,42 +101,31 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
         {(function () {
           if (!artifact.data.artifact?.files?.length) return null;
 
-          if (artifact.data.artifact.files.length === 1) {
-            if (getSingleFile?.mimeType === "text/csv") {
-              return <ArtifactFileCSV file={getSingleFile} />;
-            }
-
-            if (getSingleFile?.mimeType === "image/svg+xml") {
-              return <ArtifactFileSVG file={getSingleFile} />;
-            }
-
-            if (getSingleFile?.mimeType?.startsWith?.("image")) {
-              return (
+          if (artifact.data.artifact.files.length === 1 && getSingleFile) {
+            return renderSectionFile(getSingleFile.mimeType, {
+              csv: <ArtifactFileCSV file={getSingleFile} />,
+              svg: <ArtifactFileSVG file={getSingleFile} />,
+              image: (
                 <img
                   src={utilsWalrus.getQuiltPatchId(getSingleFile.patchId)}
                   alt={getSingleFile.name}
                   className="aspect-video object-cover"
                 />
-              );
-            }
-
-            if (getSingleFile?.mimeType?.startsWith?.("video")) {
-              return (
+              ),
+              video: (
                 <video
                   src={utilsWalrus.getQuiltPatchId(getSingleFile.patchId)}
                   controls={true}
                   className="aspect-video object-cover"
                 />
-              );
-            }
-
-            if (getSingleFile?.mimeType === "text/markdown") {
-              return <ArtifactFileMarkdown file={getSingleFile} />;
-            }
-
-            if (getSingleFile?.mimeType === "application/pdf") {
-              return <ArtifactFilePDF file={getSingleFile} />;
-            }
+              ),
+              markdown: getREADME ? (
+                <ArtifactFileReadme file={getREADME} />
+              ) : (
+                <ArtifactFileMarkdown file={getSingleFile} />
+              ),
+              pdf: <ArtifactFilePDF file={getSingleFile} />,
+            });
           }
 
           return (
@@ -133,7 +139,7 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
                 onRefetch={artifact.refetch}
               />
 
-              {getREADME && <ArtifactFileMarkdown file={getREADME} />}
+              {getREADME && <ArtifactFileReadme file={getREADME} />}
             </>
           );
         })()}
