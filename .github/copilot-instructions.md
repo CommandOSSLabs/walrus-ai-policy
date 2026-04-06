@@ -16,14 +16,14 @@ Follow these principles when writing frontend code:
 - Write **maintainable and predictable code**
 - Follow **existing patterns in the codebase**
 
----
+<!-- ---
 
 ## Development Flow
 
 - Dev: `npm run dev`
 - Build: `npm run build`
 - Test: `npm run test` (Jest)
-- Lint/format: follow project ESLint + Prettier config
+- Lint/format: follow project ESLint + Prettier config -->
 
 ---
 
