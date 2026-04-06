@@ -12,18 +12,20 @@ import ArtifactContributorsAddRole from "./ArtifactContributorsAddRole";
 import ArtifactContributorsCard from "./ArtifactContributorsCard";
 
 interface ArtifactContributorsProps {
-  contributorConfig: ReturnType<typeof useGetConfig>["contributorConfig"];
   contributors: Contributor[] | undefined;
-  suiObjectId: string;
+  rootId: string;
   isAdmin: boolean;
+  onRefetch: () => void;
 }
 
 export default ({
-  contributorConfig,
   contributors,
-  suiObjectId,
+  rootId,
   isAdmin,
+  onRefetch,
 }: ArtifactContributorsProps) => {
+  const { contributorConfig } = useGetConfig();
+
   const [isAddRole, setIsAddRole] = useState(false);
 
   if (contributorConfig.isLoading) return <Skeleton className="min-h-68.5" />;
@@ -62,9 +64,12 @@ export default ({
 
       {isAddRole && contributorConfig.data && (
         <ArtifactContributorsAddRole
-          suiObjectId={suiObjectId}
+          rootId={rootId}
           roles={contributorConfig.data}
-          onRefetch={() => setIsAddRole(false)}
+          onRefetch={() => {
+            onRefetch();
+            setIsAddRole(false);
+          }}
         />
       )}
 
@@ -74,8 +79,9 @@ export default ({
             key={contributor.creator}
             contributor={contributor}
             roles={contributorConfig.data}
-            suiObjectId={suiObjectId}
+            rootId={rootId}
             isAdmin={isAdmin}
+            onRefetch={onRefetch}
           />
         ))}
       </Vstack>

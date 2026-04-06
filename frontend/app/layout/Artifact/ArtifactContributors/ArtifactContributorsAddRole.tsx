@@ -5,21 +5,19 @@ import Spinner from "app/components/Spinner";
 import Typography from "app/components/Typography";
 import Vstack from "app/components/Vstack";
 import useSignAndExecuteTransaction from "app/hook/useSignAndExecuteTransaction";
-import { getQueryClient } from "app/layout/Provider/ProviderReactQuery";
-import { useArtifactQuery } from "app/services/graphql-app/generated";
 import { forceToNumber, waitForSeconds } from "app/utils";
 import utilsSui from "app/utils/utils.sui";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface ArtifactContributorsAddRoleProps {
-  suiObjectId: string;
+  rootId: string;
   roles: Record<number, string>;
   onRefetch: () => void;
 }
 
 export default ({
-  suiObjectId,
+  rootId,
   roles,
   onRefetch,
 }: ArtifactContributorsAddRoleProps) => {
@@ -72,7 +70,7 @@ export default ({
               throw "Invalid address.";
             }
 
-            setLoading(suiObjectId);
+            setLoading(rootId);
 
             const tx = new Transaction();
 
@@ -81,7 +79,7 @@ export default ({
               tx.moveCall({
                 target: `${utilsSui.programs.package}::artifact::management_role`,
                 arguments: [
-                  tx.object(suiObjectId),
+                  tx.object(rootId),
                   tx.pure.address(inputRef.current.value),
                   tx.pure.option("u8", forceToNumber(roleRef.current?.value)),
                 ],
@@ -93,12 +91,6 @@ export default ({
             });
 
             await waitForSeconds(() => {
-              getQueryClient.refetchQueries({
-                queryKey: useArtifactQuery.getKey({
-                  suiObjectId,
-                }),
-              });
-
               onRefetch();
 
               toast.success("You added the role successfully.");
@@ -111,7 +103,7 @@ export default ({
         }}
       >
         <Hstack>
-          {loading == suiObjectId ? <Spinner /> : null}
+          {loading == rootId ? <Spinner /> : null}
 
           <Typography font="jetbrains" className="text-sm text-black">
             Confirm

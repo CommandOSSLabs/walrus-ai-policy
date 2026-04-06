@@ -12,15 +12,17 @@ import type { Contributor } from "app/services/graphql-app/generated";
 interface ArtifactContributorsCardProps {
   contributor: Contributor;
   roles: Record<number, string> | undefined;
-  suiObjectId: string;
+  rootId: string;
   isAdmin: boolean;
+  onRefetch: () => void;
 }
 
 export default ({
   contributor,
   roles,
-  suiObjectId,
+  rootId,
   isAdmin,
+  onRefetch,
 }: ArtifactContributorsCardProps) => {
   const { data, isLoading } = useSuiNs(contributor.creator);
 
@@ -59,8 +61,9 @@ export default ({
 
       {!isYou && isAdmin && (
         <ArtifactContributorsRemoveRole
-          suiObjectId={suiObjectId}
+          rootId={rootId}
           creator={contributor.creator}
+          onRefetch={onRefetch}
         />
       )}
     </Flex>

@@ -38,7 +38,7 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
     },
   );
 
-  const getSingleFile = artifact.data?.artifact?.files[0];
+  const getSingleFile = artifact.data?.artifact?.files?.[0];
 
   const getREADME = artifact.data?.artifact?.files?.find?.(
     (file) => file.name === "README.md",
@@ -63,7 +63,6 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
       <ArtifactRelease
         artifact={artifact.data.artifact}
         isContributors={isContributors}
-        isLoading={contributorConfig.isLoading}
         onRefetch={artifact.refetch}
       />
     );
@@ -79,7 +78,7 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
         ],
       })()}
     >
-      <Vstack className="flex-1 items-start gap-4 md:gap-8">
+      <Vstack className="flex-1 min-w-0 items-start gap-4 md:gap-8">
         <ArtifactHeader artifact={artifact.data.artifact} />
 
         {(function () {
@@ -140,7 +139,7 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
         })()}
       </Vstack>
 
-      <Vstack className="gap-4 md:gap-6 md:w-70">
+      <Vstack className="gap-4 md:gap-6 md:w-70 md:shrink-0">
         <ArtifactStatistic
           artifact={artifact.data.artifact}
           onRefetch={artifact.refetch}
@@ -154,10 +153,12 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
         />
 
         <ArtifactContributors
-          contributorConfig={contributorConfig}
           contributors={artifact.data.artifact.contributors}
-          suiObjectId={artifact.data.artifact.suiObjectId}
+          rootId={
+            artifact.data.artifact?.rootId || artifact.data.artifact.suiObjectId
+          }
           isAdmin={isAdmin}
+          onRefetch={artifact.refetch}
         />
       </Vstack>
     </Flex>
