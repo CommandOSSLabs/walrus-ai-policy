@@ -1,4 +1,3 @@
-import { useState } from "react";
 import useWalBalance from "app/hook/useWalBalance";
 
 import Hstack from "app/components/Hstack";
@@ -20,25 +19,19 @@ import utilsSui from "app/utils/utils.sui";
 import Typography from "app/components/Typography";
 import useSuiNs from "app/hook/useSuiNs";
 import { Skeleton } from "app/components/ui/skeleton";
+import useClipboard from "app/hook/useClipboard";
 
 interface HeaderProfileProps {
   address: string;
 }
 
 export default ({ address }: HeaderProfileProps) => {
-  const [copied, setCopied] = useState(false);
+  const { handleCopy, isCopy } = useClipboard();
 
   const suiNS = useSuiNs(address);
   const walBalance = useWalBalance(address);
 
   const { disconnectWallet } = useDAppKit();
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(address);
-
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   if (suiNS.isLoading || walBalance.isLoading) {
     return <Skeleton className="size-8 rounded-full" />;
@@ -95,7 +88,7 @@ export default ({ address }: HeaderProfileProps) => {
 
               {/* Copy button */}
               <button
-                onClick={handleCopy}
+                onClick={() => handleCopy(address)}
                 title="Copy full address"
                 className={tv({
                   base: [
@@ -105,7 +98,7 @@ export default ({ address }: HeaderProfileProps) => {
                   ],
                 })()}
               >
-                {copied ? (
+                {isCopy ? (
                   <CheckedLine className="text-[#46F1CF]" />
                 ) : (
                   <CopyLine className="size-3.5" />

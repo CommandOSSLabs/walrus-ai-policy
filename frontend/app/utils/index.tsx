@@ -253,3 +253,30 @@ export const renderSectionFile = (
 
   if (mimeType === "fallback") return children.fallback;
 };
+
+export const openSocialShare = (platform: string, url: string): void => {
+  const encodedUrl = encodeURIComponent(url);
+  let shareLink: string | undefined;
+
+  switch (platform) {
+    case "facebook":
+      shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+      break;
+    case "x":
+      shareLink = `https://twitter.com/intent/tweet?url=${encodedUrl}`;
+      break;
+    case "telegram":
+      shareLink = `https://t.me/share/url?url=${encodedUrl}`;
+      break;
+    case "linkedin":
+      shareLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
+      break;
+
+    default:
+      return;
+  }
+
+  if (!shareLink) return;
+
+  window.open(shareLink, "_blank", "noopener,noreferrer");
+};
