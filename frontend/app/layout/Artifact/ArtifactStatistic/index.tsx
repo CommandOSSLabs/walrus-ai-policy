@@ -12,9 +12,8 @@ import { useIncrementViewMutation } from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
 import { formatCount, formatGrammarCount } from "app/utils";
 import useMount from "app/hook/useMount";
-import Spinner from "app/components/Spinner";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
-import useDownloadFile from "app/hook/useDownloadFile";
+import ArtifactStatisticDownload from "./ArtifactStatisticDownload";
 
 interface ArtifactStatisticProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
@@ -27,8 +26,6 @@ export default ({ artifact, onRefetch }: ArtifactStatisticProps) => {
   const incrementView = useIncrementViewMutation(graphqlApp.client);
 
   const rootId = artifact.rootId ?? artifact.suiObjectId;
-
-  const { downloadZip, downloading } = useDownloadFile();
 
   useMount(() => {
     incrementView.mutate(
@@ -53,25 +50,11 @@ export default ({ artifact, onRefetch }: ArtifactStatisticProps) => {
       })()}
     >
       <Vstack className="w-full gap-2.5 text-sm font-bold">
-        <button
-          className="text-[#00382E] rounded-lg h-10 flex gap-2 items-center justify-center"
-          disabled={!!downloading?.length}
-          style={{
-            background: "linear-gradient(135deg, #46F1CF 0%, #00D4B4 100%)",
-          }}
-          onClick={async () => {
-            return await downloadZip({
-              files: artifact.files,
-              name: `artifact-${artifact.createdAt}`,
-              rootId,
-              onRefetch,
-            });
-          }}
-        >
-          {downloading?.length ? <Spinner /> : <DownloadLine />}
-
-          <Typography font="grotesk">DOWNLOAD ARTIFACT</Typography>
-        </button>
+        <ArtifactStatisticDownload
+          artifact={artifact}
+          rootId={rootId}
+          onRefetch={onRefetch}
+        />
 
         <button className="text-[#BACAC4] flex items-center justify-center gap-2 border border-[#3B4A45] h-10 rounded-lg">
           <HeartLine />

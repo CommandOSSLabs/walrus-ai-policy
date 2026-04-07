@@ -159,7 +159,7 @@ export const downloadFileWithBlob = (
   fileName: string,
 ) => {
   const blobUrl = URL.createObjectURL(blob);
-  const type = `${extension(mimeType)}`; // convert mime to correct type, image/png => png
+  const type = `.${extension(mimeType)}`; // convert mime to correct type, image/png => png
   const name = fileName.replace(type, ""); // no duplicate name, banner.png => banner
 
   const anchor = document.createElement("a");
