@@ -6,14 +6,12 @@ import Typography from "app/components/Typography";
 import Center from "app/components/Center";
 import { tv } from "tailwind-variants";
 import { type ArtifactFile } from "app/services/graphql-app/generated";
-import { useIncrementDownloadMutation } from "app/services/graphql-app/generated";
-import graphqlApp from "app/services/graphql-app";
-import { downloadFileWithBlob, formatBytesSizes } from "app/utils";
-import utilsWalrus from "app/utils/utils.walrus";
-import { useState, type HTMLAttributes } from "react";
+import { formatBytesSizes } from "app/utils";
+import { type HTMLAttributes } from "react";
 import Spinner from "app/components/Spinner";
 import { extension } from "mime-types";
 import { Link } from "react-router";
+import useDownloadFile from "app/hook/useDownloadFile";
 
 interface ArtifactFileListProps {
   files: ArtifactFile[];
@@ -32,9 +30,7 @@ export default ({
   onRefetch,
   variant,
 }: ArtifactFileListProps) => {
-  const [loading, setLoading] = useState<string>();
-
-  const incrementDownload = useIncrementDownloadMutation(graphqlApp.client);
+  const { downloadFile, downloading } = useDownloadFile();
 
   return (
     <div
@@ -63,7 +59,7 @@ export default ({
 
       {files.map((meta) => {
         const isSelectedFile = select === meta.name;
-        const isLoading = loading === meta.patchId;
+        const isLoading = downloading === meta.patchId;
 
         return (
           <Link
@@ -109,37 +105,14 @@ export default ({
               ) : (
                 <DownloadLine
                   onClick={async (event) => {
-                    try {
-                      event.stopPropagation();
-                      event.preventDefault();
+                    event.stopPropagation();
+                    event.preventDefault();
 
-                      setLoading(meta.patchId);
-
-                      const request = await fetch(
-                        utilsWalrus.getQuiltPatchId(meta.patchId),
-                      );
-
-                      if (!request.ok) {
-                        throw new Error(`Download failed for ${meta.name}`);
-                      }
-
-                      downloadFileWithBlob(
-                        await request.blob(),
-                        meta.mimeType,
-                        meta.name,
-                      );
-
-                      incrementDownload.mutate(
-                        {
-                          rootId: rootId || suiObjectId,
-                        },
-                        {
-                          onSuccess: onRefetch,
-                        },
-                      );
-                    } finally {
-                      setLoading(undefined);
-                    }
+                    return await downloadFile({
+                      file: meta,
+                      rootId: rootId || suiObjectId,
+                      onRefetch,
+                    });
                   }}
                 />
               )}

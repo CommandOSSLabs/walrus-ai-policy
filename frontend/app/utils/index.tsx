@@ -233,7 +233,10 @@ export const formatGrammarCount = (text: string, length: number) => {
 export const renderSectionFile = (
   mimeType: string,
   children: Partial<
-    Record<"csv" | "svg" | "image" | "video" | "markdown" | "pdf", JSX.Element>
+    Record<
+      "csv" | "svg" | "image" | "video" | "markdown" | "pdf" | "fallback",
+      JSX.Element
+    >
   >,
 ): JSX.Element | undefined => {
   if (mimeType === "text/csv") return children.csv;
@@ -247,4 +250,6 @@ export const renderSectionFile = (
   if (mimeType === "text/markdown") return children.markdown;
 
   if (mimeType === "application/pdf") return children.pdf;
+
+  if (mimeType === "fallback") return children.fallback;
 };

@@ -21,6 +21,7 @@ import ArtifactRelease from "./ArtifactRelease";
 import { renderSectionFile } from "app/utils";
 import ArtifactFileReadme from "./ArtifactFile/ArtifactFileReadme";
 import ArtifactFilePreview from "./ArtifactFile/ArtifactFilePreview";
+import ArtifactFileFallback from "./ArtifactFile/ArtifactFileFallback";
 
 const ArtifactFileCSV = lazy(() => import("./ArtifactFile/ArtifactFileCSV"));
 
@@ -125,6 +126,16 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
                 <ArtifactFileMarkdown file={getSingleFile} />
               ),
               pdf: <ArtifactFilePDF file={getSingleFile} />,
+              fallback: (
+                <ArtifactFileFallback
+                  file={getSingleFile}
+                  rootId={
+                    artifact.data.artifact?.rootId ||
+                    artifact.data.artifact.suiObjectId
+                  }
+                  onRefetch={artifact.refetch}
+                />
+              ),
             });
           }
 

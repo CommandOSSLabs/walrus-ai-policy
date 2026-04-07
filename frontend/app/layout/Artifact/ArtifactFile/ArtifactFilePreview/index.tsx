@@ -11,6 +11,7 @@ import { renderSectionFile } from "app/utils";
 import ArtifactFilePreviewExpand from "./ArtifactFilePreviewExpand";
 import ArtifactFilePreview404 from "./ArtifactFilePreview404";
 import ArtifactFilePreviewDirectory from "./ArtifactFilePreviewDirectory";
+import ArtifactFileFallback from "../ArtifactFileFallback";
 
 export interface ArtifactFilePreviewProps {
   files: ArtifactFile[];
@@ -91,6 +92,13 @@ export default ({
                 ),
                 markdown: <ArtifactFileMarkdown file={getSelectFile} />,
                 pdf: <ArtifactFilePDF file={getSelectFile} />,
+                fallback: (
+                  <ArtifactFileFallback
+                    file={getSelectFile}
+                    rootId={rootId || suiObjectId}
+                    onRefetch={onRefetch}
+                  />
+                ),
               })}
             </>
           );
