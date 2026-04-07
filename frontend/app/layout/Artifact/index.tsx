@@ -132,10 +132,8 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
             <>
               <ArtifactFileList
                 files={artifact.data.artifact.files}
-                rootId={
-                  artifact.data.artifact?.rootId ||
-                  artifact.data.artifact.suiObjectId
-                }
+                rootId={artifact.data.artifact?.rootId}
+                suiObjectId={artifact.data.artifact.suiObjectId}
                 onRefetch={artifact.refetch}
               />
 

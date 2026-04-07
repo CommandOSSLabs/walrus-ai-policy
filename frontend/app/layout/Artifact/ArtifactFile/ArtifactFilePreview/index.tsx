@@ -1,17 +1,18 @@
 import type { ArtifactFile } from "app/services/graphql-app/generated";
-import ArtifactFileList from "./ArtifactFileList";
-import { Link } from "react-router";
-import ArtifactFilePDF from "./ArtifactFilePDF";
-import ArtifactFileMarkdown from "./ArtifactFileMarkdown";
+import ArtifactFileList from "../ArtifactFileList";
+import ArtifactFilePDF from "../ArtifactFilePDF";
+import ArtifactFileMarkdown from "../ArtifactFileMarkdown";
 import utilsWalrus from "app/utils/utils.walrus";
-import ArtifactFileSVG from "./ArtifactFileSVG";
-import ArtifactFileCSV from "./ArtifactFileCSV";
+import ArtifactFileSVG from "../ArtifactFileSVG";
+import ArtifactFileCSV from "../ArtifactFileCSV";
 import Flex from "app/components/Flex";
 import { renderSectionFile } from "app/utils";
-import Typography from "app/components/Typography";
-import Stack from "app/components/Stack";
 
-interface ArtifactFilePreviewProps {
+import ArtifactFilePreviewExpand from "./ArtifactFilePreviewExpand";
+import ArtifactFilePreview404 from "./ArtifactFilePreview404";
+import ArtifactFilePreviewDirectory from "./ArtifactFilePreviewDirectory";
+
+export interface ArtifactFilePreviewProps {
   files: ArtifactFile[];
   rootId: string | undefined;
   suiObjectId: string;
@@ -30,13 +31,15 @@ export default ({
 
   return (
     <Flex className="gap-6 p-4 flex-col min-[992px]:flex-row">
-      <div className="min-w-96 hidden min-[992px]:block">
+      <div className="min-w-96 max-w-96 min-h-dvh hidden min-[992px]:block border border-[#352F2F]">
         <ArtifactFileList
           files={files}
-          rootId={rootId || suiObjectId}
+          rootId={rootId}
+          suiObjectId={suiObjectId}
+          select={select}
           onRefetch={onRefetch}
           variant={{
-            className: `sticky top-18 max-h-[calc(100dvh-4.5rem-1.5rem)] overflow-y-auto`,
+            className: `sticky top-18 max-h-[calc(100dvh-4.5rem-1.5rem)] overflow-y-auto border-none`,
           }}
         />
       </div>
@@ -45,31 +48,28 @@ export default ({
         {(function () {
           if (!getSelectFile) {
             return (
-              <Stack className="text-[#BACAC4] border border-[#352F2F] py-16">
-                <Typography>404 - page not found</Typography>
-
-                <Typography>
-                  the list file does not contain the path&nbsp;
-                  <Typography variant="span" className="text-white font-medium">
-                    {select}
-                  </Typography>
-                </Typography>
-              </Stack>
+              <ArtifactFilePreview404
+                select={select}
+                suiObjectId={suiObjectId}
+              />
             );
           }
 
           return (
             <>
-              <Flex className="gap-1.5 h-10 items-center text-sm sticky top-18 bg-background">
-                <Link to={`/artifact/${suiObjectId}`}>
-                  <Typography className="text-blue-400">Root</Typography>
-                </Link>
+              <Flex className="gap-3 h-12 items-center sticky top-18 bg-background">
+                <ArtifactFilePreviewExpand
+                  files={files}
+                  rootId={rootId}
+                  suiObjectId={suiObjectId}
+                  select={select}
+                  onRefetch={onRefetch}
+                />
 
-                <Typography className="text-white/65">/</Typography>
-
-                <Typography className="text-white/65">
-                  {getSelectFile.name}
-                </Typography>
+                <ArtifactFilePreviewDirectory
+                  suiObjectId={suiObjectId}
+                  name={getSelectFile.name}
+                />
               </Flex>
 
               {renderSectionFile(getSelectFile.mimeType, {
