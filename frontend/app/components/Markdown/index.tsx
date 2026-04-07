@@ -6,35 +6,37 @@ interface MarkdownProps {
 
 export default ({ content }: MarkdownProps) => {
   return (
-    <Markdown
-      components={{
-        code: ({ children, className, ...props }) => {
-          const match = /language-(\w+)/.exec(className || "");
+    <div className=" text-[#BACAC4] whitespace-pre-line break-all">
+      <Markdown
+        components={{
+          code: ({ children, className, ...props }) => {
+            const match = /language-(\w+)/.exec(className || "");
 
-          // when array?, possible <li> inside <list>
-          const content = Array.isArray(children)
-            ? children.join("")
-            : String(children);
+            // when array?, possible <li> inside <list>
+            const content = Array.isArray(children)
+              ? children.join("")
+              : String(children);
 
-          const isSpecialBlock = /[┌┐└┘│─]/.test(content);
+            const isSpecialBlock = /[┌┐└┘│─]/.test(content);
 
-          if (match || isSpecialBlock) {
+            if (match || isSpecialBlock) {
+              return (
+                <div className="p-4 bg-[#191F2D] border border-white/12 whitespace-pre-wrap rounded-sm">
+                  <code {...props}>{children}</code>
+                </div>
+              );
+            }
+
             return (
-              <div className="p-4 bg-[#191F2D] border border-white/12 rounded-sm">
-                <code {...props}>{children}</code>
-              </div>
+              <code className="bg-white/10" {...props}>
+                {children}
+              </code>
             );
-          }
-
-          return (
-            <code className="bg-white/10" {...props}>
-              {children}
-            </code>
-          );
-        },
-      }}
-    >
-      {content}
-    </Markdown>
+          },
+        }}
+      >
+        {content}
+      </Markdown>
+    </div>
   );
 };

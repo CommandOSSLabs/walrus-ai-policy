@@ -8,11 +8,11 @@ import OpenBookLine from "public/assets/line/open-book.svg";
 import Markdown from "app/components/Markdown";
 import useGetFileByPatchId from "app/hook/useGetFileByPatchId";
 
-interface ArtifactFileMarkdownProps {
+interface ArtifactFileReadmeProps {
   file: ArtifactFile;
 }
 
-export default ({ file }: ArtifactFileMarkdownProps) => {
+export default ({ file }: ArtifactFileReadmeProps) => {
   const { data, isError, isLoading } = useGetFileByPatchId(file, "text");
 
   if (isLoading) {
@@ -34,7 +34,7 @@ export default ({ file }: ArtifactFileMarkdownProps) => {
         <Typography className="text-sm">{file.name}</Typography>
       </Hstack>
 
-      <div className="p-3.5 text-[#BACAC4] whitespace-pre-line break-all">
+      <div className="p-3.5">
         <Markdown content={data} />
       </div>
     </div>

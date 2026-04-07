@@ -3,6 +3,7 @@ import { SUI_DECIMALS } from "@mysten/sui/utils";
 import utilsConstants from "./utils.constants";
 import utilsSui from "./utils.sui";
 import { extension } from "mime-types";
+import type { JSX } from "react";
 
 export const waitForSeconds = async (cb?: () => void, seconds?: number) => {
   await new Promise((resolve) => {
@@ -158,7 +159,7 @@ export const downloadFileWithBlob = (
   fileName: string,
 ) => {
   const blobUrl = URL.createObjectURL(blob);
-  const type = `.${extension(mimeType)}`; // convert mime to correct type, image/png => png
+  const type = `${extension(mimeType)}`; // convert mime to correct type, image/png => png
   const name = fileName.replace(type, ""); // no duplicate name, banner.png => banner
 
   const anchor = document.createElement("a");
@@ -227,4 +228,28 @@ export const formatGrammarCount = (text: string, length: number) => {
   }
 
   return text;
+};
+
+export const renderSectionFile = (
+  mimeType: string,
+  children: Partial<
+    Record<
+      "csv" | "svg" | "image" | "video" | "markdown" | "pdf" | "fallback",
+      JSX.Element
+    >
+  >,
+): JSX.Element | undefined => {
+  if (mimeType === "text/csv") return children.csv;
+
+  if (mimeType === "image/svg+xml") return children.svg;
+
+  if (mimeType?.startsWith?.("image")) return children.image;
+
+  if (mimeType?.startsWith?.("video")) return children.video;
+
+  if (mimeType === "text/markdown") return children.markdown;
+
+  if (mimeType === "application/pdf") return children.pdf;
+
+  if (mimeType === "fallback") return children.fallback;
 };

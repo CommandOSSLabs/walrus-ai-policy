@@ -1,4 +1,3 @@
-import JSZip from "jszip";
 import DownloadLine from "public/assets/line/download.svg";
 import Hstack from "app/components/Hstack";
 import Typography from "app/components/Typography";
@@ -9,21 +8,13 @@ import EyesLine from "public/assets/line/eyes.svg";
 import HeartLine from "public/assets/line/heart.svg";
 import ShareLine from "public/assets/line/share.svg";
 import type { ArtifactQuery } from "app/services/graphql-app/generated";
-import {
-  useIncrementViewMutation,
-  useIncrementDownloadMutation,
-} from "app/services/graphql-app/generated";
+import { useIncrementViewMutation } from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
-import utilsWalrus from "app/utils/utils.walrus";
-import {
-  downloadFileWithBlob,
-  formatCount,
-  formatGrammarCount,
-} from "app/utils";
-import { useState } from "react";
+import { formatCount, formatGrammarCount } from "app/utils";
 import useMount from "app/hook/useMount";
 import Spinner from "app/components/Spinner";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
+import useDownloadFile from "app/hook/useDownloadFile";
 
 interface ArtifactStatisticProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
@@ -31,25 +22,25 @@ interface ArtifactStatisticProps {
 }
 
 export default ({ artifact, onRefetch }: ArtifactStatisticProps) => {
-  const [loading, setLoading] = useState<string>();
   const currentAccount = useCurrentAccount();
 
   const incrementView = useIncrementViewMutation(graphqlApp.client);
-  const incrementDownload = useIncrementDownloadMutation(graphqlApp.client);
 
-  const effectiveRootId = artifact.rootId ?? artifact.suiObjectId;
+  const rootId = artifact.rootId ?? artifact.suiObjectId;
+
+  const { downloadZip, downloading } = useDownloadFile();
 
   useMount(() => {
     incrementView.mutate(
       {
-        rootId: effectiveRootId,
+        rootId,
         viewerAddress: currentAccount!.address,
       },
       {
         onSuccess: onRefetch,
       },
     );
-  }, [effectiveRootId, currentAccount?.address]);
+  }, [rootId, currentAccount?.address]);
 
   return (
     <Stack
@@ -64,56 +55,20 @@ export default ({ artifact, onRefetch }: ArtifactStatisticProps) => {
       <Vstack className="w-full gap-2.5 text-sm font-bold">
         <button
           className="text-[#00382E] rounded-lg h-10 flex gap-2 items-center justify-center"
-          disabled={!!loading?.length}
+          disabled={!!downloading?.length}
           style={{
             background: "linear-gradient(135deg, #46F1CF 0%, #00D4B4 100%)",
           }}
           onClick={async () => {
-            try {
-              setLoading("download");
-
-              const zip = new JSZip();
-
-              await Promise.all(
-                artifact.files.map(async (meta) => {
-                  const request = await fetch(
-                    utilsWalrus.getQuiltPatchId(meta.patchId),
-                  );
-
-                  if (!request.ok) {
-                    throw new Error(`Download failed for ${meta.name}`);
-                  }
-
-                  const blob = await request.blob();
-
-                  zip.file(meta.name, blob);
-                }),
-              );
-
-              const zipBlob = await zip.generateAsync({
-                type: "blob",
-              });
-
-              downloadFileWithBlob(
-                zipBlob,
-                "application/zip",
-                `artifact-${artifact.createdAt}`,
-              );
-
-              incrementDownload.mutate(
-                {
-                  rootId: effectiveRootId,
-                },
-                {
-                  onSuccess: onRefetch,
-                },
-              );
-            } finally {
-              setLoading(undefined);
-            }
+            return await downloadZip({
+              files: artifact.files,
+              name: `artifact-${artifact.createdAt}`,
+              rootId,
+              onRefetch,
+            });
           }}
         >
-          {loading?.length ? <Spinner /> : <DownloadLine />}
+          {downloading?.length ? <Spinner /> : <DownloadLine />}
 
           <Typography font="grotesk">DOWNLOAD ARTIFACT</Typography>
         </button>
