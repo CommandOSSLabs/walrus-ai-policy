@@ -6,7 +6,6 @@ import Stack from "app/components/Stack";
 import useGetConfig from "app/hook/useGetConfig";
 import { type Contributor } from "app/services/graphql-app/generated";
 import { Skeleton } from "app/components/ui/skeleton";
-import { useState } from "react";
 
 import ArtifactContributorsAddRole from "./ArtifactContributorsAddRole";
 import ArtifactContributorsCard from "./ArtifactContributorsCard";
@@ -25,8 +24,6 @@ export default ({
   onRefetch,
 }: ArtifactContributorsProps) => {
   const { contributorConfig } = useGetConfig();
-
-  const [isAddRole, setIsAddRole] = useState(false);
 
   if (contributorConfig.isLoading) return <Skeleton className="min-h-68.5" />;
 
@@ -47,31 +44,14 @@ export default ({
           Contributors
         </Typography>
 
-        {isAdmin && (
-          <button
-            className="rounded-lg w-14 h-6"
-            onClick={() => setIsAddRole((prev) => !prev)}
-            style={{
-              background: "linear-gradient(135deg, #46F1CF 0%, #00D4B4 100%)",
-            }}
-          >
-            <Typography font="grotesk" className="text-[#00382E]">
-              ADD
-            </Typography>
-          </button>
+        {isAdmin && contributorConfig.data && (
+          <ArtifactContributorsAddRole
+            rootId={rootId}
+            roles={contributorConfig.data}
+            onRefetch={onRefetch}
+          />
         )}
       </Center>
-
-      {isAddRole && contributorConfig.data && (
-        <ArtifactContributorsAddRole
-          rootId={rootId}
-          roles={contributorConfig.data}
-          onRefetch={() => {
-            onRefetch();
-            setIsAddRole(false);
-          }}
-        />
-      )}
 
       <Vstack className="w-full gap-3">
         {contributors.map((contributor) => (
