@@ -4,6 +4,9 @@ import useSignAndExecuteTransaction from "./useSignAndExecuteTransaction";
 import type useUploadQuilt from "./useUploadQuilt";
 import type useSteps from "./useSteps";
 import type { ArtifactFile } from "app/services/graphql-app/generated";
+import { newMetadata } from "app/services/sui-codegen/walrus_archive/metadata";
+import { newFile } from "app/services/sui-codegen/walrus_archive/file";
+import * as artifact from "app/services/sui-codegen/walrus_archive/artifact";
 
 type MetadataType = {
   title: string;
@@ -28,41 +31,25 @@ export default () => {
     files: ArtifactFile[],
   ) => {
     return {
-      metadata: tx.moveCall({
-        target: `${utilsSui.programs.package}::metadata::new_metadata`,
-        arguments: [
-          tx.pure.string(metadata.title),
-          tx.pure.string(metadata.description),
-          tx.pure.string(metadata.category),
-          tx.object.clock(),
-        ],
-      }),
+      metadata: newMetadata({
+        package: utilsSui.programs.package,
+        arguments: {
+          category: metadata.category,
+          description: metadata.description,
+          title: metadata.title,
+        },
+      })(tx),
 
-      file: tx.moveCall({
-        target: `${utilsSui.programs.package}::file::new_file`,
-        arguments: [
-          tx.pure.vector(
-            "string",
-            files.map(({ patchId }) => patchId),
-          ),
-          tx.pure.vector(
-            "string",
-            files.map(({ mimeType }) => mimeType),
-          ),
-          tx.pure.vector(
-            "u64",
-            files.map(({ sizeBytes }) => sizeBytes),
-          ),
-          tx.pure.vector(
-            "string",
-            files.map(({ name }) => name),
-          ),
-          tx.pure.vector(
-            "string",
-            files.map(({ hash }) => hash),
-          ),
-        ],
-      }),
+      file: newFile({
+        package: utilsSui.programs.package,
+        arguments: {
+          mimeType: files.map((file) => file.mimeType),
+          name: files.map((file) => file.name),
+          patchId: files.map((file) => file.patchId),
+          sizeBytes: files.map((file) => BigInt(file.sizeBytes)),
+          hash: files.map((file) => file.hash),
+        },
+      })(tx),
     };
   };
 
@@ -93,10 +80,13 @@ export default () => {
           })),
         );
 
-        tx.moveCall({
-          target: `${utilsSui.programs.package}::artifact::init_artifact`,
-          arguments: [struct.metadata, struct.file],
-        });
+        artifact.initArtifact({
+          package: utilsSui.programs.package,
+          arguments: {
+            files: struct.file,
+            metadata: struct.metadata,
+          },
+        })(tx);
 
         await updateFee(tx);
       }
@@ -132,20 +122,24 @@ export default () => {
         const struct = createNewStruct(tx, metadata, files);
 
         if (parentId?.length) {
-          tx.moveCall({
-            target: `${utilsSui.programs.package}::artifact::commit_artifact_with_parent`,
-            arguments: [
-              tx.object(rootId),
-              tx.object(parentId),
-              struct.metadata,
-              struct.file,
-            ],
-          });
+          artifact.commitArtifactWithParent({
+            package: utilsSui.programs.package,
+            arguments: {
+              parent: parentId,
+              root: rootId,
+              metadata: struct.metadata,
+              files: struct.file,
+            },
+          })(tx);
         } else {
-          tx.moveCall({
-            target: `${utilsSui.programs.package}::artifact::commit_artifact_without_parent`,
-            arguments: [tx.object(rootId), struct.metadata, struct.file],
-          });
+          artifact.commitArtifactWithoutParent({
+            package: utilsSui.programs.package,
+            arguments: {
+              root: rootId,
+              metadata: struct.metadata,
+              files: struct.file,
+            },
+          })(tx);
         }
 
         await updateFee(tx);

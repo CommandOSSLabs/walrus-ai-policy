@@ -22,6 +22,7 @@ import Center from "app/components/Center";
 import { tv } from "tailwind-variants";
 import { Controller, useForm } from "react-hook-form";
 import { contributorConfigEnum } from "app/hook/useGetConfig";
+import { managementRole } from "app/services/sui-codegen/walrus_archive/artifact";
 
 interface ArtifactContributorsAddRoleFieldProps {
   address: string;
@@ -194,17 +195,14 @@ export default ({
 
                     const tx = new Transaction();
 
-                    // handle moveCall
-                    {
-                      tx.moveCall({
-                        target: `${utilsSui.programs.package}::artifact::management_role`,
-                        arguments: [
-                          tx.object(rootId),
-                          tx.pure.address(values.address),
-                          tx.pure.option("u8", values.role),
-                        ],
-                      });
-                    }
+                    managementRole({
+                      package: utilsSui.programs.package,
+                      arguments: {
+                        artifact: rootId,
+                        target: values.address,
+                        role: values.role,
+                      },
+                    })(tx);
 
                     await signAndExecuteTransaction({
                       transaction: tx,

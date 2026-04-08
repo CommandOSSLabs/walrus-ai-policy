@@ -12,6 +12,7 @@ import {
 } from "app/components/ui/dialog";
 import Vstack from "app/components/Vstack";
 import useSignAndExecuteTransaction from "app/hook/useSignAndExecuteTransaction";
+import { managementRole } from "app/services/sui-codegen/walrus_archive/artifact";
 import { waitForSeconds } from "app/utils";
 import utilsSui from "app/utils/utils.sui";
 import CloseLine from "public/assets/line/close.svg";
@@ -80,17 +81,14 @@ export default ({
 
                   const tx = new Transaction();
 
-                  // handle moveCall
-                  {
-                    tx.moveCall({
-                      target: `${utilsSui.programs.package}::artifact::management_role`,
-                      arguments: [
-                        tx.object(rootId),
-                        tx.pure.address(creator),
-                        tx.pure.option("u8", null),
-                      ],
-                    });
-                  }
+                  managementRole({
+                    package: utilsSui.programs.package,
+                    arguments: {
+                      artifact: rootId,
+                      target: creator,
+                      role: null,
+                    },
+                  })(tx);
 
                   await signAndExecuteTransaction({
                     transaction: tx,

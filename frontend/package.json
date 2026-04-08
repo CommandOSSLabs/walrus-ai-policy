@@ -7,6 +7,7 @@
     "dev": "react-router dev",
     "start": "npx serve build/client",
     "clean": "eslint . --fix && prettier --write . && tsc --noEmit",
+    "generate-sui-codegen": "sui-ts-codegen generate",
     "generate-graphql": "graphql-codegen"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/space-grotesk": "^5.2.10",
+    "@mysten/codegen": "^0.8.4",
     "@mysten/dapp-kit-core": "^1.2.0",
     "@mysten/dapp-kit-react": "^2.0.1",
     "@mysten/enoki": "^1.0.4",
