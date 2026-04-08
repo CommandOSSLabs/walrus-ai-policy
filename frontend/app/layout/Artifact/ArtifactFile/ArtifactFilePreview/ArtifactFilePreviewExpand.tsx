@@ -23,7 +23,7 @@ export default ({
         <ArrowExpandLine className="mx-auto size-3.5" />
       </DrawerTrigger>
 
-      <DrawerContent className="px-0 bg-background border-[#352F2F]">
+      <DrawerContent className="bg-background rounded-none overflow-hidden border-[#352F2F]">
         <ArtifactFileList
           files={files}
           rootId={rootId}
@@ -31,7 +31,7 @@ export default ({
           select={select}
           onRefetch={onRefetch}
           variant={{
-            className: "overflow-y-auto border-none",
+            className: "overflow-y-auto border-none rounded-none",
           }}
         />
       </DrawerContent>
