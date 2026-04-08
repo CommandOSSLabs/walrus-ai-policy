@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "app/components/ui/dialog";
+import Vstack from "app/components/Vstack";
 import useSignAndExecuteTransaction from "app/hook/useSignAndExecuteTransaction";
 import { waitForSeconds } from "app/utils";
 import utilsSui from "app/utils/utils.sui";
@@ -37,13 +38,7 @@ export default ({
   const { signAndExecuteTransaction } = useSignAndExecuteTransaction();
 
   return (
-    <Dialog
-      open={
-        // force open dialog, when submiting
-        loading?.length ? true : open
-      }
-      onOpenChange={setOpen}
-    >
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         className={tv({
           base: [
@@ -56,68 +51,72 @@ export default ({
 
       <DialogContent
         showCloseButton={false}
-        className="bg-[#191F2D] border border-white/10"
+        className="flex justify-center"
+        onInteractOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle>Delete Role</DialogTitle>
+        <Vstack className="p-4 gap-4 bg-[#191F2D] border border-white/15 w-sm rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Delete Role</DialogTitle>
 
-          <DialogDescription>
-            This action cannot be undone. The role will be permanently deleted.
-          </DialogDescription>
-        </DialogHeader>
+            <DialogDescription>
+              This action cannot be undone. The role will be permanently
+              deleted.
+            </DialogDescription>
+          </DialogHeader>
 
-        <Hstack className="gap-4 justify-end font-semibold h-9">
-          <DialogClose
-            ref={closeRef}
-            className="bg-[#3B4A45]/45 border border-[#3B4A45] px-4 h-full rounded-sm"
-          >
-            Cancel
-          </DialogClose>
+          <Hstack className="gap-4 justify-end font-semibold h-9">
+            <DialogClose
+              ref={closeRef}
+              className="bg-[#3B4A45]/45 border border-[#3B4A45] px-4 h-full rounded-sm"
+            >
+              Cancel
+            </DialogClose>
 
-          <button
-            className="bg-red-500 px-4 h-full rounded-sm"
-            onClick={async () => {
-              try {
-                setLoading(creator);
+            <button
+              className="bg-red-500 px-4 h-full rounded-sm"
+              onClick={async () => {
+                try {
+                  setLoading(creator);
 
-                const tx = new Transaction();
+                  const tx = new Transaction();
 
-                // handle moveCall
-                {
-                  tx.moveCall({
-                    target: `${utilsSui.programs.package}::artifact::management_role`,
-                    arguments: [
-                      tx.object(rootId),
-                      tx.pure.address(creator),
-                      tx.pure.option("u8", null),
-                    ],
+                  // handle moveCall
+                  {
+                    tx.moveCall({
+                      target: `${utilsSui.programs.package}::artifact::management_role`,
+                      arguments: [
+                        tx.object(rootId),
+                        tx.pure.address(creator),
+                        tx.pure.option("u8", null),
+                      ],
+                    });
+                  }
+
+                  await signAndExecuteTransaction({
+                    transaction: tx,
                   });
+
+                  await waitForSeconds(() => {
+                    onRefetch();
+
+                    toast.success("You removed the role successfully.");
+
+                    setOpen(false);
+                  });
+                } catch (error) {
+                  toast.error(JSON.stringify(error, null, 4));
+                } finally {
+                  setLoading(undefined);
                 }
-
-                await signAndExecuteTransaction({
-                  transaction: tx,
-                });
-
-                await waitForSeconds(() => {
-                  onRefetch();
-
-                  toast.success("You removed the role successfully.");
-
-                  setOpen(false);
-                });
-              } catch (error) {
-                toast.error(JSON.stringify(error, null, 4));
-              } finally {
-                setLoading(undefined);
-              }
-            }}
-          >
-            <Hstack>
-              {loading === creator ? <Spinner /> : null}
-              Delete
-            </Hstack>
-          </button>
-        </Hstack>
+              }}
+            >
+              <Hstack>
+                {loading === creator ? <Spinner /> : null}
+                Delete
+              </Hstack>
+            </button>
+          </Hstack>
+        </Vstack>
       </DialogContent>
     </Dialog>
   );

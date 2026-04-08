@@ -78,10 +78,7 @@ export default ({ artifact }: ArtifactStatisticShareProps) => {
       <DialogContent
         showCloseButton={false}
         onInteractOutside={(e) => e.preventDefault()}
-        className="flex justify-center ring-0"
-        style={{
-          maxWidth: "100%",
-        }}
+        className="flex justify-center"
       >
         <div className="bg-[#1A2130] border border-[#3B4A45] w-130 rounded-xl overflow-hidden">
           <Center className="px-6 h-16 justify-between bg-[#141A28] border-b border-[#3B4A45]">

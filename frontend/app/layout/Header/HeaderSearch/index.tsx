@@ -68,19 +68,14 @@ export default () => {
         </Typography>
       </DialogTrigger>
 
-      <DialogContent
-        showCloseButton={false}
-        className="w-lg py-0 md:px-0 ring-0"
-        style={{
-          maxWidth: "100%",
-        }}
-      >
+      <DialogContent showCloseButton={false} className="flex justify-center">
         <Flex
           className={tv({
             base: [
               "border border-[#3B4A45] rounded-xl",
               "bg-[#141A28] overflow-hidden",
               "flex-col",
+              "w-lg",
             ],
           })()}
         >
