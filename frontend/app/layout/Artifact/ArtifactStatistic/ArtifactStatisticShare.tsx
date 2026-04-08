@@ -81,8 +81,8 @@ export default ({ artifact }: ArtifactStatisticShareProps) => {
         className="flex justify-center"
       >
         <div className="bg-[#1A2130] border border-[#3B4A45] w-130 rounded-xl overflow-hidden">
-          <Center className="px-6 h-16 justify-between bg-[#141A28] border-b border-[#3B4A45]">
-            <Vstack>
+          <Center className="px-6 py-3 justify-between bg-[#141A28] border-b border-[#3B4A45]">
+            <div>
               <Typography font="grotesk" className="text-sm font-bold">
                 Share Artifact
               </Typography>
@@ -90,7 +90,7 @@ export default ({ artifact }: ArtifactStatisticShareProps) => {
               <Typography font="jetbrains" className="text-[#84948F] text-xs">
                 Choose a platform to share on
               </Typography>
-            </Vstack>
+            </div>
 
             <DialogClose className="size-8 bg-[#1A2130] border border-[#3B4A45] rounded-sm">
               <CloseLine className="size-3.5 mx-auto" />
