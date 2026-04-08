@@ -23,7 +23,7 @@ PostgreSQL is a **derived cache** — fully rebuildable by replaying Sui events.
 An `Artifact` is a **shared** Sui object (accessible by any transaction). The creator's address is recorded on-chain but does not imply exclusive ownership; access control is managed by role dynamic fields (see below).
 
 ```move
-module walrus_ai_policy::artifact;
+module walrus_archive::artifact;
 
 public struct Artifact has key {
     id: UID,

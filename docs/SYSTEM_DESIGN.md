@@ -44,7 +44,7 @@
 
 ## 2. Move Contract
 
-Package: `walrus_ai_policy::artifact`
+Package: `walrus_archive::artifact`
 
 Structs, entry points, events, and upgrade policy: see `docs/DATA_MODEL.md`.
 
@@ -52,7 +52,7 @@ Structs, entry points, events, and upgrade policy: see `docs/DATA_MODEL.md`.
 
 ## 3. Indexer
 
-Built on `sui-indexer-alt-framework`. Subscribes to `walrus_ai_policy::artifact` events via the Sui checkpoint stream.
+Built on `sui-indexer-alt-framework`. Subscribes to `walrus_archive::artifact` events via the Sui checkpoint stream.
 
 PostgreSQL schema, event → DB mapping, and indexing rationale: see `docs/DATA_MODEL.md`.
 
@@ -193,7 +193,7 @@ VITE_NETWORK=testnet
 VITE_WALRUS_AGGREGATOR=https://aggregator.walrus-testnet.walrus.space
 VITE_GRAPHQL_URL=https://api.aipolicyarchive.app/graphql
 VITE_WALRUS_PACKAGE_ID=0x...        # Walrus system package on Sui
-VITE_ARCHIVE_PACKAGE_ID=0x...       # walrus_ai_policy package
+VITE_ARCHIVE_PACKAGE_ID=0x...       # walrus_archive package
 
 # indexer + graphql
 DATABASE_URL=postgres://user:pass@localhost:5432/archive

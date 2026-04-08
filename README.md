@@ -5,7 +5,7 @@ A preservation layer for AI governance research. Metadata lives on Sui; file con
 ## Structure
 
 ```
-contract/    Sui Move package (walrus_ai_policy)
+contract/    Sui Move package (walrus_archive)
 frontend/    React + Vite — deployed as a Walrus Site
 backend/     Rust workspace: indexer + GraphQL API + shared DB crate
 ```

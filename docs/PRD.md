@@ -49,7 +49,7 @@ A **policy artifact** is the unit of contribution: a structured collection of fi
 ### In Scope
 - Web-based submission flow (upload files + structured metadata)
 - Walrus storage integration for all artifact files
-- Custom Sui Move package (`walrus_ai_policy`) — `Artifact` shared object as the on-chain registry
+- Custom Sui Move package (`walrus_archive`) — `Artifact` shared object as the on-chain registry
 - Custom Rust indexer subscribing to contract events → PostgreSQL
 - GraphQL API server for discovery queries
 - Public discovery interface (browse, search, filter)
@@ -174,7 +174,7 @@ Artifacts form a tree. The root is created with `create_artifact`. Each new vers
 **Components:**
 
 - **Walrus Storage Network** — Pure blob storage. No application logic. File content certified here.
-- **Artifact Move Contract** (`walrus_ai_policy::artifact`) — Defines `Artifact` shared object with metadata fields, dynamic file references, and role-based access control. Emits `ArtifactEvent`, `ArtifactUpdated`, `FileUpserted`, `FileRemoved` events.
+- **Artifact Move Contract** (`walrus_archive::artifact`) — Defines `Artifact` shared object with metadata fields, dynamic file references, and role-based access control. Emits `ArtifactEvent`, `ArtifactUpdated`, `FileUpserted`, `FileRemoved` events.
 - **Custom Rust indexer** — Subscribes to artifact events in the checkpoint stream. All metadata is in the event payload; no Walrus fetch required for indexing. Writes to PostgreSQL.
 - **GraphQL API server** — Reads from PostgreSQL. Serves paginated, filtered, searchable artifact queries.
 - **Frontend SPA** — Deployed as a Walrus Site. Queries GraphQL for discovery and artifact detail. Uses Walrus SDK for uploads.
@@ -228,7 +228,7 @@ The SPA is served as a Walrus Site. Artifact listings come from the GraphQL API.
 
 ## 10. On-Chain Contract
 
-### Move Package: `walrus_ai_policy`
+### Move Package: `walrus_archive`
 
 **Structs:** `Artifact` (key) — shared object; `creator`, metadata fields, `root_id`, `parent_id`, `created_at`. `Author` (store, copy, drop) — `name`, `orcid?`, `affiliation?`. `FilePath` — dynamic field key. `FileRef` — dynamic field value: `quilt_patch_id`, `blob_id`, `end_epoch`, `mime_type`, `size_bytes`, `description`. Walrus `Blob` objects stored as dynamic object fields (DOF) on the Artifact, keyed by `blob_id: u256`.
 
@@ -277,7 +277,7 @@ Artifact objects survive package upgrades (stable field layouts). In v1, the pac
 | **Indexer** | `sui-indexer-alt-framework` (Rust) | Official Sui framework for checkpoint-based indexers |
 | **Database** | PostgreSQL + Diesel ORM | Framework's native store; proven for structured metadata queries |
 | **GraphQL server** | `async-graphql` (Rust) | Lightweight; reads from the same Postgres the indexer writes to |
-| **On-chain registry** | Custom Move package `walrus_ai_policy` | `Artifact` shared object — updatable metadata, dynamic file references, role-based access control, event emission |
+| **On-chain registry** | Custom Move package `walrus_archive` | `Artifact` shared object — updatable metadata, dynamic file references, role-based access control, event emission |
 
 ---
 
