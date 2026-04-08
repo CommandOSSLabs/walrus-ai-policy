@@ -1,4 +1,4 @@
-module walrus_ai_policy::contributor;
+module walrus_archive::contributor;
 
 use sui::event;
 

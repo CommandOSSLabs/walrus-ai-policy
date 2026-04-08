@@ -3,7 +3,7 @@
 
 [move]
 version = 3
-manifest_digest = "C4D62AF14FAF9D1B7C774170641A28C39710B072AD32DB051181134DB8469103"
+manifest_digest = "73EB51DE381E8AE2493C8EBF196460FEE58A53DFC41D949989D3CCE5DAC965AE"
 deps_digest = "F9B494B64F0615AED0E98FC12A85B85ECD2BC5185C22D30E7F67786BB52E507C"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
@@ -26,6 +26,12 @@ dependencies = [
 id = "MoveStdlib"
 source = { git = "https://github.com/MystenLabs/sui.git", rev = "c1f1ae650fb9f9248b39a569400b4420820868db", subdir = "crates/sui-framework/packages/move-stdlib" }
 
+[pinned.testnet.MoveStdlib]
+source = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "85400e2bd37b490fcd057776e700d3fdca643396" }
+use_environment = "testnet"
+manifest_digest = "C4FE4C91DE74CBF223B2E380AE40F592177D21870DC2D7EB6227D2D694E05363"
+deps = {}
+
 [[move.package]]
 id = "Sui"
 source = { git = "https://github.com/MystenLabs/sui.git", rev = "c1f1ae650fb9f9248b39a569400b4420820868db", subdir = "crates/sui-framework/packages/sui-framework" }
@@ -33,6 +39,12 @@ source = { git = "https://github.com/MystenLabs/sui.git", rev = "c1f1ae650fb9f92
 dependencies = [
   { id = "MoveStdlib", name = "MoveStdlib" },
 ]
+
+[pinned.testnet.Sui]
+source = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "85400e2bd37b490fcd057776e700d3fdca643396" }
+use_environment = "testnet"
+manifest_digest = "7AFB66695545775FBFBB2D3078ADFD084244D5002392E837FDE21D9EA1C6D01C"
+deps = { MoveStdlib = "MoveStdlib" }
 
 [[move.package]]
 id = "SuiSystem"
@@ -48,19 +60,7 @@ compiler-version = "1.61.2"
 edition = "2024.beta"
 flavor = "sui"
 
-[pinned.testnet.MoveStdlib]
-source = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "384b1c7ff289b32ed2664f29dc47dbc879fa43ee" }
-use_environment = "testnet"
-manifest_digest = "C4FE4C91DE74CBF223B2E380AE40F592177D21870DC2D7EB6227D2D694E05363"
-deps = {}
-
-[pinned.testnet.Sui]
-source = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "384b1c7ff289b32ed2664f29dc47dbc879fa43ee" }
-use_environment = "testnet"
-manifest_digest = "7AFB66695545775FBFBB2D3078ADFD084244D5002392E837FDE21D9EA1C6D01C"
-deps = { MoveStdlib = "MoveStdlib" }
-
-[pinned.testnet.walrus_ai_policy]
+[pinned.testnet.walrus_archive]
 source = { root = true }
 use_environment = "testnet"
 manifest_digest = "5745706258F61D6CE210904B3E6AE87A73CE9D31A6F93BE4718C442529332A87"
@@ -70,6 +70,6 @@ deps = { std = "MoveStdlib", sui = "Sui" }
 
 [env.testnet]
 chain-id = "4c78adac"
-original-published-id = "0xf40491a2e60073cd680ee876b321796d8f457a6fdf3875c7aed46474b29ac1f2"
-latest-published-id = "0xf40491a2e60073cd680ee876b321796d8f457a6fdf3875c7aed46474b29ac1f2"
+original-published-id = "0xe23dfd3e886d8de87eb516d0b34b44cf1780755d9eb912515d8c719845e31aa8"
+latest-published-id = "0xe23dfd3e886d8de87eb516d0b34b44cf1780755d9eb912515d8c719845e31aa8"
 published-version = "1"

@@ -1,4 +1,4 @@
-module walrus_ai_policy::metadata;
+module walrus_archive::metadata;
 
 use std::string::String;
 use sui::clock::Clock;

@@ -1,9 +1,9 @@
-module walrus_ai_policy::artifact;
+module walrus_archive::artifact;
 
 use sui::event;
-use walrus_ai_policy::contributor;
-use walrus_ai_policy::file;
-use walrus_ai_policy::metadata;
+use walrus_archive::contributor;
+use walrus_archive::file;
+use walrus_archive::metadata;
 
 const EInvalidRoot: u64 = 0;
 const EContributorNotFound: u64 = 1;

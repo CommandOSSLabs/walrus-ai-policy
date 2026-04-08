@@ -1,4 +1,4 @@
-module walrus_ai_policy::file;
+module walrus_archive::file;
 
 use std::string::String;
 use sui::dynamic_field;
