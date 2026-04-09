@@ -31,7 +31,12 @@ export default () => {
     handleSubmit,
     control,
     formState: { isSubmitting },
-  } = useForm<CreateArtifactFieldProps>();
+  } = useForm<CreateArtifactFieldProps>({
+    defaultValues: {
+      title: "",
+      description: "",
+    },
+  });
 
   return (
     <Stack className="gap-8 pt-8 pb-14 px-4 sm:px-0 mx-auto max-w-xl">

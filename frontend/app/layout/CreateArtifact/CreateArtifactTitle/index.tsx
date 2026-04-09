@@ -6,6 +6,7 @@ import { Controller, type Control } from "react-hook-form";
 import type { CreateArtifactFieldProps } from "..";
 import { Skeleton } from "app/components/ui/skeleton";
 import Center from "app/components/Center";
+import useUtf8Bytes from "app/hook/useUtf8Bytes";
 
 interface CreateArtifactTitleProps {
   control: Control<CreateArtifactFieldProps>;
@@ -13,6 +14,8 @@ interface CreateArtifactTitleProps {
 
 export default ({ control }: CreateArtifactTitleProps) => {
   const { metadataConfig } = useGetConfig();
+
+  const { getByteLength } = useUtf8Bytes();
 
   return (
     <Vstack>
@@ -30,14 +33,12 @@ export default ({ control }: CreateArtifactTitleProps) => {
           return (
             <Vstack>
               <input
+                {...field}
                 placeholder="Enter the title of the artifact."
                 className="input-bold h-14"
                 disabled={formState.isSubmitting}
-                name={field.name}
-                ref={field.ref}
-                value={field?.value || ""}
                 onChange={({ currentTarget }) => {
-                  if (currentTarget.value.length > MAX) {
+                  if (getByteLength(currentTarget.value) > MAX) {
                     currentTarget.value = currentTarget.value.slice(0, MAX);
                   }
 
@@ -50,7 +51,7 @@ export default ({ control }: CreateArtifactTitleProps) => {
                   <Skeleton className="w-10 min-h-5" />
                 ) : (
                   <Typography className="input-max">
-                    {`${forceToNumber(field.value?.length)}/${MAX}`}
+                    {`${getByteLength(field.value)}/${MAX}`}
                   </Typography>
                 )}
               </Center>

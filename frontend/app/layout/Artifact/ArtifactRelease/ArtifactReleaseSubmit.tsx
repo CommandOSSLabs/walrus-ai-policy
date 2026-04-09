@@ -111,7 +111,7 @@ export default ({
                   }
                 }
 
-                if (!files?.length) throw "hello";
+                if (!files?.length) throw "You must upload at least one file.";
 
                 const artifact = await releaseArtifact(
                   values,
