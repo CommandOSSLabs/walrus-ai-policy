@@ -17,15 +17,20 @@ struct Cli {
 
     #[clap(long, env = "PORT", default_value = "4000")]
     port: u16,
+
+    #[clap(long, env = "OPENROUTER_API_KEY")]
+    openrouter_api_key: Option<String>,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    dotenvy::dotenv().ok();
     tracing_subscriber::fmt::init();
 
     let cli = Cli::parse();
     let pool = db::create_pool(cli.database_url).await?;
-    let schema = schema::build(pool);
+    let embed_client = cli.openrouter_api_key.map(|key| archive_db::ai::make_client(&key));
+    let schema = schema::build(pool, embed_client);
 
     let app = Router::new()
         .route("/health", get(|| async { "ok" }))

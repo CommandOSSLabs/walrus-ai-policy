@@ -1,6 +1,9 @@
 pub use archive_db::artifact;
+pub use archive_db::artifact_ai_meta;
 pub use archive_db::artifact_contributor;
+pub use archive_db::artifact_embedding;
 pub use archive_db::artifact_file;
 pub use archive_db::artifact_stats;
 pub use archive_db::artifact_version_counts;
+pub use archive_db::artifact_viewer;
 pub use archive_db::platform_stats;

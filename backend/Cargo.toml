@@ -27,3 +27,6 @@ dotenvy = "0.15"
 
 async-graphql = { version = "7", features = ["tracing", "chrono", "dataloader"] }
 axum = "0.8"
+pgvector      = { version = "0.4", features = ["diesel", "postgres"] }
+reqwest       = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+async-openai  = { version = "0.34", features = ["embedding", "chat-completion"] }

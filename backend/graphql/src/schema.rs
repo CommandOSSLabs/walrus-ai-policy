@@ -8,6 +8,7 @@ use diesel::prelude::*;
 use serde::Deserialize;
 
 use archive_db::artifact;
+use archive_db::artifact_ai_meta;
 use archive_db::artifact_contributor;
 use archive_db::artifact_file;
 use archive_db::artifact_stats;
@@ -20,13 +21,16 @@ pub type AppSchema = Schema<QueryRoot, MutationRoot, EmptySubscription>;
 
 const MAX_PAGE_SIZE: i64 = 200;
 
-pub fn build(pool: DbPool) -> AppSchema {
-    Schema::build(QueryRoot, MutationRoot, EmptySubscription)
+pub fn build(pool: DbPool, embed_client: Option<archive_db::ai::AiClient>) -> AppSchema {
+    let mut builder = Schema::build(QueryRoot, MutationRoot, EmptySubscription)
         .data(pool.clone())
         .data(DataLoader::new(ContributorsLoader { pool: pool.clone() }, tokio::spawn))
         .data(DataLoader::new(VersionsLoader { pool: pool.clone() }, tokio::spawn))
-        .data(DataLoader::new(StatsLoader { pool }, tokio::spawn))
-        .finish()
+        .data(DataLoader::new(StatsLoader { pool }, tokio::spawn));
+    if let Some(client) = embed_client {
+        builder = builder.data(client);
+    }
+    builder.finish()
 }
 
 pub async fn graphql_playground() -> impl IntoResponse {
@@ -141,6 +145,21 @@ pub struct StoredPlatformStats {
     pub id: i32,
     pub total_size_bytes: i64,
 }
+
+#[derive(SimpleObject)]
+#[graphql(name = "SearchResult")]
+pub struct SearchResult {
+    pub artifact: StoredArtifact,
+    pub ai_tags:  Vec<String>,
+}
+
+#[derive(SimpleObject)]
+#[graphql(name = "SearchConnection")]
+pub struct SearchConnection {
+    pub items:          Vec<SearchResult>,
+    pub available_tags: Vec<String>,
+}
+
 
 fn stats_sort_sql(column: &str) -> diesel::expression::SqlLiteral<diesel::sql_types::BigInt> {
     diesel::dsl::sql::<diesel::sql_types::BigInt>(&format!(
@@ -323,6 +342,160 @@ impl QueryRoot {
         .await?;
 
         Ok(stats)
+    }
+
+    async fn search(
+        &self,
+        ctx: &Context<'_>,
+        query: String,
+        tags: Option<Vec<String>>,
+        #[graphql(default = 20)] limit: i64,
+    ) -> async_graphql::Result<SearchConnection> {
+        use diesel_async::RunQueryDsl as AsyncDsl;
+
+        let query = query.trim().to_string();
+        if query.is_empty() {
+            return Err(async_graphql::Error::new("query must not be empty"));
+        }
+        let limit = limit.clamp(1, 50);
+        let intermediate_limit = (limit * 2).max(50);
+        let tag_slice: &[String] = tags.as_deref().unwrap_or(&[]);
+        let has_tags = !tag_slice.is_empty();
+
+        let embedding: Option<Vec<f32>> = match ctx.data::<archive_db::ai::AiClient>() {
+            Ok(ai_client) => match archive_db::ai::embed(ai_client, &query).await {
+                Ok(v)  => Some(v),
+                Err(e) => { tracing::warn!("OpenRouter embed failed; FTS-only: {e}"); None }
+            },
+            Err(_) => None,
+        };
+
+        let pool = ctx.data::<DbPool>()?;
+        let mut conn = pool.get().await?;
+
+        const FTS_PRED: &str =
+            "to_tsvector('english', title || ' ' || description) \
+             @@ plainto_tsquery('english', $1)";
+
+        #[derive(diesel::QueryableByName)]
+        struct FtsRow {
+            #[diesel(sql_type = diesel::sql_types::Text)]
+            sui_object_id: String,
+        }
+        #[derive(diesel::QueryableByName)]
+        struct VecRow {
+            #[diesel(sql_type = diesel::sql_types::Text)]
+            artifact_id: String,
+        }
+
+        let fts_ids: Vec<String> = if has_tags {
+            AsyncDsl::load(
+                diesel::sql_query(
+                    &format!(
+                        "SELECT sui_object_id FROM artifact \
+                         WHERE {FTS_PRED} \
+                           AND sui_object_id IN (\
+                               SELECT artifact_id FROM artifact_ai_meta WHERE tags && $2\
+                           ) \
+                         LIMIT $3"
+                    )
+                )
+                .bind::<diesel::sql_types::Text, _>(&query)
+                .bind::<diesel::sql_types::Array<diesel::sql_types::Text>, _>(tag_slice)
+                .bind::<diesel::sql_types::BigInt, _>(intermediate_limit),
+                &mut conn,
+            ).await?.into_iter().map(|r: FtsRow| r.sui_object_id).collect()
+        } else {
+            AsyncDsl::load(
+                diesel::sql_query(
+                    &format!("SELECT sui_object_id FROM artifact WHERE {FTS_PRED} LIMIT $2")
+                )
+                .bind::<diesel::sql_types::Text, _>(&query)
+                .bind::<diesel::sql_types::BigInt, _>(intermediate_limit),
+                &mut conn,
+            ).await?.into_iter().map(|r: FtsRow| r.sui_object_id).collect()
+        };
+
+        let vec_ids: Vec<String> = if let Some(vec) = embedding {
+            let vec_param = pgvector::Vector::from(vec);
+            if has_tags {
+                AsyncDsl::load(
+                    diesel::sql_query(
+                        "SELECT artifact_id FROM artifact_embedding \
+                         WHERE artifact_id IN (\
+                             SELECT artifact_id FROM artifact_ai_meta WHERE tags && $1\
+                         ) \
+                         ORDER BY embedding <=> $2 \
+                         LIMIT $3"
+                    )
+                    .bind::<diesel::sql_types::Array<diesel::sql_types::Text>, _>(tag_slice)
+                    .bind::<pgvector::sql_types::Vector, _>(&vec_param)
+                    .bind::<diesel::sql_types::BigInt, _>(intermediate_limit),
+                    &mut conn,
+                ).await.unwrap_or_default().into_iter().map(|r: VecRow| r.artifact_id).collect()
+            } else {
+                AsyncDsl::load(
+                    diesel::sql_query(
+                        "SELECT artifact_id FROM artifact_embedding \
+                         ORDER BY embedding <=> $1 \
+                         LIMIT $2"
+                    )
+                    .bind::<pgvector::sql_types::Vector, _>(&vec_param)
+                    .bind::<diesel::sql_types::BigInt, _>(intermediate_limit),
+                    &mut conn,
+                ).await.unwrap_or_default().into_iter().map(|r: VecRow| r.artifact_id).collect()
+            }
+        } else {
+            vec![]
+        };
+
+        let merged = archive_db::rrf_merge(vec![fts_ids, vec_ids], 60, limit as usize);
+        let top_ids: Vec<String> = merged.into_iter().map(|(id, _)| id).collect();
+
+        if top_ids.is_empty() {
+            return Ok(SearchConnection { items: vec![], available_tags: vec![] });
+        }
+
+        let rows: Vec<(StoredArtifact, Option<Vec<String>>)> = AsyncDsl::load(
+            artifact::table
+                .left_join(
+                    artifact_ai_meta::table.on(
+                        artifact::sui_object_id.eq(artifact_ai_meta::artifact_id)
+                    )
+                )
+                .filter(artifact::sui_object_id.eq_any(&top_ids))
+                .select((artifact::all_columns, artifact_ai_meta::tags.nullable())),
+            &mut conn,
+        )
+        .await?;
+
+        let mut row_map: std::collections::HashMap<String, (StoredArtifact, Vec<String>)> = rows
+            .into_iter()
+            .map(|(a, t)| (a.sui_object_id.clone(), (a, t.unwrap_or_default())))
+            .collect();
+
+        // Dedup by tree: top_ids is sorted by RRF score, so the first occurrence
+        // of each root_id is the highest-scoring version of that artifact tree.
+        let mut seen_roots: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let items: Vec<SearchResult> = top_ids
+            .iter()
+            .filter_map(|id| row_map.remove(id))
+            .filter(|(artifact, _)| {
+                let root = artifact.root_id.as_deref().unwrap_or(&artifact.sui_object_id).to_string();
+                seen_roots.insert(root)
+            })
+            .map(|(artifact, tags)| SearchResult { artifact, ai_tags: tags })
+            .collect();
+
+        let available_tags: Vec<String> = {
+            let mut seen = std::collections::HashSet::new();
+            items.iter()
+                .flat_map(|r| r.ai_tags.iter().cloned())
+                .filter(|t| seen.insert(t.clone()))
+                .collect()
+        };
+
+        Ok(SearchConnection { items, available_tags })
     }
 
     async fn artifact_contributors(
@@ -532,7 +705,7 @@ mod db_integration_tests {
     async fn make_schema_and_conn(url: &str) -> (AppSchema, AsyncPgConnection) {
         use diesel_async::AsyncConnection;
         let pool = crate::db::create_pool(url.parse().unwrap()).await.unwrap();
-        let schema = build(pool);
+        let schema = build(pool, None);
         let conn = AsyncPgConnection::establish(url).await.unwrap();
         (schema, conn)
     }
