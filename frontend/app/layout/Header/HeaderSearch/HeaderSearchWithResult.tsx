@@ -32,48 +32,50 @@ export default ({ search, onClose }: HeaderSearchWithResultProps) => {
             <Link
               key={artifact.suiObjectId}
               to={`/artifact/${artifact.suiObjectId}`}
-              className="not-last:border-b not-last:border-[#3B4A45] block"
               onClick={onClose}
+              className={tv({
+                base: [
+                  "not-last:border-b not-last:border-[#3B4A45]",
+                  "flex flex-col gap-3",
+                  "px-4 py-2.5 hover:bg-[#84948F]/12 transition-all",
+                ],
+              })()}
             >
-              <div className="space-y-3 px-4 py-2.5 hover:bg-[#84948F]/12 transition-all">
-                <Badge
-                  active={getTypeResource?.type}
-                  type={getTypeResource?.type}
-                  className="text-2xs whitespace-pre px-3 py-0.5 w-fit"
-                >
-                  <Typography font="jetbrains">{artifact.category}</Typography>
-                </Badge>
+              <Badge
+                active={getTypeResource?.type}
+                type={getTypeResource?.type}
+                className="text-2xs whitespace-pre px-3 py-0.5 w-fit"
+              >
+                <Typography font="jetbrains">{artifact.category}</Typography>
+              </Badge>
 
-                <div className="space-y-0.5">
-                  <Typography className="text-white font-semibold line-clamp-1">
-                    {artifact.title}
-                  </Typography>
+              <div className="space-y-0.5">
+                <Typography className="text-white font-semibold line-clamp-1">
+                  {artifact.title}
+                </Typography>
 
-                  <Typography className="text-white/45 text-xs line-clamp-2">
-                    {artifact.description}
-                  </Typography>
-                </div>
-
-                <Flex className="gap-2">
-                  {[`Version ${artifact.version}`, ...(aiTags || [])].map(
-                    (meta) => (
-                      <Typography
-                        key={meta}
-                        font="jetbrains"
-                        className={tv({
-                          base: [
-                            "bg-[#0D111D] border border-[#352F2F] rounded-full",
-                            "text-white/80 text-2xs font-medium uppercase",
-                            "px-3.5 py-1.5",
-                          ],
-                        })()}
-                      >
-                        {meta}
-                      </Typography>
-                    ),
-                  )}
-                </Flex>
+                <Typography className="text-white/45 text-xs line-clamp-2">
+                  {artifact.description}
+                </Typography>
               </div>
+
+              <Flex className="gap-1 flex-wrap whitespace-pre">
+                {aiTags.map((meta) => (
+                  <Typography
+                    key={meta}
+                    font="jetbrains"
+                    className={tv({
+                      base: [
+                        "bg-[#0D111D] border border-[#352F2F] rounded-full",
+                        "text-white/80 text-2xs font-medium uppercase",
+                        "px-3.5 py-1.5",
+                      ],
+                    })()}
+                  >
+                    {meta}
+                  </Typography>
+                ))}
+              </Flex>
             </Link>
           );
         })}

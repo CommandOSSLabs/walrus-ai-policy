@@ -105,7 +105,6 @@ const search = gql`
           suiObjectId
           title
           description
-          version
           category
         }
       }

@@ -274,7 +274,6 @@ export type SearchQuery = {
         suiObjectId: string;
         title: string;
         description: string;
-        version: number;
         category: string;
       };
     }>;
@@ -570,7 +569,6 @@ export const SearchDocument = `
         suiObjectId
         title
         description
-        version
         category
       }
     }
