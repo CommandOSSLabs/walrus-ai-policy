@@ -1,6 +1,7 @@
 import Typography from "app/components/Typography";
 import Vstack from "app/components/Vstack";
 import useGetConfig from "app/hook/useGetConfig";
+import useUtf8Bytes from "app/hook/useUtf8Bytes";
 import { forceToNumber } from "app/utils";
 import { Controller, type Control } from "react-hook-form";
 import type { CreateArtifactFieldProps } from "..";
@@ -13,6 +14,8 @@ interface CreateArtifactDescriptionProps {
 
 export default ({ control }: CreateArtifactDescriptionProps) => {
   const { metadataConfig } = useGetConfig();
+
+  const { getByteLength } = useUtf8Bytes();
 
   return (
     <Vstack>
@@ -30,14 +33,12 @@ export default ({ control }: CreateArtifactDescriptionProps) => {
           return (
             <Vstack>
               <textarea
+                {...field}
                 placeholder="Enter the description of the artifact."
                 className="input-bold min-h-32 resize-none"
                 disabled={formState.isSubmitting}
-                name={field.name}
-                ref={field.ref}
-                value={field?.value || ""}
                 onChange={({ currentTarget }) => {
-                  if (currentTarget.value.length > MAX) {
+                  if (getByteLength(currentTarget.value) > MAX) {
                     currentTarget.value = currentTarget.value.slice(0, MAX);
                   }
 
@@ -50,7 +51,7 @@ export default ({ control }: CreateArtifactDescriptionProps) => {
                   <Skeleton className="w-10 min-h-5" />
                 ) : (
                   <Typography className="input-max">
-                    {`${forceToNumber(field.value?.length)}/${MAX}`}
+                    {`${getByteLength(field.value)}/${MAX}`}
                   </Typography>
                 )}
               </Center>
