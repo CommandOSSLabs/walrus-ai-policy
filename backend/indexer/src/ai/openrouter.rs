@@ -97,26 +97,27 @@ pub async fn summarize_and_tag(
 
 fn build_summarize_prompt(text: &str) -> String {
     format!(
-        "You are a document analyst. Return ONLY valid JSON with exactly two fields:\n\
-         - \"summary\": a thorough paragraph (4-6 sentences) covering the document's main purpose, \
-           key topics, notable details, and any conclusions or recommendations.\n\
-         - \"tags\": an array of at most 6 specific topic strings that best describe the content \
-           (prefer specific terms over generic ones).\n\
+        "You are a document analyst. The input below starts with the artifact's title and \
+         description (the definitive source of what this artifact is about), followed by its \
+         file content. Return ONLY valid JSON with exactly two fields:\n\
+         - \"summary\": 2-3 sentences describing the artifact's main purpose and key takeaways, \
+           grounded in the title/description even if file content seems unrelated.\n\
+         - \"tags\": an array of 2 to 3 concise tags that cover the core topic — no more. \
+           Use the title/description as the primary signal; ignore file metadata noise \
+           (ICC profiles, image formats, music notation, etc.) unless the artifact is explicitly \
+           about those things.\n\
          Return ONLY the JSON object, no other text.\n\
-         Document content:\n\n{text}"
+         Content:\n\n{text}"
     )
 }
 
 /// Used when no file content is available — only artifact title and description.
 fn build_metadata_only_prompt(metadata: &str) -> String {
     format!(
-        "You are a document analyst. You only have the artifact's title and description — \
-         no file content is available. Based solely on this metadata, return ONLY valid JSON \
-         with exactly two fields:\n\
-         - \"summary\": a thorough paragraph (4-6 sentences) inferring the document's likely \
-           purpose, audience, and key topics from the title and description.\n\
-         - \"tags\": an array of at most 6 specific topic strings inferred from the metadata \
-           (prefer specific terms over generic ones).\n\
+        "You are a document analyst. You only have the artifact's title and description. \
+         Return ONLY valid JSON with exactly two fields:\n\
+         - \"summary\": 2-3 sentences describing the artifact's main purpose and key takeaways.\n\
+         - \"tags\": an array of 2 to 3 concise tags covering the core topic — no more.\n\
          Return ONLY the JSON object, no other text.\n\
          Artifact metadata:\n\n{metadata}"
     )

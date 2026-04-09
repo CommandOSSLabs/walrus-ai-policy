@@ -373,32 +373,39 @@ impl QueryRoot {
         let pool = ctx.data::<DbPool>()?;
         let mut conn = pool.get().await?;
 
-        const FTS_PRED: &str =
-            "to_tsvector('english', title || ' ' || description) \
-             @@ plainto_tsquery('english', $1)";
-
         #[derive(diesel::QueryableByName)]
         struct FtsRow {
             #[diesel(sql_type = diesel::sql_types::Text)]
             sui_object_id: String,
         }
+        // Returns artifact_id + cosine distance so the adaptive threshold can be applied
+        // in Rust after the HNSW index does a clean top-K scan — no full-table subquery needed.
         #[derive(diesel::QueryableByName)]
-        struct VecRow {
+        struct VecRowWithDist {
             #[diesel(sql_type = diesel::sql_types::Text)]
             artifact_id: String,
+            #[diesel(sql_type = diesel::sql_types::Double)]
+            dist: f64,
         }
 
+        // ts_rank_cd chosen over ts_rank: cover-density ranking improves RRF positions.
+        // CTE materializes the combined tsvector once so WHERE and ORDER BY share it —
+        // to_tsvector on non-stored columns would otherwise run twice per row.
         let fts_ids: Vec<String> = if has_tags {
             AsyncDsl::load(
                 diesel::sql_query(
-                    &format!(
-                        "SELECT sui_object_id FROM artifact \
-                         WHERE {FTS_PRED} \
-                           AND sui_object_id IN (\
-                               SELECT artifact_id FROM artifact_ai_meta WHERE tags && $2\
-                           ) \
-                         LIMIT $3"
-                    )
+                    "WITH doc AS (\
+                         SELECT a.sui_object_id, \
+                                to_tsvector('english', a.title || ' ' || a.description) \
+                                    || COALESCE(m.search_vector, ''::tsvector) AS vec \
+                         FROM artifact a \
+                         INNER JOIN artifact_ai_meta m ON a.sui_object_id = m.artifact_id \
+                         WHERE m.tags && $2\
+                     ) \
+                     SELECT sui_object_id FROM doc \
+                     WHERE vec @@ plainto_tsquery('english', $1) \
+                     ORDER BY ts_rank_cd(vec, plainto_tsquery('english', $1)) DESC \
+                     LIMIT $3"
                 )
                 .bind::<diesel::sql_types::Text, _>(&query)
                 .bind::<diesel::sql_types::Array<diesel::sql_types::Text>, _>(tag_slice)
@@ -408,7 +415,17 @@ impl QueryRoot {
         } else {
             AsyncDsl::load(
                 diesel::sql_query(
-                    &format!("SELECT sui_object_id FROM artifact WHERE {FTS_PRED} LIMIT $2")
+                    "WITH doc AS (\
+                         SELECT a.sui_object_id, \
+                                to_tsvector('english', a.title || ' ' || a.description) \
+                                    || COALESCE(m.search_vector, ''::tsvector) AS vec \
+                         FROM artifact a \
+                         LEFT JOIN artifact_ai_meta m ON a.sui_object_id = m.artifact_id\
+                     ) \
+                     SELECT sui_object_id FROM doc \
+                     WHERE vec @@ plainto_tsquery('english', $1) \
+                     ORDER BY ts_rank_cd(vec, plainto_tsquery('english', $1)) DESC \
+                     LIMIT $2"
                 )
                 .bind::<diesel::sql_types::Text, _>(&query)
                 .bind::<diesel::sql_types::BigInt, _>(intermediate_limit),
@@ -416,34 +433,52 @@ impl QueryRoot {
             ).await?.into_iter().map(|r: FtsRow| r.sui_object_id).collect()
         };
 
+        // HNSW needs a clean top-K scan (ORDER BY + LIMIT); the adaptive threshold is then
+        // applied in Rust. `SELECT MIN(dist) FROM subquery` breaks HNSW index usage.
+        const VEC_MARGIN:   f64 = 0.20;
+        const VEC_HARD_CAP: f64 = 0.55;
+
         let vec_ids: Vec<String> = if let Some(vec) = embedding {
             let vec_param = pgvector::Vector::from(vec);
-            if has_tags {
+            let candidates: Vec<VecRowWithDist> = if has_tags {
                 AsyncDsl::load(
                     diesel::sql_query(
-                        "SELECT artifact_id FROM artifact_embedding \
-                         WHERE artifact_id IN (\
-                             SELECT artifact_id FROM artifact_ai_meta WHERE tags && $1\
-                         ) \
-                         ORDER BY embedding <=> $2 \
+                        "SELECT ae.artifact_id, (ae.embedding <=> $2)::float8 AS dist \
+                         FROM artifact_embedding ae \
+                         INNER JOIN artifact_ai_meta m ON ae.artifact_id = m.artifact_id \
+                         WHERE m.tags && $1 \
+                         ORDER BY ae.embedding <=> $2 \
                          LIMIT $3"
                     )
                     .bind::<diesel::sql_types::Array<diesel::sql_types::Text>, _>(tag_slice)
                     .bind::<pgvector::sql_types::Vector, _>(&vec_param)
                     .bind::<diesel::sql_types::BigInt, _>(intermediate_limit),
                     &mut conn,
-                ).await.unwrap_or_default().into_iter().map(|r: VecRow| r.artifact_id).collect()
+                ).await.unwrap_or_else(|e| { tracing::warn!("vector query failed: {e}"); vec![] })
             } else {
                 AsyncDsl::load(
                     diesel::sql_query(
-                        "SELECT artifact_id FROM artifact_embedding \
+                        "SELECT artifact_id, (embedding <=> $1)::float8 AS dist \
+                         FROM artifact_embedding \
                          ORDER BY embedding <=> $1 \
                          LIMIT $2"
                     )
                     .bind::<pgvector::sql_types::Vector, _>(&vec_param)
                     .bind::<diesel::sql_types::BigInt, _>(intermediate_limit),
                     &mut conn,
-                ).await.unwrap_or_default().into_iter().map(|r: VecRow| r.artifact_id).collect()
+                ).await.unwrap_or_else(|e| { tracing::warn!("vector query failed: {e}"); vec![] })
+            };
+
+            if candidates.is_empty() {
+                vec![]
+            } else {
+                // Use index rather than .first() — RunQueryDsl's blanket impl shadows Vec::first()
+                // when AsyncDsl is in scope, causing a method-resolution conflict.
+                let threshold = (candidates[0].dist + VEC_MARGIN).min(VEC_HARD_CAP);
+                candidates.into_iter()
+                    .filter(|r| r.dist < threshold)
+                    .map(|r| r.artifact_id)
+                    .collect()
             }
         } else {
             vec![]

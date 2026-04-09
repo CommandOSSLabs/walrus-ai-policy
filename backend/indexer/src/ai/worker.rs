@@ -219,11 +219,13 @@ async fn process_one(
         // Other binary types (pptx with no text, etc.) are silently skipped
     }
 
-    // 4. Build text input and determine if we're working from metadata only
+    // 4. Build text input. Always prepend title+description so the LLM knows what this
+    //    artifact is about even when file content is unrelated (wrong uploads, binary noise).
     let (text_input, metadata_only) = if native_texts.is_empty() && binary_parts.is_empty() {
         (format!("{title}\n\n{description}"), true)
     } else {
-        (extractor::combine_texts(native_texts), false)
+        let file_text = extractor::combine_texts(native_texts);
+        (format!("Title: {title}\nDescription: {description}\n\n---\n\n{file_text}"), false)
     };
 
     // 5. LLM call — if multimodal fails (corrupted/unsupported file), fall back to text-only
@@ -246,25 +248,35 @@ async fn process_one(
         Err(e) => return Err(e),
     };
 
-    // 6. Embed: title + description + summary + tags
+    // 6. Embed: title + description + summary.
+    // Tags are omitted — they're derived from the summary and add redundant noise to the vector.
     tracing::info!(artifact_id, "calling OpenRouter embed");
-    let embed_input = format!("{title}\n{description}\n{}\n{}", ai.summary, ai.tags.join(" "));
+    let embed_input = format!("{title}\n{description}\n{}", ai.summary);
     let raw_vec = with_backoff(|| openrouter::embed(ai_client, &embed_input)).await?;
     let embedding = pgvector::Vector::from(raw_vec);
 
     // Phase C: write — reacquire a connection only for the two fast writes.
     let mut conn = pool.get().await?;
     let now = now_secs();
-    diesel::update(artifact_ai_meta::table.filter(artifact_ai_meta::artifact_id.eq(artifact_id)))
-        .set((
-            artifact_ai_meta::summary.eq(&ai.summary),
-            artifact_ai_meta::tags.eq(&ai.tags),
-            artifact_ai_meta::status.eq(STATUS_DONE),
-            artifact_ai_meta::processed_at.eq(now),
-            artifact_ai_meta::updated_at.eq(now),
-        ))
-        .execute(&mut conn)
-        .await?;
+
+    // search_vector kept in sync atomically — avoids stale FTS between writes.
+    diesel::sql_query(
+        "UPDATE artifact_ai_meta \
+         SET summary = $1, \
+             tags = $2, \
+             status = $5, \
+             processed_at = $3, \
+             updated_at = $3, \
+             search_vector = to_tsvector('english', $1 || ' ' || array_to_string($2, ' ')) \
+         WHERE artifact_id = $4"
+    )
+    .bind::<diesel::sql_types::Text, _>(&ai.summary)
+    .bind::<diesel::sql_types::Array<diesel::sql_types::Text>, _>(&ai.tags)
+    .bind::<diesel::sql_types::BigInt, _>(now)
+    .bind::<diesel::sql_types::Text, _>(artifact_id)
+    .bind::<diesel::sql_types::Text, _>(STATUS_DONE)
+    .execute(&mut conn)
+    .await?;
 
     diesel::insert_into(artifact_embedding::table)
         .values(NewArtifactEmbedding {
