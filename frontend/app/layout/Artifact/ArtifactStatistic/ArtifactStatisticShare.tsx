@@ -75,12 +75,8 @@ export default ({ artifact }: ArtifactStatisticShareProps) => {
         <Typography font="grotesk">SHARE</Typography>
       </DialogTrigger>
 
-      <DialogContent
-        showCloseButton={false}
-        onInteractOutside={(e) => e.preventDefault()}
-        className="flex justify-center"
-      >
-        <div className="bg-[#1A2130] border border-[#3B4A45] w-130 rounded-xl overflow-hidden">
+      <DialogContent showCloseButton={false} className="sm:w-130">
+        <div className="bg-[#1A2130] border border-[#3B4A45] rounded-xl overflow-hidden">
           <Center className="px-6 py-3 justify-between bg-[#141A28] border-b border-[#3B4A45]">
             <div>
               <Typography font="grotesk" className="text-sm font-bold">

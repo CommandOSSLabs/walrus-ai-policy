@@ -86,10 +86,10 @@ export default ({
 
         <DialogContent
           showCloseButton={false}
-          className="flex justify-center"
+          className="sm:w-120"
           onInteractOutside={(e) => e.preventDefault()}
         >
-          <div className="bg-[#1A2130] border border-[#3B4A45] rounded-xl overflow-hidden w-120">
+          <div className="bg-[#1A2130] border border-[#3B4A45] rounded-xl overflow-hidden">
             <Center className="px-6 py-3 justify-between bg-[#141A28] border-b border-[#3B4A45]">
               <div>
                 <Typography font="grotesk" className="text-sm font-bold">

@@ -52,10 +52,10 @@ export default ({
 
       <DialogContent
         showCloseButton={false}
-        className="flex justify-center"
+        className="sm:w-sm"
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <Vstack className="p-4 gap-4 bg-[#191F2D] border border-white/15 w-sm rounded-xl">
+        <Vstack className="p-4 gap-4 bg-[#191F2D] border border-white/15 rounded-xl">
           <DialogHeader>
             <DialogTitle>Delete Role</DialogTitle>
 
