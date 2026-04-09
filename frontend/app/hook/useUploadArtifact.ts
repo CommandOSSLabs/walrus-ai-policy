@@ -61,46 +61,50 @@ export default () => {
     updateFee: ReturnType<typeof useSteps>["updateFee"],
     updateStatus: ReturnType<typeof useSteps>["updateStatus"],
   ) => {
-    return new Promise<ArtifactObjectType>(async (resolve) => {
-      updateStatus("loading");
+    return new Promise<ArtifactObjectType>(async (resolve, reject) => {
+      try {
+        updateStatus("loading");
 
-      const tx = new Transaction();
+        const tx = new Transaction();
 
-      // handle moveCall
-      {
-        const struct = createNewStruct(
-          tx,
-          metadata,
-          quilt.files.map((file, index) => ({
-            mimeType: file.type,
-            name: file.name,
-            patchId: quilt.quiltIds[index],
-            sizeBytes: file.size,
-            hash: quilt.hashes[index],
-          })),
-        );
+        // handle moveCall
+        {
+          const struct = createNewStruct(
+            tx,
+            metadata,
+            quilt.files.map((file, index) => ({
+              mimeType: file.type,
+              name: file.name,
+              patchId: quilt.quiltIds[index],
+              sizeBytes: file.size,
+              hash: quilt.hashes[index],
+            })),
+          );
 
-        artifact.initArtifact({
-          package: utilsSui.programs.package,
-          arguments: {
-            files: struct.file,
-            metadata: struct.metadata,
+          artifact.initArtifact({
+            package: utilsSui.programs.package,
+            arguments: {
+              files: struct.file,
+              metadata: struct.metadata,
+            },
+          })(tx);
+
+          await updateFee(tx);
+        }
+
+        await signAndExecuteTransaction({
+          transaction: tx,
+          onSuccess: ({ event }) => {
+            if (event?.json) {
+              resolve(event.json as ArtifactObjectType);
+            }
           },
-        })(tx);
+        });
 
-        await updateFee(tx);
+        updateStatus("success");
+      } catch (error) {
+        reject(error);
       }
-
-      await signAndExecuteTransaction({
-        transaction: tx,
-        onSuccess: ({ event }) => {
-          if (event?.json) {
-            resolve(event.json as ArtifactObjectType);
-          }
-        },
-      });
-
-      updateStatus("success");
     });
   };
 
@@ -112,49 +116,53 @@ export default () => {
     updateFee: ReturnType<typeof useSteps>["updateFee"],
     updateStatus: ReturnType<typeof useSteps>["updateStatus"],
   ) => {
-    return new Promise<ArtifactObjectType>(async (resolve) => {
-      updateStatus("loading");
+    return new Promise<ArtifactObjectType>(async (resolve, reject) => {
+      try {
+        updateStatus("loading");
 
-      const tx = new Transaction();
+        const tx = new Transaction();
 
-      // handle moveCall
-      {
-        const struct = createNewStruct(tx, metadata, files);
+        // handle moveCall
+        {
+          const struct = createNewStruct(tx, metadata, files);
 
-        if (parentId?.length) {
-          artifact.commitArtifactWithParent({
-            package: utilsSui.programs.package,
-            arguments: {
-              parent: parentId,
-              root: rootId,
-              metadata: struct.metadata,
-              files: struct.file,
-            },
-          })(tx);
-        } else {
-          artifact.commitArtifactWithoutParent({
-            package: utilsSui.programs.package,
-            arguments: {
-              root: rootId,
-              metadata: struct.metadata,
-              files: struct.file,
-            },
-          })(tx);
+          if (parentId?.length) {
+            artifact.commitArtifactWithParent({
+              package: utilsSui.programs.package,
+              arguments: {
+                parent: parentId,
+                root: rootId,
+                metadata: struct.metadata,
+                files: struct.file,
+              },
+            })(tx);
+          } else {
+            artifact.commitArtifactWithoutParent({
+              package: utilsSui.programs.package,
+              arguments: {
+                root: rootId,
+                metadata: struct.metadata,
+                files: struct.file,
+              },
+            })(tx);
+          }
+
+          await updateFee(tx);
         }
 
-        await updateFee(tx);
+        await signAndExecuteTransaction({
+          transaction: tx,
+          onSuccess: ({ event }) => {
+            if (event?.json) {
+              resolve(event.json as ArtifactObjectType);
+            }
+          },
+        });
+
+        updateStatus("success");
+      } catch (error) {
+        reject(error);
       }
-
-      await signAndExecuteTransaction({
-        transaction: tx,
-        onSuccess: ({ event }) => {
-          if (event?.json) {
-            resolve(event.json as ArtifactObjectType);
-          }
-        },
-      });
-
-      updateStatus("success");
     });
   };
 
