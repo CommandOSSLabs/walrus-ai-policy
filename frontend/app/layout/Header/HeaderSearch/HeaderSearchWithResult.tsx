@@ -1,19 +1,18 @@
-import FilesLine from "public/assets/line/files.svg";
-
 import Typography from "app/components/Typography";
-import Center from "app/components/Center";
 import Flex from "app/components/Flex";
-import Vstack from "app/components/Vstack";
 
 import { Link } from "react-router";
-import type { ArtifactsQuery } from "app/services/graphql-app/generated";
+import type { SearchQuery } from "app/services/graphql-app/generated";
+import { Badge } from "app/components/ui/badge";
+import utilsConstants from "app/utils/utils.constants";
+import { tv } from "tailwind-variants";
 
 interface HeaderSearchWithResultProps {
-  artifacts: ArtifactsQuery["artifacts"]["items"];
+  search: SearchQuery["search"];
   onClose: () => void;
 }
 
-export default ({ artifacts, onClose }: HeaderSearchWithResultProps) => {
+export default ({ search, onClose }: HeaderSearchWithResultProps) => {
   return (
     <div>
       <Typography
@@ -24,33 +23,60 @@ export default ({ artifacts, onClose }: HeaderSearchWithResultProps) => {
       </Typography>
 
       <div className="max-h-96 overflow-y-auto">
-        {artifacts.map((meta) => (
-          <Link
-            key={meta.suiObjectId}
-            to={`/artifact/${meta.suiObjectId}`}
-            className="not-last:border-b not-last:border-[#3B4A45] block"
-            onClick={onClose}
-          >
-            <Flex className="gap-3 px-4 py-2.5 hover:bg-[#84948F]/12 transition-all">
-              <Center className="size-10 bg-[#0D111D] border border-[#352F2F] rounded-sm">
-                <FilesLine className="size-4" />
-              </Center>
+        {search.items.map(({ artifact, aiTags }) => {
+          const getTypeResource = utilsConstants.FORMAT_RESOURCE.find(
+            (resource) => resource.key === artifact.category,
+          );
 
-              <Vstack className="flex-1">
-                <Typography className="text-white/65 text-xs line-clamp-2">
-                  {meta.title}
-                </Typography>
-
-                <Typography
-                  font="jetbrains"
-                  className="text-[#84948F] text-xs font-medium uppercase"
+          return (
+            <Link
+              key={artifact.suiObjectId}
+              to={`/artifact/${artifact.suiObjectId}`}
+              className="not-last:border-b not-last:border-[#3B4A45] block"
+              onClick={onClose}
+            >
+              <div className="space-y-3 px-4 py-2.5 hover:bg-[#84948F]/12 transition-all">
+                <Badge
+                  active={getTypeResource?.type}
+                  type={getTypeResource?.type}
+                  className="text-2xs whitespace-pre px-3 py-0.5 w-fit"
                 >
-                  {meta.category}
-                </Typography>
-              </Vstack>
-            </Flex>
-          </Link>
-        ))}
+                  <Typography font="jetbrains">{artifact.category}</Typography>
+                </Badge>
+
+                <div className="space-y-0.5">
+                  <Typography className="text-white font-semibold line-clamp-1">
+                    {artifact.title}
+                  </Typography>
+
+                  <Typography className="text-white/45 text-xs line-clamp-2">
+                    {artifact.description}
+                  </Typography>
+                </div>
+
+                <Flex className="gap-2">
+                  {[`Version ${artifact.version}`, ...(aiTags || [])].map(
+                    (meta) => (
+                      <Typography
+                        key={meta}
+                        font="jetbrains"
+                        className={tv({
+                          base: [
+                            "bg-[#0D111D] border border-[#352F2F] rounded-full",
+                            "text-white/80 text-2xs font-medium uppercase",
+                            "px-3.5 py-1.5",
+                          ],
+                        })()}
+                      >
+                        {meta}
+                      </Typography>
+                    ),
+                  )}
+                </Flex>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

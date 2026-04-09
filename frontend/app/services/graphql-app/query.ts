@@ -91,3 +91,24 @@ const incrementDownload = gql`
     incrementDownload(rootId: $rootId)
   }
 `;
+
+// search
+const search = gql`
+  query Search($query: String!, $tags: [String!], $limit: Int!) {
+    search(query: $query, tags: $tags, limit: $limit) {
+      availableTags
+
+      items {
+        aiTags
+
+        artifact {
+          suiObjectId
+          title
+          description
+          version
+          category
+        }
+      }
+    }
+  }
+`;

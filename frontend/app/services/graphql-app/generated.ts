@@ -139,6 +139,7 @@ export type QueryRoot = {
   artifactVersions: Array<Artifact>;
   artifacts: ArtifactConnection;
   platformStats: PlatformStats;
+  search: SearchConnection;
 };
 
 export type QueryRootArtifactArgs = {
@@ -158,6 +159,22 @@ export type QueryRootArtifactsArgs = {
   limit?: Scalars["Int"]["input"];
   offset?: Scalars["Int"]["input"];
   sort?: SortField;
+};
+
+export type QueryRootSearchArgs = {
+  limit?: Scalars["Int"]["input"];
+  query: Scalars["String"]["input"];
+  tags?: InputMaybe<Array<Scalars["String"]["input"]>>;
+};
+
+export type SearchConnection = {
+  availableTags: Array<Scalars["String"]["output"]>;
+  items: Array<SearchResult>;
+};
+
+export type SearchResult = {
+  aiTags: Array<Scalars["String"]["output"]>;
+  artifact: Artifact;
 };
 
 export enum SortField {
@@ -239,6 +256,30 @@ export type IncrementDownloadMutationVariables = Exact<{
 }>;
 
 export type IncrementDownloadMutation = { incrementDownload: boolean };
+
+export type SearchQueryVariables = Exact<{
+  query: Scalars["String"]["input"];
+  tags?: InputMaybe<
+    Array<Scalars["String"]["input"]> | Scalars["String"]["input"]
+  >;
+  limit: Scalars["Int"]["input"];
+}>;
+
+export type SearchQuery = {
+  search: {
+    availableTags: Array<string>;
+    items: Array<{
+      aiTags: Array<string>;
+      artifact: {
+        suiObjectId: string;
+        title: string;
+        description: string;
+        version: number;
+        category: string;
+      };
+    }>;
+  };
+};
 
 export const ArtifactsDocument = `
     query Artifacts($filter: ArtifactFilter, $limit: Int!, $offset: Int!, $sort: SortField!) {
@@ -515,6 +556,61 @@ useIncrementDownloadMutation.fetcher = (
   fetcher<IncrementDownloadMutation, IncrementDownloadMutationVariables>(
     client,
     IncrementDownloadDocument,
+    variables,
+    headers,
+  );
+
+export const SearchDocument = `
+    query Search($query: String!, $tags: [String!], $limit: Int!) {
+  search(query: $query, tags: $tags, limit: $limit) {
+    availableTags
+    items {
+      aiTags
+      artifact {
+        suiObjectId
+        title
+        description
+        version
+        category
+      }
+    }
+  }
+}
+    `;
+
+export const useSearchQuery = <TData = SearchQuery, TError = unknown>(
+  client: GraphQLClient,
+  variables: SearchQueryVariables,
+  options?: Omit<UseQueryOptions<SearchQuery, TError, TData>, "queryKey"> & {
+    queryKey?: UseQueryOptions<SearchQuery, TError, TData>["queryKey"];
+  },
+  headers?: RequestInit["headers"],
+) => {
+  return useQuery<SearchQuery, TError, TData>({
+    queryKey: ["Search", variables],
+    queryFn: fetcher<SearchQuery, SearchQueryVariables>(
+      client,
+      SearchDocument,
+      variables,
+      headers,
+    ),
+    ...options,
+  });
+};
+
+useSearchQuery.getKey = (variables: SearchQueryVariables) => [
+  "Search",
+  variables,
+];
+
+useSearchQuery.fetcher = (
+  client: GraphQLClient,
+  variables: SearchQueryVariables,
+  headers?: RequestInit["headers"],
+) =>
+  fetcher<SearchQuery, SearchQueryVariables>(
+    client,
+    SearchDocument,
     variables,
     headers,
   );

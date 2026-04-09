@@ -8,12 +8,8 @@ import { Dialog, DialogContent, DialogTrigger } from "app/components/ui/dialog";
 import Typography from "app/components/Typography";
 import Flex from "app/components/Flex";
 import Vstack from "app/components/Vstack";
-import {
-  SortField,
-  useArtifactsQuery,
-} from "app/services/graphql-app/generated";
+import { useSearchQuery } from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
-import { isValidSuiAddress } from "@mysten/sui/utils";
 import HeaderSearchNoResult from "./HeaderSearchNoResult";
 import { Skeleton } from "app/components/ui/skeleton";
 import HeaderSearchWithResult from "./HeaderSearchWithResult";
@@ -25,16 +21,11 @@ export default () => {
 
   const [open, setOpen] = useState(false);
 
-  const { data, isLoading } = useArtifactsQuery(
+  const { data, isLoading } = useSearchQuery(
     graphqlApp.client,
     {
-      limit: 1000,
-      offset: 0,
-      sort: SortField.CreatedAtDesc,
-      filter: {
-        creator: isValidSuiAddress(String(debounced)) ? debounced : undefined,
-        search: !isValidSuiAddress(String(debounced)) ? debounced : undefined,
-      },
+      query: debounced as string,
+      limit: 100,
     },
     {
       enabled: !!debounced?.length,
@@ -68,14 +59,12 @@ export default () => {
         </Typography>
       </DialogTrigger>
 
-      <DialogContent showCloseButton={false} className="flex justify-center">
-        <Flex
+      <DialogContent showCloseButton={false} className="sm:w-xl">
+        <div
           className={tv({
             base: [
               "border border-[#3B4A45] rounded-xl",
               "bg-[#141A28] overflow-hidden",
-              "flex-col",
-              "w-lg",
             ],
           })()}
         >
@@ -120,7 +109,7 @@ export default () => {
                 );
               }
 
-              if (!data?.artifacts?.items?.length) {
+              if (!data?.search?.items?.length) {
                 return (
                   <HeaderSearchNoResult
                     heading="Nothing found"
@@ -132,13 +121,13 @@ export default () => {
 
               return (
                 <HeaderSearchWithResult
-                  artifacts={data.artifacts.items}
+                  search={data.search}
                   onClose={() => setOpen(false)}
                 />
               );
             })()}
           </div>
-        </Flex>
+        </div>
       </DialogContent>
     </Dialog>
   );
