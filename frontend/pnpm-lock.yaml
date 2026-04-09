@@ -23,6 +23,9 @@ importers:
       '@fontsource-variable/space-grotesk':
         specifier: ^5.2.10
         version: 5.2.10
+      '@mysten/codegen':
+        specifier: ^0.8.4
+        version: 0.8.4
       '@mysten/dapp-kit-core':
         specifier: ^1.2.0
         version: 1.2.0(@mysten/sui@2.9.1(typescript@5.9.3))(typescript@5.9.3)
@@ -1440,6 +1443,10 @@ packages:
   '@mysten/bcs@2.0.3':
     resolution: {integrity: sha512-dwcaL4HNAsEGpU3hKUAsXgCZp9l6++e2A3THpzoYZ8e7bsy4XH1V0dXD5dIzgNcVZiZfb6ZnDMG+gdF6+1WOQA==}
 
+  '@mysten/codegen@0.8.4':
+    resolution: {integrity: sha512-BTyjgWmb+eA8WudKKArLNqyrsAjqcUk+PE7Fmh/4vO7TnRyESWuU/Q6CTgxCOEHKSI+78cwsa0HtHMqqNZifgg==}
+    hasBin: true
+
   '@mysten/dapp-kit-core@1.2.0':
     resolution: {integrity: sha512-TZmyLz9j2Q/8uoS7J/wt+VB6UIkSHvSjymT1SH45fsbBkozZv9QLcnE+IwASeXB9mwFyiadrHnSQ6ZeCRj00Fg==}
     peerDependencies:
@@ -1476,6 +1483,10 @@ packages:
     resolution: {integrity: sha512-TF1CXXug5VPaV4KImKxZ7nyR0XY//KJVzOFxFXaajBHewLBinCO7s6GS9EYbtQMaNvnjrYQn1cpGhYfwGkzvtQ==}
     peerDependencies:
       '@mysten/sui': ^2.8.0
+
+  '@mysten/sui@2.15.0':
+    resolution: {integrity: sha512-OWdmd/kPOKGCBkAzyKi/AAMcn+rf39sbrqm7KAx1c2SMbaNwskJV4Uw2seiW686neyfoc0cw/hZ7/Rv9PyM+hQ==}
+    engines: {node: '>=22'}
 
   '@mysten/sui@2.9.1':
     resolution: {integrity: sha512-yvwDYor42B+ylnba5E4C4BXqFcgOwxOiaIq5BbPy17XkMP1ULIeyccOjqWE5lGSXE9rHLqZ9N5dZOqBrJCJr6g==}
@@ -2528,6 +2539,13 @@ packages:
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
 
+  '@stricli/auto-complete@1.2.6':
+    resolution: {integrity: sha512-H7dectwnLBoyDrp4Vek1gTNdUWzqkEDt5X6oFoOPxPVbca5FA9ttBZ/OlfNvt14aeiZUsg1rC7GEHjIh3tjn2A==}
+    hasBin: true
+
+  '@stricli/core@1.2.6':
+    resolution: {integrity: sha512-j5fa1wyOLrP9WJqqLFEJeQviqb3cK46K+FXTuISEkG/H5C820YfKDoVQ3CDVdM5WLhEx1ARdpiW6+hU4tYHjCQ==}
+
   '@svgr/babel-plugin-add-jsx-attribute@8.0.0':
     resolution: {integrity: sha512-b9MIk7yhdS1pMCZM8VeNfUlSKVRhsHZNMl5O9SfaX0l0t5wjdgu4IDzGB8bpnGBBOjGST3rRFVsaaEtI4W6f7g==}
     engines: {node: '>=14'}
@@ -2743,6 +2761,9 @@ packages:
 
   '@types/node@22.19.15':
     resolution: {integrity: sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg==}
+
+  '@types/node@25.5.2':
+    resolution: {integrity: sha512-tO4ZIRKNC+MDWV4qKVZe3Ql/woTnmHDr5JD8UI5hn2pwBrHEwOEMZK7WlNb5RKB6EoJ02gwmQS9OrjuFnZYdpg==}
 
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
@@ -5662,6 +5683,9 @@ packages:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
     engines: {node: '>=0.6'}
 
+  toml@3.0.0:
+    resolution: {integrity: sha512-y/mWCZinnvxjTKYhJ+pYxwD0mRLVvOtdS2Awbgxln6iEnt4rk0yBxeSBHkGJcPucRiG0e55mwWp+g/05rsrd6w==}
+
   tough-cookie@6.0.1:
     resolution: {integrity: sha512-LktZQb3IeoUWB9lqR5EWTHgW/VTITCXg4D21M+lvybRVdylLrRMnqaIONLVb5mav8vM19m44HIcGq4qASeu2Qw==}
     engines: {node: '>=16'}
@@ -5768,6 +5792,9 @@ packages:
 
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
+  undici-types@7.18.2:
+    resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
   unicorn-magic@0.3.0:
     resolution: {integrity: sha512-+QBBXBCvifc56fsbuxZQ6Sic3wqqc3WWaqxs58gvJrcOuN83HGTCwz3oS5phzU9LthRNE9VrJCFCLUgHeeFnfA==}
@@ -6074,6 +6101,9 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+  zod@4.3.6:
+    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
@@ -7515,6 +7545,22 @@ snapshots:
       '@mysten/utils': 0.3.1
       '@scure/base': 2.0.0
 
+  '@mysten/codegen@0.8.4':
+    dependencies:
+      '@mysten/bcs': 2.0.3
+      '@mysten/sui': 2.15.0(typescript@5.9.3)
+      '@stricli/auto-complete': 1.2.6
+      '@stricli/core': 1.2.6
+      '@types/node': 25.5.2
+      cosmiconfig: 9.0.1(typescript@5.9.3)
+      prettier: 3.8.1
+      toml: 3.0.0
+      typescript: 5.9.3
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - '@gql.tada/svelte-support'
+      - '@gql.tada/vue-support'
+
   '@mysten/dapp-kit-core@1.2.0(@mysten/sui@2.9.1(typescript@5.9.3))(typescript@5.9.3)':
     dependencies:
       '@floating-ui/dom': 1.7.6
@@ -7582,6 +7628,28 @@ snapshots:
       '@mysten/window-wallet-core': 0.1.4(typescript@5.9.3)
       valibot: 1.3.1(typescript@5.9.3)
     transitivePeerDependencies:
+      - typescript
+
+  '@mysten/sui@2.15.0(typescript@5.9.3)':
+    dependencies:
+      '@graphql-typed-document-node/core': 3.2.0(graphql@16.13.1)
+      '@mysten/bcs': 2.0.3
+      '@mysten/utils': 0.3.1
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      '@protobuf-ts/grpcweb-transport': 2.11.1
+      '@protobuf-ts/runtime': 2.11.1
+      '@protobuf-ts/runtime-rpc': 2.11.1
+      '@scure/base': 2.0.0
+      '@scure/bip32': 2.0.1
+      '@scure/bip39': 2.0.1
+      gql.tada: 1.9.0(graphql@16.13.1)(typescript@5.9.3)
+      graphql: 16.13.1
+      poseidon-lite: 0.2.1
+      valibot: 1.3.1(typescript@5.9.3)
+    transitivePeerDependencies:
+      - '@gql.tada/svelte-support'
+      - '@gql.tada/vue-support'
       - typescript
 
   '@mysten/sui@2.9.1(typescript@5.9.3)':
@@ -8660,6 +8728,12 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
+  '@stricli/auto-complete@1.2.6':
+    dependencies:
+      '@stricli/core': 1.2.6
+
+  '@stricli/core@1.2.6': {}
+
   '@svgr/babel-plugin-add-jsx-attribute@8.0.0(@babel/core@7.29.0)':
     dependencies:
       '@babel/core': 7.29.0
@@ -8850,6 +8924,10 @@ snapshots:
   '@types/node@22.19.15':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/node@25.5.2':
+    dependencies:
+      undici-types: 7.18.2
 
   '@types/react-dom@19.2.3(@types/react@19.2.14)':
     dependencies:
@@ -12400,6 +12478,8 @@ snapshots:
 
   toidentifier@1.0.1: {}
 
+  toml@3.0.0: {}
+
   tough-cookie@6.0.1:
     dependencies:
       tldts: 7.0.27
@@ -12514,6 +12594,8 @@ snapshots:
   unc-path-regex@0.1.2: {}
 
   undici-types@6.21.0: {}
+
+  undici-types@7.18.2: {}
 
   unicorn-magic@0.3.0: {}
 
@@ -12835,5 +12917,7 @@ snapshots:
       zod: 3.25.76
 
   zod@3.25.76: {}
+
+  zod@4.3.6: {}
 
   zwitch@2.0.4: {}

@@ -31,6 +31,12 @@ export default defineConfig([
 
       // Unexpected any. Specify a different
       "@typescript-eslint/no-explicit-any": "off",
+
+      // The `{}` ("empty object") type allows any non-nullish value, including literals like `0` and `""`.
+      // - If that's what you want, disable this lint rule with an inline comment or configure the 'allowObjectTypes' rule option.
+      // - If you want a type meaning "any object", you probably want `object` instead.
+      // - If you want a type meaning "any value", you probably want `unknown` instead
+      "@typescript-eslint/no-empty-object-type": "off",
     },
   },
   {
