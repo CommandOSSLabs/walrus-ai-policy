@@ -16,16 +16,17 @@ import HeaderSearchWithResult from "./HeaderSearchWithResult";
 
 export default () => {
   const [search, setSearch] = useState<string>();
+  const [open, setOpen] = useState(false);
+  const [tags, setTags] = useState<string[]>();
 
   const debounced = useDebounce(search);
-
-  const [open, setOpen] = useState(false);
 
   const { data, isLoading } = useSearchQuery(
     graphqlApp.client,
     {
       query: debounced as string,
       limit: 100,
+      tags,
     },
     {
       enabled: !!debounced?.length,
@@ -122,6 +123,8 @@ export default () => {
               return (
                 <HeaderSearchWithResult
                   search={data.search}
+                  tags={tags}
+                  setTags={setTags}
                   onClose={() => setOpen(false)}
                 />
               );
