@@ -29,7 +29,13 @@ export default () => {
   const createNewStruct = (
     tx: Transaction,
     metadata: MetadataType,
-    files: ArtifactFile[],
+    file: {
+      hash: ArtifactFile["hash"][];
+      mimeType: ArtifactFile["mimeType"][];
+      name: ArtifactFile["name"][];
+      patchId: ArtifactFile["patchId"][];
+      sizeBytes: ArtifactFile["sizeBytes"][] | any; // why any?, because codegen return incorrect type
+    },
   ) => {
     return {
       metadata: newMetadata({
@@ -43,13 +49,7 @@ export default () => {
 
       file: newFile({
         package: utilsSui.programs.package,
-        arguments: {
-          mimeType: files.map((file) => file.mimeType),
-          name: files.map((file) => formatIdentifyQuilt(file.name)),
-          patchId: files.map((file) => file.patchId),
-          sizeBytes: files.map((file) => BigInt(file.sizeBytes)),
-          hash: files.map((file) => file.hash),
-        },
+        arguments: file,
       })(tx),
     };
   };
@@ -70,17 +70,13 @@ export default () => {
 
         // handle moveCall
         {
-          const struct = createNewStruct(
-            tx,
-            metadata,
-            quilt.files.map((file, index) => ({
-              mimeType: file.type,
-              name: file.name,
-              patchId: quilt.quiltIds[index],
-              sizeBytes: file.size,
-              hash: quilt.hashes[index],
-            })),
-          );
+          const struct = createNewStruct(tx, metadata, {
+            hash: quilt.hashes,
+            mimeType: quilt.files.map((file) => file.type),
+            name: quilt.files.map((file) => formatIdentifyQuilt(file.name)),
+            patchId: quilt.quiltIds,
+            sizeBytes: quilt.files.map((file) => file.size),
+          });
 
           artifact.initArtifact({
             package: utilsSui.programs.package,
@@ -125,7 +121,13 @@ export default () => {
 
         // handle moveCall
         {
-          const struct = createNewStruct(tx, metadata, files);
+          const struct = createNewStruct(tx, metadata, {
+            hash: files.map((file) => file.hash),
+            mimeType: files.map((file) => file.mimeType),
+            name: files.map((file) => formatIdentifyQuilt(file.name)),
+            patchId: files.map((file) => file.patchId),
+            sizeBytes: files.map((file) => file.sizeBytes),
+          });
 
           if (parentId?.length) {
             artifact.commitArtifactWithParent({
