@@ -239,6 +239,9 @@ export const renderSectionFile = (
     >
   >,
 ): JSX.Element | undefined => {
+  console.log(mimeType);
+  // return children.fallback;
+
   if (mimeType === "text/csv") return children.csv;
 
   if (mimeType === "image/svg+xml") return children.svg;
@@ -251,7 +254,7 @@ export const renderSectionFile = (
 
   if (mimeType === "application/pdf") return children.pdf;
 
-  if (mimeType === "fallback") return children.fallback;
+  return children.fallback;
 };
 
 export const openSocialShare = (platform: string, url: string): void => {
