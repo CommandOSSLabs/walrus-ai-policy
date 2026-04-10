@@ -6,24 +6,17 @@ import ArtifactVersions from "./ArtifactVersions";
 import ArtifactContributors from "./ArtifactContributors";
 import ArtifactStatistic from "./ArtifactStatistic";
 import { tv } from "tailwind-variants";
-import { lazy } from "react";
 import ArtifactFileList from "./ArtifactFile/ArtifactFileList";
-import ArtifactFileMarkdown from "./ArtifactFile/ArtifactFileMarkdown";
-import utilsWalrus from "app/utils/utils.walrus";
-import ArtifactFileSVG from "./ArtifactFile/ArtifactFileSVG";
-import ArtifactFilePDF from "./ArtifactFile/ArtifactFilePDF";
+
 import { useArtifactQuery } from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
 import useGetConfig, { contributorConfigEnum } from "app/hook/useGetConfig";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { useSearchParams } from "react-router";
 import ArtifactRelease from "./ArtifactRelease";
-import { renderSectionFile } from "app/utils";
 import ArtifactFileReadme from "./ArtifactFile/ArtifactFileReadme";
 import ArtifactFilePreview from "./ArtifactFile/ArtifactFilePreview";
-import ArtifactFileFallback from "./ArtifactFile/ArtifactFileFallback";
-
-const ArtifactFileCSV = lazy(() => import("./ArtifactFile/ArtifactFileCSV"));
+import ArtifactFileSection from "./ArtifactFile/ArtifactFileSection";
 
 export default ({ loaderData, params }: Route.ComponentProps) => {
   const [searchParams] = useSearchParams();
@@ -103,40 +96,16 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
           if (!artifact.data.artifact?.files?.length) return null;
 
           if (artifact.data.artifact.files.length === 1 && getSingleFile) {
-            return renderSectionFile(getSingleFile.mimeType, {
-              csv: <ArtifactFileCSV file={getSingleFile} />,
-              svg: <ArtifactFileSVG file={getSingleFile} />,
-              image: (
-                <img
-                  src={utilsWalrus.getQuiltPatchId(getSingleFile.patchId)}
-                  alt={getSingleFile.name}
-                  className="aspect-video object-cover"
-                />
-              ),
-              video: (
-                <video
-                  src={utilsWalrus.getQuiltPatchId(getSingleFile.patchId)}
-                  controls={true}
-                  className="aspect-video object-cover"
-                />
-              ),
-              markdown: getREADME ? (
-                <ArtifactFileReadme file={getREADME} />
-              ) : (
-                <ArtifactFileMarkdown file={getSingleFile} />
-              ),
-              pdf: <ArtifactFilePDF file={getSingleFile} />,
-              fallback: (
-                <ArtifactFileFallback
-                  file={getSingleFile}
-                  rootId={
-                    artifact.data.artifact?.rootId ||
-                    artifact.data.artifact.suiObjectId
-                  }
-                  onRefetch={artifact.refetch}
-                />
-              ),
-            });
+            return (
+              <ArtifactFileSection
+                file={getSingleFile}
+                rootId={
+                  artifact.data.artifact?.rootId ||
+                  artifact.data.artifact.suiObjectId
+                }
+                onRefetch={artifact.refetch}
+              />
+            );
           }
 
           return (

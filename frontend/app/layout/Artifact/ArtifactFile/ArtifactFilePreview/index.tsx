@@ -1,17 +1,11 @@
 import type { ArtifactFile } from "app/services/graphql-app/generated";
 import ArtifactFileList from "../ArtifactFileList";
-import ArtifactFilePDF from "../ArtifactFilePDF";
-import ArtifactFileMarkdown from "../ArtifactFileMarkdown";
-import utilsWalrus from "app/utils/utils.walrus";
-import ArtifactFileSVG from "../ArtifactFileSVG";
-import ArtifactFileCSV from "../ArtifactFileCSV";
 import Flex from "app/components/Flex";
-import { renderSectionFile } from "app/utils";
 
 import ArtifactFilePreviewExpand from "./ArtifactFilePreviewExpand";
 import ArtifactFilePreview404 from "./ArtifactFilePreview404";
 import ArtifactFilePreviewDirectory from "./ArtifactFilePreviewDirectory";
-import ArtifactFileFallback from "../ArtifactFileFallback";
+import ArtifactFileSection from "../ArtifactFileSection";
 
 export interface ArtifactFilePreviewProps {
   files: ArtifactFile[];
@@ -73,33 +67,11 @@ export default ({
                 />
               </Flex>
 
-              {renderSectionFile(getSelectFile.mimeType, {
-                csv: <ArtifactFileCSV file={getSelectFile} />,
-                svg: <ArtifactFileSVG file={getSelectFile} />,
-                image: (
-                  <img
-                    src={utilsWalrus.getQuiltPatchId(getSelectFile.patchId)}
-                    alt={getSelectFile.name}
-                    className="aspect-video object-cover"
-                  />
-                ),
-                video: (
-                  <video
-                    src={utilsWalrus.getQuiltPatchId(getSelectFile.patchId)}
-                    controls={true}
-                    className="aspect-video object-cover"
-                  />
-                ),
-                markdown: <ArtifactFileMarkdown file={getSelectFile} />,
-                pdf: <ArtifactFilePDF file={getSelectFile} />,
-                fallback: (
-                  <ArtifactFileFallback
-                    file={getSelectFile}
-                    rootId={rootId || suiObjectId}
-                    onRefetch={onRefetch}
-                  />
-                ),
-              })}
+              <ArtifactFileSection
+                file={getSelectFile}
+                rootId={rootId || suiObjectId}
+                onRefetch={onRefetch}
+              />
             </>
           );
         })()}
