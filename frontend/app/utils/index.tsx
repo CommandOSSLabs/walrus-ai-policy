@@ -153,6 +153,10 @@ export const formatCalendar = (createdAt: number) => {
   return `${forkDate.getFullYear()}.${forkDate.getMonth()}.${forkDate.getDate()}`;
 };
 
+export const formatIdentifyQuilt = (name: string) => {
+  return name.replaceAll(" ", "-");
+};
+
 export const downloadFileWithBlob = (
   blob: Blob,
   mimeType: string,

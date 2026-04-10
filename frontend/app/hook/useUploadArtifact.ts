@@ -7,6 +7,7 @@ import type { ArtifactFile } from "app/services/graphql-app/generated";
 import { newMetadata } from "app/services/sui-codegen/walrus_archive/metadata";
 import { newFile } from "app/services/sui-codegen/walrus_archive/file";
 import * as artifact from "app/services/sui-codegen/walrus_archive/artifact";
+import { formatIdentifyQuilt } from "app/utils";
 
 type MetadataType = {
   title: string;
@@ -44,7 +45,7 @@ export default () => {
         package: utilsSui.programs.package,
         arguments: {
           mimeType: files.map((file) => file.mimeType),
-          name: files.map((file) => file.name),
+          name: files.map((file) => formatIdentifyQuilt(file.name)),
           patchId: files.map((file) => file.patchId),
           sizeBytes: files.map((file) => BigInt(file.sizeBytes)),
           hash: files.map((file) => file.hash),

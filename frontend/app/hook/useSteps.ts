@@ -49,17 +49,27 @@ export default (params: TransactionDetailStateType[]) => {
   };
 
   const updateStatus = (status: TransactionDetailStateType["status"]) => {
+    let isIncremental = true;
+
     setSteps((steps) => {
       const instance = [...steps];
 
       instance[currentStep.current].status = status;
 
-      if (status === "success" && currentStep.current < steps.length - 1) {
+      if (
+        status === "success" &&
+        currentStep.current < steps.length - 1 &&
+        isIncremental
+      ) {
         currentStep.current++;
+        isIncremental = false;
       }
 
       return instance;
     });
+
+    // reset
+    isIncremental = true;
   };
 
   return {

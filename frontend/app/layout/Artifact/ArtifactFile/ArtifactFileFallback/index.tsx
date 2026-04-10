@@ -15,7 +15,7 @@ export default ({ file, rootId, onRefetch }: ArtifactFileFallbackProps) => {
   const { downloadFile, downloading } = useDownloadFile();
 
   return (
-    <Stack className="gap-4 text-[#BACAC4] border border-[#352F2F] py-16">
+    <Stack className="gap-4 text-[#BACAC4] border border-[#352F2F] w-full py-16">
       <FilesLine className="size-8" />
 
       <Stack className="gap-0.5">

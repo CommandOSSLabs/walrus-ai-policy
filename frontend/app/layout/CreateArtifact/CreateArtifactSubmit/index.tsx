@@ -67,7 +67,7 @@ export default ({ isSubmitting, handleSubmit }: CreateArtifactSubmitProps) => {
                 );
 
                 // refetch home page
-                await getQueryClient.refetchQueries({
+                getQueryClient.refetchQueries({
                   queryKey: useArtifactsQuery.getKey({} as never),
                 });
 

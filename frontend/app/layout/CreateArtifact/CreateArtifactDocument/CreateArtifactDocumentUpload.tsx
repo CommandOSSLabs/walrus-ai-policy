@@ -27,15 +27,7 @@ export default ({ upload }: CreateArtifactDocumentUploadProps) => {
         throw `File upload limit exceeded. Maximum is ${fileConfig.data}.`;
       }
 
-      await upload(
-        files.map(
-          (file) =>
-            new File([file], file.name.replaceAll(" ", "-"), {
-              lastModified: file.lastModified,
-              type: file.type,
-            }),
-        ),
-      );
+      await upload(files);
     } catch (error) {
       toast.error(JSON.stringify(error, null, 4));
     } finally {
