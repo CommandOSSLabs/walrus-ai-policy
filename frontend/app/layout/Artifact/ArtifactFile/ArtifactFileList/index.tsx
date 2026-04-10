@@ -12,6 +12,11 @@ import Spinner from "app/components/Spinner";
 import { extension } from "mime-types";
 import { Link } from "react-router";
 import useDownloadFile from "app/hook/useDownloadFile";
+import { getQueryClient } from "app/layout/Provider/ProviderReactQuery";
+import {
+  useGetFileByPatchIdQuery,
+  type ResponseType,
+} from "app/hook/useGetFileByPatchId";
 
 interface ArtifactFileListProps {
   files: ArtifactFile[];
@@ -79,6 +84,17 @@ export default ({
                 "hover:bg-[#272B33]/65",
               ],
             })()}
+            onMouseEnter={() => {
+              const response: ResponseType =
+                meta.mimeType === "application/pdf" ? "arrayBuffer" : "text";
+
+              getQueryClient.fetchQuery({
+                queryKey: ["useGetFileByPatchId", meta.patchId, response],
+                queryFn: async () => {
+                  return await useGetFileByPatchIdQuery(meta, response);
+                },
+              });
+            }}
           >
             <Hstack className="min-w-0 flex-1">
               {isSelectedFile && <div className="bg-blue-400 h-full w-0.5" />}
