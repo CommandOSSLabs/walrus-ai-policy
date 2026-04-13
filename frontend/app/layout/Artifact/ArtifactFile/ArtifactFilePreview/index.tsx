@@ -39,7 +39,12 @@ export default ({
         />
       </div>
 
-      <div className="flex-1">
+      <div
+        className="flex-1"
+        style={{
+          wordBreak: "break-word",
+        }}
+      >
         {(function () {
           if (!getSelectFile) {
             return (
