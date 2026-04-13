@@ -71,11 +71,13 @@ export default () => {
         // handle moveCall
         {
           const struct = createNewStruct(tx, metadata, {
-            hash: quilt.hashes,
-            mimeType: quilt.files.map((file) => file.type),
-            name: quilt.files.map((file) => formatIdentifyQuilt(file.name)),
-            patchId: quilt.quiltIds,
-            sizeBytes: quilt.files.map((file) => file.size),
+            hash: quilt.parseFiles.map(({ hash }) => hash),
+            mimeType: quilt.parseFiles.map(({ file }) => file.type),
+            name: quilt.parseFiles.map(({ file }) =>
+              formatIdentifyQuilt(file.name),
+            ),
+            patchId: quilt.parseFiles.map(({ patchId }) => patchId),
+            sizeBytes: quilt.parseFiles.map(({ file }) => file.size),
           });
 
           artifact.initArtifact({

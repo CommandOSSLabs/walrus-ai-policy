@@ -287,3 +287,18 @@ export const openSocialShare = (platform: string, url: string): void => {
 
   window.open(shareLink, "_blank", "noopener,noreferrer");
 };
+
+export const sortAlphabetically = <T,>(
+  fields: T[],
+  getValue: (item: T) => string,
+): T[] => {
+  return [...fields].sort((a, b) => {
+    const aName = getValue(a).toLowerCase();
+    const bName = getValue(b).toLowerCase();
+
+    if (aName < bName) return -1;
+    if (aName > bName) return 1;
+
+    return 0;
+  });
+};
