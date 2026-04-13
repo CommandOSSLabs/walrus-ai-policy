@@ -64,6 +64,25 @@ export default ({
 
                 const files: ArtifactFile[] | undefined = [];
 
+                // handle old files
+                {
+                  const oldFiles = values?.files?.filter(
+                    (meta) => !!meta?.hash && !meta?.isRemoved,
+                  );
+
+                  if (oldFiles?.length) {
+                    files?.push(
+                      ...oldFiles.map((meta) => ({
+                        mimeType: meta.file.type,
+                        name: meta.file.name,
+                        patchId: meta.id,
+                        sizeBytes: meta.file.size,
+                        hash: String(meta.hash),
+                      })),
+                    );
+                  }
+                }
+
                 // handle upload new file
                 {
                   const newFiles = values.files.filter(
@@ -89,25 +108,6 @@ export default ({
                   } else {
                     // don't need create walrus anymore
                     setSteps([steps[steps.length - 1]]);
-                  }
-                }
-
-                // handle old files
-                {
-                  const oldFiles = values?.files?.filter(
-                    (meta) => !!meta?.hash && !meta?.isRemoved,
-                  );
-
-                  if (oldFiles?.length) {
-                    files?.push(
-                      ...oldFiles.map((meta) => ({
-                        mimeType: meta.file.type,
-                        name: meta.file.name,
-                        patchId: meta.id,
-                        sizeBytes: meta.file.size,
-                        hash: meta.hash ?? "",
-                      })),
-                    );
                   }
                 }
 

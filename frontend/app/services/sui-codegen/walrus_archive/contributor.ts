@@ -32,7 +32,7 @@ export function initContributor(options: InitContributorOptions) {
     });
 }
 export interface CheckRoleArguments {
-  contributors: RawTransactionArgument<string[]>;
+  contributors: RawTransactionArgument<Array<string>>;
   role: RawTransactionArgument<number>;
 }
 export interface CheckRoleOptions {
@@ -40,7 +40,7 @@ export interface CheckRoleOptions {
   arguments:
     | CheckRoleArguments
     | [
-        contributors: RawTransactionArgument<string[]>,
+        contributors: RawTransactionArgument<Array<string>>,
         role: RawTransactionArgument<number>,
       ];
 }
@@ -61,7 +61,7 @@ export function checkRole(options: CheckRoleOptions) {
     });
 }
 export interface RemoveRoleArguments {
-  contributor: RawTransactionArgument<string[]>;
+  contributor: RawTransactionArgument<Array<string>>;
   rootId: RawTransactionArgument<string>;
   target: RawTransactionArgument<string>;
 }
@@ -70,7 +70,7 @@ export interface RemoveRoleOptions {
   arguments:
     | RemoveRoleArguments
     | [
-        contributor: RawTransactionArgument<string[]>,
+        contributor: RawTransactionArgument<Array<string>>,
         rootId: RawTransactionArgument<string>,
         target: RawTransactionArgument<string>,
       ];
@@ -96,7 +96,7 @@ export function removeRole(options: RemoveRoleOptions) {
     });
 }
 export interface AddRoleArguments {
-  contributor: RawTransactionArgument<string[]>;
+  contributor: RawTransactionArgument<Array<string>>;
   rootId: RawTransactionArgument<string>;
   target: RawTransactionArgument<string>;
   role: RawTransactionArgument<number>;
@@ -106,7 +106,7 @@ export interface AddRoleOptions {
   arguments:
     | AddRoleArguments
     | [
-        contributor: RawTransactionArgument<string[]>,
+        contributor: RawTransactionArgument<Array<string>>,
         rootId: RawTransactionArgument<string>,
         target: RawTransactionArgument<string>,
         role: RawTransactionArgument<number>,
