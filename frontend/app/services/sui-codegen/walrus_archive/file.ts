@@ -7,22 +7,22 @@ import {
   type RawTransactionArgument,
 } from "../utils/index.js";
 export interface NewFileArguments {
-  patchId: RawTransactionArgument<string[]>;
-  mimeType: RawTransactionArgument<string[]>;
-  sizeBytes: RawTransactionArgument<number | bigint[]>;
-  name: RawTransactionArgument<string[]>;
-  hash: RawTransactionArgument<string[]>;
+  patchId: RawTransactionArgument<Array<string>>;
+  mimeType: RawTransactionArgument<Array<string>>;
+  sizeBytes: RawTransactionArgument<Array<number | bigint>>;
+  name: RawTransactionArgument<Array<string>>;
+  hash: RawTransactionArgument<Array<string>>;
 }
 export interface NewFileOptions {
   package?: string;
   arguments:
     | NewFileArguments
     | [
-        patchId: RawTransactionArgument<string[]>,
-        mimeType: RawTransactionArgument<string[]>,
-        sizeBytes: RawTransactionArgument<number | bigint[]>,
-        name: RawTransactionArgument<string[]>,
-        hash: RawTransactionArgument<string[]>,
+        patchId: RawTransactionArgument<Array<string>>,
+        mimeType: RawTransactionArgument<Array<string>>,
+        sizeBytes: RawTransactionArgument<Array<number | bigint>>,
+        name: RawTransactionArgument<Array<string>>,
+        hash: RawTransactionArgument<Array<string>>,
       ];
 }
 export function newFile(options: NewFileOptions) {

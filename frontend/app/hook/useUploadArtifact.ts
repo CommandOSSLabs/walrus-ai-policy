@@ -34,7 +34,7 @@ export default () => {
       mimeType: ArtifactFile["mimeType"][];
       name: ArtifactFile["name"][];
       patchId: ArtifactFile["patchId"][];
-      sizeBytes: ArtifactFile["sizeBytes"][] | any; // why any?, because codegen return incorrect type
+      sizeBytes: ArtifactFile["sizeBytes"][];
     },
   ) => {
     return {
