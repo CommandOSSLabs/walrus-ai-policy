@@ -51,23 +51,14 @@ export default () => {
 
         <CreateArtifactDocument
           control={control}
-          upload={async ({ files, fields, append, update }) => {
+          upload={async ({ files, fields, append, remove }) => {
             // handle duplicate
             for (const [index, field] of fields.entries()) {
               const newFileIndex = files?.findIndex(
                 (file) => file?.name === field?.file?.name,
               );
 
-              if (newFileIndex !== -1) {
-                update(index, {
-                  ...field,
-                  file: files[newFileIndex],
-                });
-
-                // don't need append this file anymore
-                delete files[newFileIndex];
-                files = files.filter((file) => !!file);
-              }
+              if (newFileIndex !== -1) remove(index);
             }
 
             // after filter duplicate, if files exists we'll append

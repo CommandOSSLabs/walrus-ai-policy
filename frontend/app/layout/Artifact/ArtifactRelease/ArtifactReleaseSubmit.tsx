@@ -97,12 +97,12 @@ export default ({
                     );
 
                     files?.push(
-                      ...quilt.files.map((file, index) => ({
+                      ...quilt.parseFiles.map(({ file, hash, patchId }) => ({
                         mimeType: file.type,
                         name: file.name,
-                        patchId: quilt.quiltIds[index],
+                        patchId,
                         sizeBytes: file.size,
-                        hash: quilt.hashes[index],
+                        hash,
                       })),
                     );
                   } else {

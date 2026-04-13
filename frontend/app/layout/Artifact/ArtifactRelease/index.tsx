@@ -15,6 +15,7 @@ import ArtifactReleaseDocument from "./ArtifactReleaseDocument";
 
 import ArtifactReleaseAuthorization from "./ArtifactReleaseAuthorization";
 import useGetConfig from "app/hook/useGetConfig";
+import { sortAlphabetically } from "app/utils";
 
 interface ArtifactReleaseProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
@@ -39,14 +40,16 @@ export default ({
       title: artifact.title,
       description: artifact.description,
       category: artifact.category,
-      files: artifact.files.map((file) => ({
-        isCompared: false,
-        hash: file.hash,
-        id: file.patchId,
-        file: new File([new ArrayBuffer(file.sizeBytes)], file.name, {
-          type: file.mimeType,
+      files: sortAlphabetically(artifact.files, (file) => file.name).map(
+        (file) => ({
+          isCompared: false,
+          hash: file.hash,
+          id: file.patchId,
+          file: new File([new ArrayBuffer(file.sizeBytes)], file.name, {
+            type: file.mimeType,
+          }),
         }),
-      })),
+      ),
     },
   });
 

@@ -6,7 +6,7 @@ import Typography from "app/components/Typography";
 import Center from "app/components/Center";
 import { tv } from "tailwind-variants";
 import { type ArtifactFile } from "app/services/graphql-app/generated";
-import { formatBytesSizes } from "app/utils";
+import { formatBytesSizes, sortAlphabetically } from "app/utils";
 import { type HTMLAttributes } from "react";
 import Spinner from "app/components/Spinner";
 import { extension } from "mime-types";
@@ -62,7 +62,7 @@ export default ({
         <Typography font="jetbrains">SIZE</Typography>
       </Center>
 
-      {files.map((meta) => {
+      {sortAlphabetically(files, (file) => file.name).map((meta) => {
         const isSelectedFile = select === meta.name;
         const isLoading = downloading === meta.patchId;
 
