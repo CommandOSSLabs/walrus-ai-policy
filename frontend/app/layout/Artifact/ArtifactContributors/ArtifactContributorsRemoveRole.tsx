@@ -16,7 +16,7 @@ import { managementRole } from "app/services/sui-codegen/walrus_archive/artifact
 import { waitForSeconds } from "app/utils";
 import utilsSui from "app/utils/utils.sui";
 import CloseLine from "public/assets/line/close.svg";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { tv } from "tailwind-variants";
 
@@ -31,8 +31,6 @@ export default ({
   creator,
   onRefetch,
 }: ArtifactContributorsRemoveRoleProps) => {
-  const closeRef = useRef<HTMLButtonElement>(null);
-
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState<string>();
 
@@ -66,10 +64,7 @@ export default ({
           </DialogHeader>
 
           <Hstack className="gap-4 justify-end font-semibold h-9">
-            <DialogClose
-              ref={closeRef}
-              className="bg-[#3B4A45]/45 border border-[#3B4A45] px-4 h-full rounded-sm"
-            >
+            <DialogClose className="bg-[#3B4A45]/45 border border-[#3B4A45] px-4 h-full rounded-sm">
               Cancel
             </DialogClose>
 

@@ -59,14 +59,10 @@ export default ({
 
   useEffect(() => {
     if (!open) {
-      reset(
-        {
-          address: "",
-        },
-        {
-          keepDefaultValues: true,
-        },
-      );
+      reset({
+        address: "",
+        role: contributorConfigEnum.moderator,
+      });
     }
   }, [open]);
 
