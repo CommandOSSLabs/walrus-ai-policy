@@ -3,11 +3,7 @@ import utilsWalrus from "app/utils/utils.walrus";
 import { WalrusFile } from "@mysten/walrus";
 import useSignAndExecuteTransaction from "./useSignAndExecuteTransaction";
 import type useSteps from "./useSteps";
-import {
-  computeSHA256,
-  formatIdentifyQuilt,
-  sortAlphabetically,
-} from "app/utils";
+import { computeSHA256, formatIdentifyQuilt } from "app/utils";
 
 export type RegisterEventType = {
   digest: string;
@@ -29,13 +25,16 @@ export default () => {
     updateStatus("loading");
 
     let parseFiles = await Promise.all(
-      sortAlphabetically(files, (file) => file.name).map(async (file) => ({
-        file,
-        hash: await computeSHA256(file),
-        contents: await file.bytes(),
-        identifier: formatIdentifyQuilt(file.name),
-        patchId: "",
-      })),
+      files
+        // why sort ASCILL?, because following the SDK: https://github.com/MystenLabs/ts-sdks/blob/main/packages/walrus/src/utils/quilts.ts#L143
+        .sort((a, b) => (a.name < b.name ? -1 : 1))
+        .map(async (file) => ({
+          file,
+          hash: await computeSHA256(file),
+          contents: await file.bytes(),
+          identifier: formatIdentifyQuilt(file.name),
+          patchId: "",
+        })),
     );
 
     const flow = utilsWalrus.walrusClient.writeFilesFlow({
@@ -90,14 +89,22 @@ export default () => {
     {
       const listFiles = await flow.listFiles();
 
-      parseFiles = parseFiles.map((file, index) => ({
-        ...file,
-        patchId: listFiles[index].id,
-      }));
-
-      if (parseFiles.some((file) => !file.patchId.length)) {
-        throw "upload quilt doesn't safety forward, invalid patchId";
+      if (parseFiles.length !== listFiles.length) {
+        throw "Upload quilt: file count mismatch";
       }
+
+      parseFiles = parseFiles.map((file, index) => {
+        const listFile = listFiles[index];
+
+        if (!listFile) {
+          throw "Upload quilt: missing corresponding file from listFiles";
+        }
+
+        return {
+          ...file,
+          patchId: listFile.id,
+        };
+      });
     }
 
     updateStatus("success");
