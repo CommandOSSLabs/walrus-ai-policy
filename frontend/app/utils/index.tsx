@@ -4,6 +4,7 @@ import utilsConstants from "./utils.constants";
 import utilsSui from "./utils.sui";
 import { extension } from "mime-types";
 import type { JSX } from "react";
+import type { Transaction } from "@mysten/sui/transactions";
 
 export const waitForSeconds = async (cb?: () => void, seconds?: number) => {
   await new Promise((resolve) => {
@@ -301,4 +302,38 @@ export const sortAlphabetically = <T,>(
 
     return 0;
   });
+};
+
+// handle merge all coin into first
+export const mergeAllCoin = async (
+  owner: string,
+  coinType: string,
+  tx: Transaction,
+) => {
+  const coins = await utilsSui.getSuiClient.listCoins({
+    owner,
+    coinType,
+  });
+
+  if (!coins.objects?.length) {
+    throw "you don't have any coins to merge";
+  }
+
+  // because coins had multi-objects, maybe data[0] isn't enough balance, you needs add another into one
+  if (coins.objects.length > 1) {
+    tx.mergeCoins(
+      coins.objects[0].objectId,
+      coins.objects.slice(1).map((c) => c.objectId),
+    );
+  }
+
+  return coins.objects[0];
+};
+
+// handler multiplied number by decimal
+export const multipliedNumberDecimal = (
+  number: number | string,
+  decimal = SUI_DECIMALS,
+) => {
+  return BigNumber(number).multipliedBy(Math.pow(10, decimal)).toFixed();
 };
