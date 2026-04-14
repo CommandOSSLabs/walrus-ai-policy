@@ -11,7 +11,7 @@ export default (address: string | undefined) => {
     queryFn: async () => {
       const { balance } = await utilsSui.getSuiClient.getBalance({
         owner: address!,
-        coinType: utilsWalrus.getCoinTypes,
+        coinType: utilsWalrus.WAL_COIN_TYPE,
       });
 
       return BigNumber(balance?.balance?.toString() ?? "0")

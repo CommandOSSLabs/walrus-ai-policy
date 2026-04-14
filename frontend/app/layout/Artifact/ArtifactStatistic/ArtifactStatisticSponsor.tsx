@@ -244,7 +244,7 @@ export default ({ creator }: ArtifactStatisticSponsorProps) => {
                       throw "Invalid address.";
                     }
 
-                    const tx = await utilsWalrus.TransferCoin(
+                    const tx = await utilsWalrus.transferCoin(
                       currentAccount?.address as string,
                       values.amount,
                       values.address,
