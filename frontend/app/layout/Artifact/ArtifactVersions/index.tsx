@@ -31,15 +31,15 @@ export default ({
     <Stack
       className={tv({
         base: [
+          isAdmin ? "border border-[#46F1CF]/25" : "border border-[#3B4A45]",
+
           "bg-[#191F2D]/40",
           "rounded-lg",
-          "p-5 gap-2.5",
-
-          isAdmin ? "border border-[#46F1CF]/25" : "border border-[#3B4A45]",
+          "py-5 gap-2.5",
         ],
       })()}
     >
-      <Center className="w-full justify-between">
+      <Center className="w-full px-5 justify-between">
         <Typography font="grotesk" className="text-[#46F1CF] text-xs font-bold">
           Version History
         </Typography>
@@ -49,7 +49,7 @@ export default ({
         </Typography>
       </Center>
 
-      <Vstack className="w-full gap-3">
+      <Vstack className="w-full px-5 gap-3 max-h-96 overflow-y-auto">
         {versions.map((version) => (
           <Link
             key={version.suiObjectId}

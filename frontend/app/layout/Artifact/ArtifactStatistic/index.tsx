@@ -29,15 +29,17 @@ export default ({ artifact, onRefetch }: ArtifactStatisticProps) => {
   const rootId = artifact.rootId ?? artifact.suiObjectId;
 
   useMount(() => {
-    incrementView.mutate(
-      {
-        rootId,
-        viewerAddress: currentAccount!.address,
-      },
-      {
-        onSuccess: onRefetch,
-      },
-    );
+    if (currentAccount?.address) {
+      incrementView.mutate(
+        {
+          rootId,
+          viewerAddress: currentAccount.address,
+        },
+        {
+          onSuccess: onRefetch,
+        },
+      );
+    }
   }, [rootId, currentAccount?.address]);
 
   return (

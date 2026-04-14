@@ -8,7 +8,7 @@ export default () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   return (
-    <>
+    <div className="px-5">
       <div className="flex items-center gap-2 mt-1">
         <div className="flex-1 h-px bg-[#46F1CF]/15" />
         <Typography
@@ -75,6 +75,6 @@ export default () => {
           }}
         />
       </button>
-    </>
+    </div>
   );
 };

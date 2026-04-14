@@ -85,7 +85,11 @@ export default ({
 
           <ArtifactReleaseSubmit
             rootId={artifact?.rootId || artifact.suiObjectId}
-            parentId={artifact?.parentId ? artifact.suiObjectId : undefined}
+            parentId={
+              artifact?.parentId
+                ? artifact.versions[0].suiObjectId // always get last version
+                : undefined
+            }
             isSubmitting={isSubmitting}
             handleSubmit={handleSubmit}
             onRefetch={onRefetch}
