@@ -44,7 +44,6 @@ export default ({ creator }: ArtifactStatisticSponsorProps) => {
   const { signAndExecuteTransaction } = useSignAndExecuteTransaction();
 
   const {
-    setValue,
     handleSubmit,
     control,
     register,
@@ -138,20 +137,24 @@ export default ({ creator }: ArtifactStatisticSponsorProps) => {
                 </Typography>
               </Flex>
 
-              <Hstack className="gap-2 w-full">
-                <Controller
-                  control={control}
-                  name="amount"
-                  render={({ field }) => {
-                    return (
-                      <>
+              <Controller
+                control={control}
+                name="amount"
+                rules={{
+                  required: true,
+                }}
+                render={({ field }) => {
+                  return (
+                    <div className="space-y-2.5 w-full">
+                      <Hstack className="gap-2 w-full">
                         {[1, 2, 5, 10].map((amount) => {
-                          const isActive = field?.value === amount;
+                          const isActive = field.value === amount;
 
                           return (
                             <button
                               key={amount}
-                              onClick={() => setValue("amount", amount)}
+                              type="button"
+                              onClick={() => field.onChange(amount)}
                               className={tv({
                                 base: [
                                   isActive
@@ -173,38 +176,45 @@ export default ({ creator }: ArtifactStatisticSponsorProps) => {
                             </button>
                           );
                         })}
-                      </>
-                    );
-                  }}
-                />
-              </Hstack>
+                      </Hstack>
 
-              <div className="relative">
-                <input
-                  type="number"
-                  placeholder="Enter the amount"
-                  className={tv({
-                    base: [
-                      "w-full h-12 pl-3 pr-16 py-3",
-                      "font-jetbrains placeholder:text-inherit",
-                      "outline-none",
-                      "bg-[#080e1b] rounded-xl",
-                    ],
-                  })()}
-                  {...register("amount", {
-                    required: true,
-                    valueAsNumber: true,
-                  })}
-                />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          placeholder="Enter the amount"
+                          value={field.value ?? ""}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
 
-                <Flex className="gap-1.5 absolute top-1/2 right-3 -translate-y-1/2">
-                  <WalrusToken />
+                            field.onChange(
+                              nextValue === "" ? undefined : Number(nextValue),
+                            );
+                          }}
+                          className={tv({
+                            base: [
+                              "w-full h-12 pl-3 pr-16 py-3",
+                              "font-jetbrains placeholder:text-inherit",
+                              "outline-none",
+                              "bg-[#080e1b] rounded-xl",
+                            ],
+                          })()}
+                        />
 
-                  <Typography font="jetbrains" className="text-[#46f1cf]">
-                    WAL
-                  </Typography>
-                </Flex>
-              </div>
+                        <Flex className="gap-1.5 absolute top-1/2 right-3 -translate-y-1/2">
+                          <WalrusToken />
+
+                          <Typography
+                            font="jetbrains"
+                            className="text-[#46f1cf]"
+                          >
+                            WAL
+                          </Typography>
+                        </Flex>
+                      </div>
+                    </div>
+                  );
+                }}
+              />
             </div>
 
             {/* Warning */}
