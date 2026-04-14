@@ -5,7 +5,6 @@ import Vstack from "app/components/Vstack";
 import { tv } from "tailwind-variants";
 import Stack from "app/components/Stack";
 import EyesLine from "public/assets/line/eyes.svg";
-import HeartLine from "public/assets/line/heart.svg";
 
 import type { ArtifactQuery } from "app/services/graphql-app/generated";
 import { useIncrementViewMutation } from "app/services/graphql-app/generated";
@@ -15,6 +14,7 @@ import useMount from "app/hook/useMount";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import ArtifactStatisticDownload from "./ArtifactStatisticDownload";
 import ArtifactStatisticShare from "./ArtifactStatisticShare";
+import ArtifactStatisticSponsor from "./ArtifactStatisticSponsor";
 
 interface ArtifactStatisticProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
@@ -57,11 +57,7 @@ export default ({ artifact, onRefetch }: ArtifactStatisticProps) => {
           onRefetch={onRefetch}
         />
 
-        <button className="text-[#BACAC4] flex items-center justify-center gap-2 border border-[#3B4A45] h-10 rounded-lg">
-          <HeartLine />
-
-          <Typography font="grotesk">SPONSOR</Typography>
-        </button>
+        <ArtifactStatisticSponsor creator={artifact.creator} />
 
         <ArtifactStatisticShare artifact={artifact} />
       </Vstack>
