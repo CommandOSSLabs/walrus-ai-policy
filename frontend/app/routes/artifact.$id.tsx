@@ -1,32 +1,41 @@
 import Artifact from "app/layout/Artifact";
 import type { Route } from "./+types/artifact.$id";
 import {
+  type ArtifactQuery,
   useArtifactQuery,
-  type ArtifactQueryVariables,
 } from "app/services/graphql-app/generated";
 import graphqlApp from "app/services/graphql-app";
 import { getQueryClient } from "app/layout/Provider/ProviderReactQuery";
 import SEO from "app/components/SEO";
 
-const fetchArtifact = async (suiObjectId: string) => {
-  const keys: ArtifactQueryVariables = { suiObjectId };
-  return getQueryClient.fetchQuery({
-    queryKey: useArtifactQuery.getKey(keys),
-    queryFn: useArtifactQuery.fetcher(graphqlApp.client, keys),
-    staleTime: 1000,
-  });
-};
-
 export async function loader({ params }: Route.LoaderArgs) {
-  return fetchArtifact(params.id);
+  return useArtifactQuery.fetcher(graphqlApp.client, {
+    suiObjectId: params.id,
+  })();
 }
 
 export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  return fetchArtifact(params.id);
-}
+  const queryKey = useArtifactQuery.getKey({
+    suiObjectId: params.id,
+  });
 
-// force the client loader to run during hydration
-clientLoader.hydrate = true as const; // `as const` for type inference
+  // get data from queryClient
+  {
+    const artifact = getQueryClient.getQueryData<ArtifactQuery>(queryKey);
+
+    if (artifact) return artifact;
+  }
+
+  // query data because doesn't have cache
+  const fetcher = await getQueryClient.fetchQuery({
+    queryKey,
+    queryFn: useArtifactQuery.fetcher(graphqlApp.client, {
+      suiObjectId: params.id,
+    }),
+  });
+
+  return fetcher;
+}
 
 export default (props: Route.ComponentProps) => {
   return (

@@ -16,18 +16,16 @@ import ArtifactReleaseDocument from "./ArtifactReleaseDocument";
 import ArtifactReleaseAuthorization from "./ArtifactReleaseAuthorization";
 import useGetConfig from "app/hook/useGetConfig";
 import { sortAlphabetically } from "app/utils";
+import { useCurrentAccount } from "@mysten/dapp-kit-react";
 
 interface ArtifactReleaseProps {
   artifact: NonNullable<ArtifactQuery["artifact"]>;
-  isContributors: boolean;
   onRefetch: () => void;
 }
 
-export default ({
-  artifact,
-  isContributors,
-  onRefetch,
-}: ArtifactReleaseProps) => {
+export default ({ artifact, onRefetch }: ArtifactReleaseProps) => {
+  const currentAccount = useCurrentAccount();
+
   const { contributorConfig } = useGetConfig();
 
   const {
@@ -52,6 +50,10 @@ export default ({
       ),
     },
   });
+
+  const isContributors = !!artifact.contributors?.some(
+    (meta) => meta?.creator === currentAccount?.address,
+  );
 
   if (contributorConfig.isLoading) {
     return (

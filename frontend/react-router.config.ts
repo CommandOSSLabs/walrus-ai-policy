@@ -7,28 +7,33 @@ import {
 
 export default {
   ssr: false,
-  prerender: async ({ getStaticPaths }) => {
-    const staticPaths = getStaticPaths();
+  prerender: {
+    unstable_concurrency: 4,
+    async paths({ getStaticPaths }) {
+      const staticPaths = getStaticPaths();
 
-    const fetcherArtifacts = await new Promise<string[]>(async (resolve) => {
-      try {
-        const { artifacts } = await useArtifactsQuery.fetcher(
-          graphqlApp.client,
-          {
-            limit: 1000,
-            offset: 0,
-            sort: SortField.CreatedAtDesc,
-          },
-        )();
+      const fetcherArtifacts = await new Promise<string[]>(async (resolve) => {
+        try {
+          const { artifacts } = await useArtifactsQuery.fetcher(
+            graphqlApp.client,
+            {
+              limit: 1000,
+              offset: 0,
+              sort: SortField.CreatedAtDesc,
+            },
+          )();
 
-        resolve(
-          artifacts.items.map(({ suiObjectId }) => `/artifact/${suiObjectId}`),
-        );
-      } catch {
-        resolve([]);
-      }
-    });
+          resolve(
+            artifacts.items.map(
+              ({ suiObjectId }) => `/artifact/${suiObjectId}`,
+            ),
+          );
+        } catch {
+          resolve([]);
+        }
+      });
 
-    return [...staticPaths, ...fetcherArtifacts];
+      return [...staticPaths, ...fetcherArtifacts];
+    },
   },
 } satisfies Config;

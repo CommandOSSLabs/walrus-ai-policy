@@ -36,9 +36,6 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
   );
 
   const getSelectFile = searchParams?.get?.("file");
-
-  const getSingleFile = artifact.data?.artifact?.files?.[0];
-
   const getREADME = artifact.data?.artifact?.files?.find?.(
     (file) => file.name === "README.md",
   );
@@ -51,17 +48,12 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
     );
   });
 
-  const isContributors = !!artifact.data?.artifact?.contributors?.some(
-    (meta) => meta?.creator === currentAccount?.address,
-  );
-
   if (!artifact.data?.artifact) return null;
 
   if (searchParams?.get?.("release")?.length) {
     return (
       <ArtifactRelease
         artifact={artifact.data.artifact}
-        isContributors={isContributors}
         onRefetch={artifact.refetch}
       />
     );
@@ -95,10 +87,10 @@ export default ({ loaderData, params }: Route.ComponentProps) => {
         {(function () {
           if (!artifact.data.artifact?.files?.length) return null;
 
-          if (artifact.data.artifact.files.length === 1 && getSingleFile) {
+          if (artifact.data.artifact.files.length === 1) {
             return (
               <ArtifactFileSection
-                file={getSingleFile}
+                file={artifact.data.artifact.files[0]}
                 rootId={
                   artifact.data.artifact?.rootId ||
                   artifact.data.artifact.suiObjectId
